@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { AuthProvider } from "@/components/AuthProvider";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -32,9 +34,12 @@ export default function RootLayout({
       className={cn("h-full dark", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <AuthProvider>
+          <ConvexClientProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ConvexClientProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
-

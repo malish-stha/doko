@@ -31,6 +31,7 @@ export default defineSchema({
     labels: v.array(v.string()),
     attachments: v.optional(v.array(v.string())),
     dueDate: v.optional(v.number()),
+    sourceMessageId: v.optional(v.id('messages')),
 
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -63,4 +64,29 @@ export default defineSchema({
   })
     .index('by_team_ts', ['teamId', 'ts'])
     .index('by_user_ts', ['userId', 'ts']),
+
+  channels: defineTable({
+    teamId: v.string(),
+    name: v.string(),
+    isPrivate: v.boolean(),
+    memberIds: v.array(v.string()),
+    createdAt: v.number(),
+  }).index('by_team', ['teamId']),
+
+  messages: defineTable({
+    channelId: v.id('channels'),
+    authorId: v.string(),
+    body: v.string(),
+    threadRootId: v.optional(v.id('messages')),
+    createdAt: v.number(),
+  })
+    .index('by_channel_created', ['channelId', 'createdAt'])
+    .index('by_thread', ['threadRootId']),
+
+  reactions: defineTable({
+    messageId: v.id('messages'),
+    userId: v.string(),
+    emoji: v.string(),
+    createdAt: v.number(),
+  }).index('by_message', ['messageId']),
 })

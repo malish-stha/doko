@@ -132,6 +132,7 @@ export const create = mutation({
       ),
     ),
     attachments: v.optional(v.array(v.string())),
+    sourceMessageId: v.optional(v.id('messages')),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
@@ -149,6 +150,7 @@ export const create = mutation({
       reporterId,
       labels: [],
       attachments: args.attachments ?? [],
+      sourceMessageId: args.sourceMessageId,
       createdAt: now,
       updatedAt: now,
     })

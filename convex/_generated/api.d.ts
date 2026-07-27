@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as channels from "../channels.js";
 import type * as comments from "../comments.js";
 import type * as events from "../events.js";
+import type * as messages from "../messages.js";
+import type * as reactions from "../reactions.js";
 import type * as tickets from "../tickets.js";
 
 import type {
@@ -19,8 +22,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  channels: typeof channels;
   comments: typeof comments;
   events: typeof events;
+  messages: typeof messages;
+  reactions: typeof reactions;
   tickets: typeof tickets;
 }>;
 

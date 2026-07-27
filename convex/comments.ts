@@ -14,14 +14,23 @@ export const byTicket = query({
 })
 
 export const add = mutation({
-  args: { ticketId: v.id('tickets'), body: v.string() },
+  args: {
+    ticketId: v.id('tickets'),
+    body: v.string(),
+    authorName: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     if (!args.body.trim()) throw new Error('empty comment')
     const ticket = await ctx.db.get(args.ticketId)
     if (!ticket) throw new Error('ticket not found')
 
     const identity = await ctx.auth.getUserIdentity()
-    const authorId = identity?.name ?? identity?.email ?? identity?.subject ?? 'anonymous'
+    const authorId =
+      args.authorName ??
+      identity?.name ??
+      identity?.email ??
+      identity?.subject ??
+      'dev-user'
 
     const id = await ctx.db.insert('comments', {
       ticketId: args.ticketId,

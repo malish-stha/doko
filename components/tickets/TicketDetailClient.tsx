@@ -15,7 +15,7 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 import { formatDistanceToNow } from 'date-fns'
-import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
+import { ImageIcon, UploadIcon, XIcon, MessageSquareIcon } from 'lucide-react'
 import { CommentThread } from './CommentThread'
 
 export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
@@ -105,6 +105,16 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           {ticket.type}
         </span>
       </div>
+
+      {ticket.sourceMessageId && (
+        <div className="mb-4 inline-flex items-center gap-1.5 text-xs text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1">
+          <MessageSquareIcon className="w-3.5 h-3.5" />
+          Created from{' '}
+          <Link href="/chat" className="underline hover:text-teal-300 font-medium">
+            a chat message
+          </Link>
+        </div>
+      )}
 
       <Input
         key={`title-${ticket._id}-${ticket.title}`}
