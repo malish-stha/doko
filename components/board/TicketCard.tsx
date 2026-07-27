@@ -8,7 +8,7 @@ const PRIORITY_BAR: Record<string, string> = {
   low: 'bg-muted-foreground/40',
   medium: 'bg-blue-400',
   high: 'bg-orange-400',
-  urgent: 'bg-red-500',
+  urgent: 'bg-red-500 shadow-sm shadow-red-500/50',
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -31,8 +31,8 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`flex bg-card border border-border cursor-grab hover:border-teal-500/50 transition-colors select-none ${
-        isDragging ? 'opacity-40 z-50 shadow-lg' : ''
+      className={`flex bg-card/90 border border-border/80 cursor-grab hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 ease-out select-none rounded-none overflow-hidden ${
+        isDragging ? 'opacity-40 z-50 shadow-xl scale-105' : ''
       }`}
     >
       <div className={`w-1 shrink-0 ${PRIORITY_BAR[ticket.priority] ?? 'bg-blue-400'}`} />
@@ -40,13 +40,13 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <Link
             href={`/tickets/${ticket.key}`}
-            className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors hover:underline"
+            className="text-xs font-mono tabular-nums text-muted-foreground hover:text-foreground transition-colors hover:underline"
             onClick={e => e.stopPropagation()}
           >
             {ticket.key}
           </Link>
           <span
-            className={`text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider ${
+            className={`text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider font-mono ${
               TYPE_BADGE[ticket.type] ?? ''
             }`}
           >

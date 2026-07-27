@@ -89,4 +89,21 @@ export default defineSchema({
     emoji: v.string(),
     createdAt: v.number(),
   }).index('by_message', ['messageId']),
+
+  users: defineTable({
+    userId: v.string(),
+    email: v.string(),
+    name: v.string(),
+    timezone: v.string(),
+    createdAt: v.number(),
+  }).index('by_userId', ['userId']),
+
+  briefs: defineTable({
+    userId: v.string(),
+    forDate: v.string(),
+    body: v.string(),
+    generatedAt: v.number(),
+    sourceEventIds: v.array(v.id('activityEvents')),
+    providerUsed: v.string(),
+  }).index('by_user_date', ['userId', 'forDate']),
 })
