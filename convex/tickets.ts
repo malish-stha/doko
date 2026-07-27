@@ -38,15 +38,55 @@ export const list = query({
         v.literal('done'),
       ),
     ),
+    q: v.optional(v.string()),
+    mine: v.optional(v.boolean()),
+    hipri: v.optional(v.boolean()),
+    dueThisWeek: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db
+    const identity = await ctx.auth.getUserIdentity()
+    const currentUserId = identity?.subject ?? identity?.name ?? identity?.email
+
+    let results = await ctx.db
       .query('tickets')
       .withIndex('by_project_status', ix => ix.eq('projectId', args.projectId))
-    if (args.status) q = q.filter(f => f.eq(f.field('status'), args.status))
-    return await q.collect()
+      .collect()
+
+    if (args.status) {
+      results = results.filter(t => t.status === args.status)
+    }
+
+    if (args.q) {
+      const needle = args.q.toLowerCase()
+      results = results.filter(t => t.title.toLowerCase().includes(needle))
+    }
+
+    if (args.mine) {
+      results = results.filter(
+        t =>
+          (currentUserId && (t.reporterId === currentUserId || t.assigneeId === currentUserId)) ||
+          t.reporterId === 'dev-user' ||
+          t.reporterId === 'anonymous',
+      )
+    }
+
+    if (args.hipri) {
+      results = results.filter(
+        t => t.priority === 'high' || t.priority === 'urgent',
+      )
+    }
+
+    if (args.dueThisWeek) {
+      const oneWeek = Date.now() + 7 * 24 * 60 * 60 * 1000
+      results = results.filter(
+        t => t.dueDate !== undefined && t.dueDate < oneWeek,
+      )
+    }
+
+    return results
   },
 })
+
 
 export const getByKey = query({
   args: { key: v.string() },

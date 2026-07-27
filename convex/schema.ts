@@ -44,4 +44,23 @@ export default defineSchema({
     scope: v.string(),
     value: v.number(),
   }).index('by_scope', ['scope']),
+
+  comments: defineTable({
+    ticketId: v.id('tickets'),
+    authorId: v.string(),
+    body: v.string(),
+    createdAt: v.number(),
+  }).index('by_ticket', ['ticketId']),
+
+  activityEvents: defineTable({
+    teamId: v.string(),
+    userId: v.string(),
+    kind: v.string(),
+    refType: v.string(),
+    refId: v.string(),
+    payload: v.any(),
+    ts: v.number(),
+  })
+    .index('by_team_ts', ['teamId', 'ts'])
+    .index('by_user_ts', ['userId', 'ts']),
 })

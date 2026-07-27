@@ -7,7 +7,19 @@ export type ActivityEventInput = {
   payload?: any
 }
 
-// Stub — real implementation in P3.2 writes to activityEvents table
-export async function appendActivityEvent(_ctx: MutationCtx, _event: ActivityEventInput) {
-  // no-op for now
+const DEFAULT_TEAM = 'doko' // v1: single team
+
+export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEventInput) {
+  const identity = await ctx.auth.getUserIdentity()
+  const userId = identity?.subject ?? identity?.name ?? 'anonymous'
+
+  await ctx.db.insert('activityEvents', {
+    teamId: DEFAULT_TEAM,
+    userId,
+    kind: event.kind,
+    refType: event.refType,
+    refId: event.refId,
+    payload: event.payload ?? {},
+    ts: Date.now(),
+  })
 }

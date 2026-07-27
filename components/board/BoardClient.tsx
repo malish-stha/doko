@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   DndContext,
   DragEndEvent,
@@ -14,12 +15,28 @@ import { api } from '@/convex/_generated/api'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { KanbanColumn } from './KanbanColumn'
 import { NewTicketDialog } from './NewTicketDialog'
+import { BoardFilters } from './BoardFilters'
 
 const STATUSES = ['backlog', 'todo', 'in_progress', 'review', 'done'] as const
 
 export function BoardClient() {
   const projectId = 'doko' // hardcoded for v1 — single workspace project
-  const tickets = useQuery(api.tickets.list, { projectId }) ?? []
+  const params = useSearchParams()
+
+  const q = params.get('q') || undefined
+  const mine = params.get('mine') === '1'
+  const hipri = params.get('hipri') === '1'
+  const dueThisWeek = params.get('dueThisWeek') === '1'
+
+  const tickets =
+    useQuery(api.tickets.list, {
+      projectId,
+      q,
+      mine: mine ? true : undefined,
+      hipri: hipri ? true : undefined,
+      dueThisWeek: dueThisWeek ? true : undefined,
+    }) ?? []
+
   const updateStatus = useMutation(api.tickets.updateStatus)
 
   const [optimisticOverrides, setOptimisticOverrides] = useState<
@@ -59,13 +76,16 @@ export function BoardClient() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Board</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Project: doko</p>
         </div>
         <NewTicketDialog projectId={projectId} />
       </div>
+
+      <BoardFilters />
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

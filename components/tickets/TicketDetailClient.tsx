@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { formatDistanceToNow } from 'date-fns'
 import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
+import { CommentThread } from './CommentThread'
 
 export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
   const ticket = useQuery(api.tickets.getByKey, { key: ticketKey })
@@ -122,7 +123,6 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         }}
         className="text-2xl font-bold tracking-tight mb-6 border-0 focus-visible:ring-1 focus-visible:ring-teal-500/50 px-0 h-auto py-1"
       />
-
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
         <div>
@@ -234,7 +234,10 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         )}
       </div>
 
-      <div className="text-xs text-muted-foreground/70 font-mono border-t pt-4">
+      {/* Comment Thread */}
+      <CommentThread ticketId={ticket._id} />
+
+      <div className="text-xs text-muted-foreground/70 font-mono border-t pt-4 mt-8">
         Created {formatDistanceToNow(new Date(ticket.createdAt))} ago · Updated{' '}
         {formatDistanceToNow(new Date(ticket.updatedAt))} ago
       </div>
