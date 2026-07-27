@@ -1,13 +1,15 @@
-import { auth } from '@/auth'
-import { encode } from 'next-auth/jwt'
+import { NextRequest, NextResponse } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export async function GET() {
-  const session = await auth()
-  if (!session) return Response.json({ token: null })
-  const token = await encode({
-    token: session as any,
-    secret: process.env.AUTH_SECRET!,
-    salt: 'authjs.session-token',
-  })
-  return Response.json({ token })
+export async function GET(req: NextRequest) {
+  try {
+    const rawToken = await getToken({
+      req,
+      secret: process.env.AUTH_SECRET,
+      raw: true,
+    })
+    return NextResponse.json({ token: rawToken ?? null })
+  } catch (error) {
+    return NextResponse.json({ token: null })
+  }
 }
