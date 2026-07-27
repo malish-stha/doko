@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     environment: 'edge-runtime',
     server: { deps: { inline: ['convex-test'] } },
+    exclude: ['**/node_modules/**', '**/e2e/**'],
   },
 })

@@ -9,6 +9,7 @@ import {
   useSensor,
   useSensors,
   PointerSensor,
+  KeyboardSensor,
 } from '@dnd-kit/core'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -47,6 +48,7 @@ export function BoardClient() {
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
     }),
+    useSensor(KeyboardSensor),
   )
 
   const displayed = tickets.map(t => ({
