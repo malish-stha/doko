@@ -108,6 +108,12 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
       <Input
         key={`title-${ticket._id}-${ticket.title}`}
         defaultValue={ticket.title}
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.currentTarget.blur()
+          }
+        }}
         onBlur={e => {
           const val = e.target.value.trim()
           if (val && val !== ticket.title) {
@@ -116,6 +122,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         }}
         className="text-2xl font-bold tracking-tight mb-6 border-0 focus-visible:ring-1 focus-visible:ring-teal-500/50 px-0 h-auto py-1"
       />
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
         <div>
