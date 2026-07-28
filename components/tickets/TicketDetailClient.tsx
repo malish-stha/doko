@@ -7,6 +7,7 @@ import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function TicketDetailSkeleton() {
   return (
@@ -160,9 +161,9 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
       })
       toast.success('Assignee updated')
     } catch (err: any) {
-      const msg = err?.message ?? 'Failed to update assignment'
+      const msg = parseConvexError(err)
       setAssignError(msg)
-      toast.error('Failed to update assignee', msg)
+      toast.error('Failed to update assignee', err)
     }
   }
 

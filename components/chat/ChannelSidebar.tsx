@@ -20,6 +20,7 @@ import { HashIcon, PlusIcon, Hash, MessageSquarePlusIcon, UserIcon } from 'lucid
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function ChannelSidebar() {
   const { data: session } = useSession()
@@ -61,7 +62,7 @@ export function ChannelSidebar() {
       setPickDMOpen(false)
       router.push(`/chat/${id}`)
     } catch (err: any) {
-      const msg = err?.message ?? 'Failed to start DM'
+      const msg = parseConvexError(err)
       setDmError(msg)
       toast.error('Failed to start conversation', msg)
     }

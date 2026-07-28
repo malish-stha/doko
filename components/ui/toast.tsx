@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 
-import { cn } from "@/lib/utils"
+import { cn, parseConvexError } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
@@ -16,8 +16,14 @@ const baseToast = ToastPrimitive.createToastManager()
 const toast = Object.assign(baseToast, {
   success: (title: React.ReactNode, description?: React.ReactNode, options?: ToastOptions) =>
     baseToast.add({ title, description, type: "success", ...options }),
-  error: (title: React.ReactNode, description?: React.ReactNode, options?: ToastOptions) =>
-    baseToast.add({ title, description, type: "error", priority: "high", ...options }),
+  error: (title: React.ReactNode, errorOrDescription?: unknown, options?: ToastOptions) => {
+    const description =
+      errorOrDescription !== undefined
+        ? parseConvexError(errorOrDescription)
+        : undefined
+
+    return baseToast.add({ title, description, type: "error", priority: "high", ...options })
+  },
   info: (title: React.ReactNode, description?: React.ReactNode, options?: ToastOptions) =>
     baseToast.add({ title, description, type: "info", ...options }),
   warning: (title: React.ReactNode, description?: React.ReactNode, options?: ToastOptions) =>

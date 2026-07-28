@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function TeamSettingsSkeleton() {
   return (
@@ -132,7 +133,7 @@ export function TeamSettings() {
       toast.success('Invite sent', `Invitation email sent to ${inviteEmail.trim()}`)
       setInviteEmail('')
     } catch (err: any) {
-      const msg = err?.message ?? 'Failed to send invite'
+      const msg = parseConvexError(err)
       setErrorMsg(msg)
       toast.error('Failed to send invite', msg)
     } finally {
