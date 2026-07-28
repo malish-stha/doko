@@ -143,6 +143,19 @@ export const getAttachmentUrl = query({
   },
 })
 
+export const getAttachmentMetadata = query({
+  args: { storageId: v.string() },
+  handler: async (ctx, args) => {
+    const url = await ctx.storage.getUrl(args.storageId)
+    const meta = await ctx.storage.getMetadata(args.storageId as any)
+    return {
+      url,
+      contentType: meta?.contentType ?? null,
+      size: meta?.size ?? null,
+    }
+  },
+})
+
 export const create = mutation({
   args: {
     projectId: v.string(),
