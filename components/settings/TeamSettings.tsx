@@ -336,7 +336,7 @@ export function TeamSettings() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="new-team-domain" className="text-xs font-medium">
-                  Workspace Domain <span className="text-muted-foreground font-normal">(optional — e.g. acme.com)</span>
+                  Workspace Domain <span className="text-muted-foreground font-normal">(optional - e.g. acme.com)</span>
                 </Label>
                 <Input
                   id="new-team-domain"

@@ -131,7 +131,7 @@ export function OnboardingClient() {
 
           <div className="space-y-1.5">
             <Label htmlFor="team-domain" className="text-xs font-medium">
-              Workspace domain <span className="text-muted-foreground font-normal">(optional — e.g. acme.com)</span>
+              Workspace domain <span className="text-muted-foreground font-normal">(optional - e.g. acme.com)</span>
             </Label>
             <Input
               id="team-domain"
