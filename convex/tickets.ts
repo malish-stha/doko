@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query, MutationCtx } from './_generated/server'
 import { appendActivityEvent } from './events'
+import { requireTeam } from './teamHelper'
 
 const TICKET_TYPE_PREFIX: Record<string, string> = {
   bug: 'BUG',
@@ -44,13 +45,16 @@ export const list = query({
     dueThisWeek: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const currentUserId = identity?.subject ?? identity?.name ?? identity?.email
+    const { userId, teamId } = await requireTeam(ctx)
 
     let results = await ctx.db
       .query('tickets')
       .withIndex('by_project_status', ix => ix.eq('projectId', args.projectId))
       .collect()
+
+    if (teamId) {
+      results = results.filter(t => t.teamId === (teamId as string))
+    }
 
     if (args.status) {
       results = results.filter(t => t.status === args.status)
@@ -63,10 +67,7 @@ export const list = query({
 
     if (args.mine) {
       results = results.filter(
-        t =>
-          (currentUserId && (t.reporterId === currentUserId || t.assigneeId === currentUserId)) ||
-          t.reporterId === 'dev-user' ||
-          t.reporterId === 'anonymous',
+        t => userId && (t.reporterId === userId || t.assigneeId === userId),
       )
     }
 
@@ -87,14 +88,19 @@ export const list = query({
   },
 })
 
-
 export const getByKey = query({
   args: { key: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const { teamId } = await requireTeam(ctx)
+    const ticket = await ctx.db
       .query('tickets')
       .withIndex('by_key', q => q.eq('key', args.key))
       .unique()
+
+    if (ticket && teamId && ticket.teamId && ticket.teamId !== (teamId as string)) {
+      return null
+    }
+    return ticket
   },
 })
 
@@ -135,11 +141,12 @@ export const create = mutation({
     sourceMessageId: v.optional(v.id('messages')),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const reporterId = identity?.email ?? identity?.subject ?? identity?.name ?? 'dev-user'
+    const { userId, teamId, identity } = await requireTeam(ctx)
+    const reporterId = identity?.email ?? userId
     const key = await nextKey(ctx, args.type)
     const now = Date.now()
     const id = await ctx.db.insert('tickets', {
+      teamId: teamId as string | undefined,
       projectId: args.projectId,
       key,
       type: args.type,

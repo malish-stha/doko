@@ -3,7 +3,7 @@ import { ProviderComparison } from '@/components/dev/ProviderComparison'
 import Link from 'next/link'
 import { LayoutGridIcon, MessageSquareIcon } from 'lucide-react'
 
-export default function Home() {
+export default function HomePage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
       <BriefContainer />

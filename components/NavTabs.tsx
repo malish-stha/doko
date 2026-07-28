@@ -2,23 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { SparklesIcon, LayoutGridIcon, MessageSquareIcon } from 'lucide-react'
+import { SparklesIcon, LayoutGridIcon, MessageSquareIcon, UsersIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function NavTabs() {
   const pathname = usePathname()
 
   const tabs = [
-    { href: '/', label: 'Brief', icon: SparklesIcon, exact: true },
+    { href: '/home', label: 'Brief', icon: SparklesIcon, exact: true },
     { href: '/board', label: 'Board', icon: LayoutGridIcon },
     { href: '/chat', label: 'Chat', icon: MessageSquareIcon },
+    { href: '/settings/team', label: 'Team', icon: UsersIcon },
   ]
 
   return (
     <nav className="flex items-center gap-1 text-xs font-medium">
       {tabs.map(tab => {
         const active = tab.exact
-          ? pathname === '/'
+          ? pathname === '/home'
           : pathname.startsWith(tab.href)
         const Icon = tab.icon
 

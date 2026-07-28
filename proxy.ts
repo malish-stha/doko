@@ -2,8 +2,8 @@ import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 
 export default auth((req) => {
-  const isPublic = req.nextUrl.pathname === '/sign-in'
-  if (!isPublic && !req.auth) {
+  const isProtected = /^\/(home|board|tickets|chat)/.test(req.nextUrl.pathname)
+  if (isProtected && !req.auth) {
     return NextResponse.redirect(new URL('/sign-in', req.nextUrl))
   }
 })

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
+import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,6 +14,7 @@ import { ReactionList } from './ReactionButton'
 import { HashIcon, SendIcon } from 'lucide-react'
 
 export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
+  const { data: session } = useSession()
   const channels = useQuery(api.channels.byTeam) ?? []
   const channel = channels.find(c => c._id === channelId)
 
@@ -35,7 +37,11 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
     if (!draft.trim() || submitting) return
     setSubmitting(true)
     try {
-      await send({ channelId, body: draft.trim() })
+      await send({
+        channelId,
+        body: draft.trim(),
+        authorName: session?.user?.email ?? session?.user?.name ?? undefined,
+      })
       setDraft('')
     } finally {
       setSubmitting(false)

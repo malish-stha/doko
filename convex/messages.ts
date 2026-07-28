@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { appendActivityEvent } from './events'
+import { requireTeam } from './teamHelper'
 
 export const byChannel = query({
   args: { channelId: v.id('channels'), limit: v.optional(v.number()) },
@@ -37,13 +38,13 @@ export const send = mutation({
   handler: async (ctx, args) => {
     if (!args.body.trim()) throw new Error('empty message')
 
-    const identity = await ctx.auth.getUserIdentity()
+    const { userId, user, identity } = await requireTeam(ctx)
     const authorId =
       args.authorName ??
+      user?.name ??
       identity?.name ??
       identity?.email ??
-      identity?.subject ??
-      'dev-user'
+      userId
 
     const id = await ctx.db.insert('messages', {
       channelId: args.channelId,

@@ -1,14 +1,14 @@
 import { v } from 'convex/values'
 import { internalAction, internalMutation, internalQuery, query } from './_generated/server'
 import { internal } from './_generated/api'
-
-const DEFAULT_TEAM = 'doko'
+import { requireTeam } from './teamHelper'
 
 export const todayForMe = query({
   args: {},
   handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity()
-    const userId = identity?.subject ?? identity?.name ?? 'dev-user'
+    const { userId } = await requireTeam(ctx)
+    if (!userId) return null
+
     const user = await ctx.db
       .query('users')
       .withIndex('by_userId', q => q.eq('userId', userId))
@@ -64,11 +64,18 @@ export const ensureUser = internalMutation({
 export const readContext = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_userId', q => q.eq('userId', args.userId))
+      .first()
+
+    const teamId = user?.teamId ? (user.teamId as string) : 'default-team'
     const yesterdayStart = Date.now() - 24 * 60 * 60 * 1000
+
     const events = await ctx.db
       .query('activityEvents')
       .withIndex('by_team_ts', q =>
-        q.eq('teamId', DEFAULT_TEAM).gte('ts', yesterdayStart),
+        q.eq('teamId', teamId).gte('ts', yesterdayStart),
       )
       .take(500)
 
@@ -77,11 +84,6 @@ export const readContext = internalQuery({
       .withIndex('by_assignee', q => q.eq('assigneeId', args.userId))
       .filter(f => f.neq(f.field('status'), 'done'))
       .take(50)
-
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', args.userId))
-      .first()
 
     return { events, myTickets, user }
   },
@@ -103,7 +105,15 @@ export const writeBrief = internalMutation({
       )
       .first()
 
-    if (existing) return existing._id
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        body: args.body,
+        generatedAt: Date.now(),
+        sourceEventIds: args.sourceEventIds,
+        providerUsed: args.providerUsed,
+      })
+      return existing._id
+    }
 
     return await ctx.db.insert('briefs', {
       ...args,

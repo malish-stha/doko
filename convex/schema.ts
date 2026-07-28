@@ -2,7 +2,42 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 export default defineSchema({
+  teams: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    ownerId: v.string(),
+    workspaceDomain: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index('by_slug', ['slug'])
+    .index('by_owner', ['ownerId']),
+
+  teamMembers: defineTable({
+    teamId: v.id('teams'),
+    userId: v.string(),
+    email: v.string(),
+    role: v.union(v.literal('owner'), v.literal('admin'), v.literal('member')),
+    joinedAt: v.number(),
+  })
+    .index('by_team', ['teamId'])
+    .index('by_user', ['userId']),
+
+  invites: defineTable({
+    teamId: v.id('teams'),
+    teamName: v.string(),
+    email: v.string(),
+    token: v.string(),
+    invitedBy: v.string(),
+    invitedByEmail: v.string(),
+    status: v.union(v.literal('pending'), v.literal('accepted'), v.literal('revoked')),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index('by_email_status', ['email', 'status'])
+    .index('by_team', ['teamId']),
+
   tickets: defineTable({
+    teamId: v.optional(v.string()),
     projectId: v.string(),
     key: v.string(),
     type: v.union(
@@ -95,6 +130,7 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     timezone: v.string(),
+    teamId: v.optional(v.id('teams')),
     createdAt: v.number(),
   }).index('by_userId', ['userId']),
 

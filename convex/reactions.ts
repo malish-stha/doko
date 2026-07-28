@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { appendActivityEvent } from './events'
+import { requireTeam } from './teamHelper'
 
 export const byMessage = query({
   args: { messageId: v.id('messages') },
@@ -15,8 +16,7 @@ export const byMessage = query({
 export const toggle = mutation({
   args: { messageId: v.id('messages'), emoji: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const userId = identity?.subject ?? identity?.name ?? 'dev-user'
+    const { userId } = await requireTeam(ctx)
 
     const existing = await ctx.db
       .query('reactions')

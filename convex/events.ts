@@ -1,4 +1,5 @@
 import { MutationCtx } from './_generated/server'
+import { requireTeam } from './teamHelper'
 
 export type ActivityEventInput = {
   kind: string
@@ -7,14 +8,11 @@ export type ActivityEventInput = {
   payload?: any
 }
 
-const DEFAULT_TEAM = 'doko' // v1: single team
-
 export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEventInput) {
-  const identity = await ctx.auth.getUserIdentity()
-  const userId = identity?.subject ?? identity?.name ?? 'anonymous'
+  const { userId, teamId } = await requireTeam(ctx)
 
   await ctx.db.insert('activityEvents', {
-    teamId: DEFAULT_TEAM,
+    teamId: teamId ?? 'unassigned',
     userId,
     kind: event.kind,
     refType: event.refType,
