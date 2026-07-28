@@ -42,6 +42,7 @@ export const byTicket = query({
         authorName,
         authorEmail,
         authorUserId,
+        avatarUrl: u && 'avatarUrl' in u ? u.avatarUrl : undefined,
       }
     })
   },

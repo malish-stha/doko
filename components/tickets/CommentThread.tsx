@@ -7,6 +7,7 @@ import type { Id } from '@/convex/_generated/dataModel'
 import { formatDistanceToNow } from 'date-fns'
 import { CommentForm } from './CommentForm'
 import { StartDMButton } from '@/components/chat/StartDMButton'
+import { UserAvatar } from '@/components/UserAvatar'
 import { MessageSquareIcon } from 'lucide-react'
 
 export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
@@ -30,9 +31,19 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
             const isMe = authorEmail === currentEmail || authorUserId === currentEmail
 
             return (
-              <div key={c._id} className="border bg-card p-3 rounded-none text-sm space-y-1">
+              <div key={c._id} className="border bg-card p-3 rounded-none text-sm space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <UserAvatar
+                      user={{
+                        avatarUrl: c.avatarUrl,
+                        name: c.authorName,
+                        email: c.authorEmail,
+                        userId: authorUserId,
+                      }}
+                      seed={authorEmail || authorUserId || c._id}
+                      size="sm"
+                    />
                     <span className="font-mono font-medium text-foreground/90">
                       {c.authorName || c.authorId}
                     </span>
@@ -42,7 +53,7 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
                   </div>
                   <span className="text-[11px]">{formatDistanceToNow(new Date(c.createdAt))} ago</span>
                 </div>
-                <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
+                <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed pl-9">
                   {c.body}
                 </div>
               </div>

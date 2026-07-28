@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EditProfileModal } from './EditProfileModal'
+import { DiceBearAvatarPicker } from './DiceBearAvatarPicker'
+import { UserAvatar } from '@/components/UserAvatar'
+import { SparklesIcon } from 'lucide-react'
 
 export function UserProfileSkeleton() {
   return (
@@ -100,6 +103,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
 
   const [activeTab, setActiveTab] = useState<'ongoing' | 'completed' | 'info'>('ongoing')
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
 
   if (profile === undefined) {
     return <UserProfileSkeleton />
@@ -146,11 +150,22 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-5">
             {/* Avatar */}
-            <div className="w-20 h-20 rounded-none bg-teal-500/20 text-teal-300 font-mono flex items-center justify-center text-2xl font-bold uppercase border-2 border-teal-500/40 shrink-0 shadow-lg overflow-hidden">
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
-              ) : (
-                <span>{initial}</span>
+            <div className="relative group shrink-0">
+              <UserAvatar
+                user={profile}
+                size="2xl"
+                className="border-2 border-teal-500/50 shadow-xl"
+              />
+              {profile.isSelf && (
+                <button
+                  type="button"
+                  onClick={() => setAvatarPickerOpen(true)}
+                  className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[10px] font-mono font-bold text-teal-300 transition-all cursor-pointer border border-teal-400/50 backdrop-blur-xs"
+                  title="Customize DiceBear Avatar"
+                >
+                  <SparklesIcon className="w-5 h-5 mb-1 text-teal-400 animate-pulse" />
+                  <span>Customize Avatar</span>
+                </button>
               )}
             </div>
 
@@ -206,14 +221,26 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
             )}
 
             {profile.isSelf && (
-              <Button
-                onClick={() => setEditModalOpen(true)}
-                size="sm"
-                className="bg-teal-500 hover:bg-teal-400 text-black font-semibold text-xs font-mono uppercase tracking-wider active:scale-[0.97]"
-              >
-                <EditIcon className="w-3.5 h-3.5 mr-1.5" />
-                Edit Profile
-              </Button>
+              <>
+                <Button
+                  onClick={() => setAvatarPickerOpen(true)}
+                  size="sm"
+                  variant="outline"
+                  className="border-teal-500/40 text-teal-300 hover:bg-teal-500/10 font-semibold text-xs font-mono uppercase tracking-wider active:scale-[0.97]"
+                >
+                  <SparklesIcon className="w-3.5 h-3.5 mr-1.5 text-teal-400" />
+                  Customize Avatar
+                </Button>
+
+                <Button
+                  onClick={() => setEditModalOpen(true)}
+                  size="sm"
+                  className="bg-teal-500 hover:bg-teal-400 text-black font-semibold text-xs font-mono uppercase tracking-wider active:scale-[0.97]"
+                >
+                  <EditIcon className="w-3.5 h-3.5 mr-1.5" />
+                  Edit Profile
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -511,14 +538,23 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
         )}
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile & Avatar Modals */}
       {profile.isSelf && (
-        <EditProfileModal
-          user={profile}
-          userEmail={userEmail}
-          open={editModalOpen}
-          onOpenChange={setEditModalOpen}
-        />
+        <>
+          <EditProfileModal
+            user={profile}
+            userEmail={userEmail}
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+          />
+          <DiceBearAvatarPicker
+            open={avatarPickerOpen}
+            onOpenChange={setAvatarPickerOpen}
+            currentAvatarUrl={profile.avatarUrl}
+            userEmail={profile.email}
+            userName={profile.name}
+          />
+        </>
       )}
     </main>
   )

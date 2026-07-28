@@ -87,6 +87,7 @@ export function TicketDetailSkeleton() {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { UserAvatar } from '@/components/UserAvatar'
 import {
   Select,
   SelectTrigger,
@@ -388,7 +389,16 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
       {/* Ticket Metadata Bar (Reporter & Assignee chips) */}
       <div className="flex items-center gap-4 mb-6 text-xs text-muted-foreground bg-muted/30 p-2.5 border border-border/50 font-mono flex-wrap">
         <div className="flex items-center gap-1.5">
-          <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
+          <UserAvatar
+            user={{
+              name: reporterMember?.name,
+              email: reporterMember?.email,
+              userId: reporterMember?.userId || ticket.reporterId,
+              avatarUrl: (reporterMember as any)?.avatarUrl,
+            }}
+            seed={reporterMember?.email || reporterMember?.userId || ticket.reporterId}
+            size="xs"
+          />
           <span>Reporter:</span>
           <span className="text-foreground font-semibold">
             {reporterMember
@@ -406,7 +416,16 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         </div>
         <span className="text-muted-foreground/40">|</span>
         <div className="flex items-center gap-1.5">
-          <UserCheckIcon className="w-3.5 h-3.5 text-teal-400" />
+          <UserAvatar
+            user={{
+              name: assignedMember?.name,
+              email: assignedMember?.email,
+              userId: assignedMember?.userId || ticket.assigneeId,
+              avatarUrl: (assignedMember as any)?.avatarUrl,
+            }}
+            seed={assignedMember?.email || assignedMember?.userId || ticket.assigneeId}
+            size="xs"
+          />
           <span>Assignee:</span>
           <span className="text-foreground font-semibold">
             {assignedMember ? `${assignedMember.name}` : ticket.assigneeId ? ticket.assigneeId : 'Unassigned'}

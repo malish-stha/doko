@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
+import { UserAvatar } from '@/components/UserAvatar'
 
 export function TeamSettingsSkeleton() {
   return (
@@ -437,15 +438,18 @@ export function TeamSettings() {
               key={member._id}
               className="flex items-center justify-between p-3 border border-white/10 bg-slate-950/60"
             >
-              <div>
-                <div className="font-semibold text-sm text-foreground flex items-center gap-2">
-                  {member.email}
-                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-teal-500/30 text-teal-400 bg-teal-500/10 font-semibold">
-                    {member.role}
-                  </span>
-                </div>
-                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                  Joined: {new Date(member.joinedAt).toLocaleDateString()}
+              <div className="flex items-center gap-3">
+                <UserAvatar user={{ email: member.email, userId: member.userId }} size="md" />
+                <div>
+                  <div className="font-semibold text-sm text-foreground flex items-center gap-2">
+                    {member.email}
+                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-teal-500/30 text-teal-400 bg-teal-500/10 font-semibold">
+                      {member.role}
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                    Joined: {new Date(member.joinedAt).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
 

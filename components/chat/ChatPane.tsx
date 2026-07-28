@@ -12,6 +12,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { MessageContextMenu } from './MessageContextMenu'
 import { ReactionList } from './ReactionButton'
 import { ChatHeader } from './ChatHeader'
+import { UserAvatar } from '@/components/UserAvatar'
 import { HashIcon, SendIcon, UserIcon } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -85,9 +86,17 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
                 transition={{ duration: 0.2 }}
                 className="group flex gap-3 p-2 -mx-2 hover:bg-muted/40 transition-colors rounded-none cursor-context-menu"
               >
-                <div className="w-8 h-8 rounded-none bg-teal-500/20 text-teal-300 font-mono flex items-center justify-center text-xs font-semibold uppercase shrink-0 border border-teal-500/30">
-                  {m.authorId.slice(0, 1)}
-                </div>
+                <UserAvatar
+                  user={{
+                    avatarUrl: m.avatarUrl,
+                    name: m.authorName || m.authorId,
+                    email: m.authorEmail || (m.authorId.includes('@') ? m.authorId : undefined),
+                    userId: m.authorId,
+                  }}
+                  seed={m.authorEmail || m.authorId || m._id}
+                  size="md"
+                  className="shrink-0"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-xs font-mono font-medium text-foreground">

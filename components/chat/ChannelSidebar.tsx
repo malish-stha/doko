@@ -21,6 +21,7 @@ import { HashIcon, PlusIcon, Hash, MessageSquarePlusIcon, UserIcon } from 'lucid
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
+import { UserAvatar } from '@/components/UserAvatar'
 
 export function ChannelSidebar() {
   const { data: session } = useSession()
@@ -244,9 +245,13 @@ export function ChannelSidebar() {
                       onClick={() => handleStartDM(m.userId)}
                       className="w-full flex items-center gap-3 p-2.5 hover:bg-teal-500/10 text-left transition-colors cursor-pointer group"
                     >
-                      <div className="w-7 h-7 bg-teal-500/20 border border-teal-500/30 font-mono text-teal-300 flex items-center justify-center text-xs font-semibold uppercase shrink-0">
-                        {(m.email || 'U')[0]}
-                      </div>
+                      <UserAvatar
+                        user={{
+                          email: m.email,
+                          userId: m.userId,
+                        }}
+                        size="sm"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-medium text-foreground group-hover:text-teal-300 truncate">
                           {m.email}

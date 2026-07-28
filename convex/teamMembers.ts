@@ -7,10 +7,23 @@ export const listForTeam = query({
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx, args.userEmail)
     if (!teamId) return []
-    return await ctx.db
+    const members = await ctx.db
       .query('teamMembers')
       .withIndex('by_team', q => q.eq('teamId', teamId))
       .collect()
+
+    const users = await ctx.db.query('users').collect()
+    const userMap = new Map(users.map(u => [u.userId, u]))
+    const userEmailMap = new Map(users.map(u => [u.email.toLowerCase(), u]))
+
+    return members.map(m => {
+      const u = userMap.get(m.userId) ?? userEmailMap.get(m.email.toLowerCase())
+      return {
+        ...m,
+        name: u?.name,
+        avatarUrl: u?.avatarUrl,
+      }
+    })
   },
 })
 

@@ -1,6 +1,11 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 
+function makeThumbsAvatarUrl(seed: string): string {
+  const cleanSeed = encodeURIComponent(seed.trim().toLowerCase() || 'doko-user')
+  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${cleanSeed}`
+}
+
 export const me = query({
   args: { email: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -8,10 +13,16 @@ export const me = query({
     const email = identity?.email ?? args.email
     if (!email) return null
     const key = identity?.subject ?? email.trim().toLowerCase()
-    return await ctx.db
+    const user = await ctx.db
       .query('users')
       .withIndex('by_userId', q => q.eq('userId', key))
       .first()
+
+    if (!user) return null
+    return {
+      ...user,
+      avatarUrl: user.avatarUrl || makeThumbsAvatarUrl(user.email || user.userId),
+    }
   },
 })
 
@@ -34,8 +45,14 @@ export const upsert = mutation({
       .withIndex('by_userId', q => q.eq('userId', userId))
       .first()
 
+    const defaultAvatarUrl = makeThumbsAvatarUrl(email || userId)
+
     if (existing) {
-      await ctx.db.patch(existing._id, { timezone: args.timezone, email, name })
+      if (!existing.avatarUrl) {
+        await ctx.db.patch(existing._id, { timezone: args.timezone, email, name, avatarUrl: defaultAvatarUrl })
+      } else {
+        await ctx.db.patch(existing._id, { timezone: args.timezone, email, name })
+      }
       return existing._id
     }
 
@@ -44,6 +61,7 @@ export const upsert = mutation({
       email,
       name,
       timezone: args.timezone,
+      avatarUrl: defaultAvatarUrl,
       createdAt: Date.now(),
     })
   },
@@ -116,6 +134,7 @@ export const getProfile = query({
 
     return {
       ...targetUser,
+      avatarUrl: targetUser.avatarUrl || makeThumbsAvatarUrl(targetUser.email || targetUser.userId),
       isSelf,
       teamInfo,
     }
@@ -167,4 +186,3 @@ export const updateProfile = mutation({
     return user._id
   },
 })
-

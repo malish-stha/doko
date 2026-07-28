@@ -13,18 +13,51 @@ export const byChannel = query({
       .order('desc')
       .take(limit)
 
-    return msgs.reverse()
+    const users = await ctx.db.query('users').collect()
+    const userMap = new Map(users.map(u => [u.userId, u]))
+    const userEmailMap = new Map(users.map(u => [u.email.toLowerCase(), u]))
+    const userNameMap = new Map(users.map(u => [u.name.toLowerCase(), u]))
+
+    const enriched = msgs.map(m => {
+      const u =
+        userMap.get(m.authorId) ??
+        userEmailMap.get(m.authorId.toLowerCase()) ??
+        userNameMap.get(m.authorId.toLowerCase())
+
+      return {
+        ...m,
+        avatarUrl: u?.avatarUrl,
+        authorEmail: u?.email,
+        authorName: u?.name ?? m.authorId,
+      }
+    })
+
+    return enriched.reverse()
   },
 })
 
 export const threadReplies = query({
   args: { rootId: v.id('messages') },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const msgs = await ctx.db
       .query('messages')
       .withIndex('by_thread', q => q.eq('threadRootId', args.rootId))
       .order('asc')
       .collect()
+
+    const users = await ctx.db.query('users').collect()
+    const userMap = new Map(users.map(u => [u.userId, u]))
+    const userEmailMap = new Map(users.map(u => [u.email.toLowerCase(), u]))
+
+    return msgs.map(m => {
+      const u = userMap.get(m.authorId) ?? userEmailMap.get(m.authorId.toLowerCase())
+      return {
+        ...m,
+        avatarUrl: u?.avatarUrl,
+        authorEmail: u?.email,
+        authorName: u?.name ?? m.authorId,
+      }
+    })
   },
 })
 

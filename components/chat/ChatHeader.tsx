@@ -6,6 +6,7 @@ import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { formatDistanceToNow } from 'date-fns'
 import { HashIcon, UserIcon } from 'lucide-react'
+import { UserAvatar } from '@/components/UserAvatar'
 
 export function ChatHeader({ channelId }: { channelId: Id<'channels'> }) {
   const { data: session } = useSession()
@@ -23,9 +24,7 @@ export function ChatHeader({ channelId }: { channelId: Id<'channels'> }) {
       <div className="flex items-center gap-2.5">
         {isDM ? (
           <>
-            <div className="w-6 h-6 rounded-none bg-teal-500/20 border border-teal-500/30 flex items-center justify-center font-mono text-teal-300 text-xs font-semibold uppercase">
-              <UserIcon className="w-3.5 h-3.5" />
-            </div>
+            <UserAvatar seed={channel.name} size="sm" className="shrink-0" />
             <div>
               <h2 className="font-semibold text-sm tracking-tight text-foreground flex items-center gap-2">
                 {channel.name}
