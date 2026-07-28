@@ -54,7 +54,7 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
                   <span className="text-[11px]">{formatDistanceToNow(new Date(c.createdAt))} ago</span>
                 </div>
                 <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed pl-9">
-                  {c.body}
+                  {renderFormattedComment(c.body)}
                 </div>
               </div>
             )
@@ -69,4 +69,47 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
       <CommentForm ticketId={ticketId} />
     </div>
   )
+}
+
+function renderFormattedComment(text: string) {
+  const lines = text.split('\n')
+  return lines.map((line, idx) => {
+    if (line.startsWith('- ')) {
+      return (
+        <div key={idx} className="flex items-center gap-2 text-foreground/90 pl-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+          <span>{parseInlineMarkdown(line.replace('- ', ''))}</span>
+        </div>
+      )
+    }
+    return <div key={idx}>{parseInlineMarkdown(line)}</div>
+  })
+}
+
+function parseInlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      )
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return (
+        <em key={i} className="italic text-teal-300">
+          {part.slice(1, -1)}
+        </em>
+      )
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={i} className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
+          {part.slice(1, -1)}
+        </code>
+      )
+    }
+    return part
+  })
 }

@@ -1,5 +1,15 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation, query, internalQuery } from './_generated/server'
+
+export const getByUserIdInternal = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('users')
+      .withIndex('by_userId', q => q.eq('userId', args.userId))
+      .first()
+  },
+})
 
 function makeThumbsAvatarUrl(seed: string): string {
   const cleanSeed = encodeURIComponent(seed.trim().toLowerCase() || 'doko-user')

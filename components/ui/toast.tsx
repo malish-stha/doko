@@ -44,7 +44,7 @@ function ToastViewport({ className, ...props }: ToastPrimitive.Viewport.Props) {
     <ToastPrimitive.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
+        "pointer-events-none fixed inset-x-4 bottom-4 z-[100] mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
         className
       )}
       {...props}
@@ -58,7 +58,7 @@ function Toast({ className, type, ...props }: ToastPrimitive.Root.Props & { type
       data-slot="toast"
       data-type={type}
       className={cn(
-        "group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-none border border-slate-800 bg-slate-900/95 text-slate-100 shadow-2xl backdrop-blur-xl will-change-transform outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(10000-var(--toast-index))] w-full origin-bottom rounded-none border border-slate-800 bg-slate-900/95 text-slate-100 shadow-2xl backdrop-blur-xl will-change-transform outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
         "data-[type=success]:border-teal-500/40 data-[type=success]:shadow-teal-500/10",
         "data-[type=error]:border-rose-500/40 data-[type=error]:shadow-rose-500/10",
         "data-[type=warning]:border-amber-500/40 data-[type=warning]:shadow-amber-500/10",

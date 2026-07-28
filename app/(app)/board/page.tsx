@@ -1,6 +1,5 @@
 import { Suspense } from 'react'
 import { BoardClient, BoardSkeleton } from '@/components/board/BoardClient'
-import { SignOutButton } from '@/components/SignOutButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,10 +9,6 @@ export default function BoardPage() {
       <Suspense fallback={<BoardSkeleton />}>
         <BoardClient />
       </Suspense>
-      <div className="fixed bottom-4 right-4 z-40">
-        <SignOutButton />
-      </div>
     </div>
   )
 }
-

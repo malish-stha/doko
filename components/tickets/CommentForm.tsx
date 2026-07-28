@@ -5,7 +5,7 @@ import { useMutation } from 'convex/react'
 import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 
@@ -39,25 +39,18 @@ export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
   }
 
   return (
-    <div className="space-y-2">
-      <Textarea
-        placeholder="Add a comment…"
+    <div className="space-y-3">
+      <RichTextEditor
+        placeholder="Add a formatted comment (supports **bold**, *italic*, `code`, lists)..."
         value={body}
-        onChange={e => setBody(e.target.value)}
-        rows={3}
-        className="resize-y text-sm"
-        onKeyDown={e => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-            e.preventDefault()
-            submit()
-          }
-        }}
+        onChange={setBody}
+        minHeight="110px"
       />
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground/60">
-          Press <kbd className="font-mono bg-muted px-1 rounded">⌘Enter</kbd> to post
+        <span className="text-[11px] text-muted-foreground/60 font-mono">
+          Formatting options available above • Markdown supported
         </span>
-        <Button size="sm" onClick={submit} disabled={!body.trim() || pending}>
+        <Button size="sm" onClick={submit} disabled={!body.trim() || pending} className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold">
           {pending ? 'Posting…' : 'Post comment'}
         </Button>
       </div>

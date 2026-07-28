@@ -1,7 +1,15 @@
 import { v } from 'convex/values'
-import { mutation, query, MutationCtx } from './_generated/server'
+import { mutation, query, internalQuery, MutationCtx } from './_generated/server'
+import { internal } from './_generated/api'
 import { appendActivityEvent } from './events'
 import { requireTeam, getMembership } from './teamHelper'
+
+export const getByIdInternal = internalQuery({
+  args: { ticketId: v.id('tickets') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.ticketId)
+  },
+})
 
 const TICKET_TYPE_PREFIX: Record<string, string> = {
   bug: 'BUG',
@@ -207,6 +215,13 @@ export const create = mutation({
       refId: id,
       payload: { key, type: args.type, title: args.title },
     })
+    if (args.assigneeId) {
+      await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
+        ticketId: id,
+        assigneeId: args.assigneeId,
+        assignedByEmail: identity?.email ?? userId,
+      })
+    }
     return { id, key }
   },
 })
@@ -285,9 +300,17 @@ export const assign = mutation({
       refId: args.id,
       payload: {
         assigneeId: args.assigneeId || null,
-        assignedBy: callerUserId,
+        assignedByEmail: callerEmail,
       },
     })
+
+    if (args.assigneeId) {
+      await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
+        ticketId: args.id,
+        assigneeId: args.assigneeId,
+        assignedByEmail: callerEmail,
+      })
+    }
   },
 })
 
@@ -344,6 +367,15 @@ export const update = mutation({
       refId: id,
       payload: rest,
     })
+    if (rest.assigneeId && rest.assigneeId !== ticket.assigneeId) {
+      const { userId, user, identity } = await requireTeam(ctx, userEmail)
+      const callerEmail = (identity?.email ?? user?.email ?? userEmail)?.trim().toLowerCase()
+      await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
+        ticketId: id,
+        assigneeId: rest.assigneeId,
+        assignedByEmail: callerEmail,
+      })
+    }
   },
 })
 

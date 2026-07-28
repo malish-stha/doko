@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import {
   Select,
   SelectTrigger,
@@ -190,11 +190,11 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
             <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
               Description (optional)
             </label>
-            <Textarea
+            <RichTextEditor
               placeholder="Add details, context, or acceptance criteria…"
               value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={3}
+              onChange={setDescription}
+              minHeight="110px"
             />
           </div>
 

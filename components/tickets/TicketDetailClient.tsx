@@ -87,6 +87,7 @@ export function TicketDetailSkeleton() {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { UserAvatar } from '@/components/UserAvatar'
 import {
   Select,
@@ -132,7 +133,14 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
 
   const [uploading, setUploading] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
+  const [descDraft, setDescDraft] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (ticket?.description !== undefined) {
+      setDescDraft(ticket.description ?? '')
+    }
+  }, [ticket?.description])
 
   const currentUserEmail = (session?.user?.email ?? '').trim().toLowerCase()
   const me = members.find(m => m.email.trim().toLowerCase() === currentUserEmail)
@@ -436,22 +444,21 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         </div>
       </div>
 
-      <div className="mb-6">
-        <label className="text-xs font-medium uppercase text-muted-foreground mb-1 block">
+      <div className="mb-6 space-y-1.5">
+        <label className="text-xs font-mono uppercase font-semibold text-muted-foreground block">
           Description
         </label>
-        <Textarea
-          key={`desc-${ticket._id}-${ticket.description ?? ''}`}
-          defaultValue={ticket.description ?? ''}
-          placeholder="Add a detailed description…"
-          onBlur={e => {
-            const val = e.target.value.trim()
+        <RichTextEditor
+          value={descDraft}
+          onChange={setDescDraft}
+          onBlur={() => {
+            const val = descDraft.trim()
             if (val !== (ticket.description ?? '')) {
               update({ id: ticket._id, description: val || undefined })
             }
           }}
-          rows={6}
-          className="resize-y"
+          placeholder="Add a detailed description with **bold**, *italic*, `code`, lists..."
+          minHeight="150px"
         />
       </div>
 
