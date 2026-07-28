@@ -30,8 +30,8 @@ export function TeamSettings() {
   const userEmail = session?.user?.email ?? undefined
   const router = useRouter()
   const team = useQuery(api.teams.myTeam, userEmail ? { userEmail } : 'skip')
-  const members = useQuery(api.teamMembers.listForTeam) ?? []
-  const invites = useQuery(api.invites.listForTeam) ?? []
+  const members = useQuery(api.teamMembers.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
+  const invites = useQuery(api.invites.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
 
   const [inviteEmail, setInviteEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -77,7 +77,7 @@ export function TeamSettings() {
     setSending(true)
     setErrorMsg('')
     try {
-      await sendInvite({ email: inviteEmail.trim() })
+      await sendInvite({ email: inviteEmail.trim(), userEmail })
       setInviteEmail('')
     } catch (err: any) {
       setErrorMsg(err?.message ?? 'Failed to send invite')
@@ -132,7 +132,7 @@ export function TeamSettings() {
           router.replace('/onboarding')
         }
       } else {
-        await leaveTeam()
+        await leaveTeam({ userEmail })
         router.replace('/onboarding')
       }
     } catch (err: any) {
@@ -366,6 +366,7 @@ export function TeamSettings() {
                       changeRole({
                         memberId: member._id,
                         role: member.role === 'admin' ? 'member' : 'admin',
+                        userEmail,
                       })
                     }
                     className="text-[10px] font-mono uppercase border-white/10 active:scale-[0.97]"
@@ -376,7 +377,7 @@ export function TeamSettings() {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => removeMember({ memberId: member._id })}
+                    onClick={() => removeMember({ memberId: member._id, userEmail })}
                     className="text-[10px] font-mono uppercase active:scale-[0.97]"
                   >
                     <UserXIcon className="w-3 h-3 mr-1" />
@@ -413,7 +414,7 @@ export function TeamSettings() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => revokeInvite({ inviteId: inv._id })}
+                    onClick={() => revokeInvite({ inviteId: inv._id, userEmail })}
                     className="text-[10px] font-mono uppercase text-red-400 border-red-500/20 hover:bg-red-500/10 active:scale-[0.97]"
                   >
                     Revoke

@@ -15,7 +15,7 @@ export function OnboardingClient() {
   const { data: session } = useSession()
   const userEmail = session?.user?.email ?? undefined
   const team = useQuery(api.teams.myTeam, userEmail ? { userEmail } : 'skip')
-  const invites = useQuery(api.invites.pendingForMe) ?? []
+  const invites = useQuery(api.invites.pendingForMe, userEmail ? { userEmail } : 'skip') ?? []
   const router = useRouter()
 
   const [creating, setCreating] = useState(false)

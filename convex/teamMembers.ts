@@ -3,9 +3,9 @@ import { mutation, query } from './_generated/server'
 import { requireTeam, getMembership } from './teamHelper'
 
 export const listForTeam = query({
-  args: {},
-  handler: async ctx => {
-    const { teamId } = await requireTeam(ctx)
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { teamId } = await requireTeam(ctx, args.userEmail)
     if (!teamId) return []
     return await ctx.db
       .query('teamMembers')
@@ -15,15 +15,15 @@ export const listForTeam = query({
 })
 
 export const remove = mutation({
-  args: { memberId: v.id('teamMembers') },
+  args: { memberId: v.id('teamMembers'), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx)
+    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
     if (!teamId) throw new Error('No team')
 
     const target = await ctx.db.get(args.memberId)
     if (!target || target.teamId !== teamId) throw new Error('Member not found')
 
-    const email = identity?.email ?? user?.email
+    const email = identity?.email ?? user?.email ?? args.userEmail
     const me = await getMembership(ctx, teamId, userId, email)
 
     if (me?.role !== 'owner') throw new Error('Only owner can remove members')
@@ -44,12 +44,12 @@ export const remove = mutation({
 })
 
 export const leave = mutation({
-  args: {},
-  handler: async ctx => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx)
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
     if (!teamId) throw new Error('No team')
 
-    const email = identity?.email ?? user?.email
+    const email = identity?.email ?? user?.email ?? args.userEmail
     const me = await getMembership(ctx, teamId, userId, email)
 
     if (!me) throw new Error('Not on this team')
@@ -69,12 +69,13 @@ export const changeRole = mutation({
   args: {
     memberId: v.id('teamMembers'),
     role: v.union(v.literal('admin'), v.literal('member')),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx)
+    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
     if (!teamId) throw new Error('No team')
 
-    const email = identity?.email ?? user?.email
+    const email = identity?.email ?? user?.email ?? args.userEmail
     const me = await getMembership(ctx, teamId, userId, email)
 
     if (me?.role !== 'owner') throw new Error('Only owner can change roles')

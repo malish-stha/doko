@@ -14,9 +14,9 @@ async function signInviteToken(payload: { teamId: string; email: string; exp: nu
 }
 
 export const send = mutation({
-  args: { email: v.string() },
+  args: { email: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx)
+    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
     if (!teamId) throw new Error('No active team')
 
     const membership = await getMembership(ctx, teamId, userId, user?.email ?? identity?.email)
@@ -45,7 +45,7 @@ export const send = mutation({
     if (existing) throw new Error('An active invite has already been sent to this email')
 
     const team = await ctx.db.get(teamId)
-    if (!team) throw new Error('Team not found')
+    if (!team) throw new Error('Team workspace not found')
 
     if (team.workspaceDomain) {
       const cleanDomain = team.workspaceDomain.trim().toLowerCase().replace(/^@/, '')
@@ -87,10 +87,10 @@ export const send = mutation({
 })
 
 export const pendingForMe = query({
-  args: {},
-  handler: async ctx => {
-    const { user, identity } = await requireTeam(ctx)
-    const email = (identity?.email ?? user?.email ?? '').trim().toLowerCase()
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { user, identity } = await requireTeam(ctx, args.userEmail)
+    const email = (identity?.email ?? user?.email ?? args.userEmail ?? '').trim().toLowerCase()
     if (!email) return []
     return await ctx.db
       .query('invites')
@@ -108,10 +108,13 @@ export const accept = mutation({
   handler: async (ctx, args) => {
     const invite = await ctx.db.get(args.inviteId)
     if (!invite) throw new Error('Invite not found')
-    if (invite.status !== 'pending') throw new Error('Invite already handled')
-    if (invite.expiresAt < Date.now()) throw new Error('Invite expired')
+    if (invite.status !== 'pending') throw new Error('Invite is no longer valid')
+    if (invite.expiresAt < Date.now()) {
+      await ctx.db.patch(args.inviteId, { status: 'revoked' })
+      throw new Error('Invite has expired')
+    }
 
-    const { userId: reqUserId, user: reqUser, identity } = await requireTeam(ctx)
+    const { userId: reqUserId, user: reqUser, identity } = await requireTeam(ctx, args.userEmail)
     const rawEmail = identity?.email ?? args.userEmail ?? invite.email
     const email = rawEmail.trim().toLowerCase()
     const userId = identity?.subject ?? email
@@ -158,9 +161,9 @@ export const accept = mutation({
 })
 
 export const revoke = mutation({
-  args: { inviteId: v.id('invites') },
+  args: { inviteId: v.id('invites'), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx)
+    const { teamId } = await requireTeam(ctx, args.userEmail)
     const invite = await ctx.db.get(args.inviteId)
     if (!invite || invite.teamId !== teamId) throw new Error('Invite not found')
     await ctx.db.patch(args.inviteId, { status: 'revoked' })
@@ -168,9 +171,9 @@ export const revoke = mutation({
 })
 
 export const listForTeam = query({
-  args: {},
-  handler: async ctx => {
-    const { teamId } = await requireTeam(ctx)
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { teamId } = await requireTeam(ctx, args.userEmail)
     if (!teamId) return []
     const allInvites = await ctx.db
       .query('invites')
