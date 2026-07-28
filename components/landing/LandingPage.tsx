@@ -15,6 +15,7 @@ import {
   UserCheckIcon,
   CoffeeIcon,
 } from 'lucide-react'
+import { Footer } from '@/components/Footer'
 
 const SAMPLE_BRIEFS = {
   dev: {
@@ -115,7 +116,7 @@ function Hero({ reduce }: { reduce: boolean | null }) {
             href="/sign-in"
             className="inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-wider bg-teal-400 text-slate-950 px-6 py-3.5 rounded-xl hover:bg-teal-300 transition-all duration-150 ease-out shadow-lg shadow-teal-500/20 active:scale-[0.97]"
           >
-            Sign in with Google <ArrowRightIcon className="w-4 h-4" />
+            Sign in <ArrowRightIcon className="w-4 h-4" />
           </Link>
         </motion.div>
 
@@ -299,18 +300,5 @@ function Explanation({ reduce }: { reduce: boolean | null }) {
         )
       })}
     </section>
-  )
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-white/10 py-10 bg-slate-950 relative z-10">
-      <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-500">
-        <div>Doko · The Morning Brief App</div>
-        <div>
-          Built by <span className="text-slate-300 font-medium">Malish Stha</span>
-        </div>
-      </div>
-    </footer>
   )
 }

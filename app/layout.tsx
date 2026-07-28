@@ -4,6 +4,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toast";
+import { CookieConsent } from "@/components/ui/CookieConsent";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
             <TooltipProvider>
               {children}
               <Toaster />
+              <CookieConsent />
             </TooltipProvider>
           </ConvexClientProvider>
         </AuthProvider>
@@ -47,4 +49,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 
