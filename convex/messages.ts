@@ -34,11 +34,12 @@ export const send = mutation({
     body: v.string(),
     authorName: v.optional(v.string()),
     threadRootId: v.optional(v.id('messages')),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (!args.body.trim()) throw new Error('empty message')
 
-    const { userId, user, identity } = await requireTeam(ctx)
+    const { userId, user, identity } = await requireTeam(ctx, args.userEmail)
     const authorId =
       args.authorName ??
       user?.name ??

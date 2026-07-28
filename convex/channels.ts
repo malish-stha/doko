@@ -4,9 +4,9 @@ import { appendActivityEvent } from './events'
 import { requireTeam } from './teamHelper'
 
 export const byTeam = query({
-  args: {},
-  handler: async ctx => {
-    const { teamId } = await requireTeam(ctx)
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { teamId } = await requireTeam(ctx, args.userEmail)
     if (!teamId) return []
     return await ctx.db
       .query('channels')
@@ -16,9 +16,13 @@ export const byTeam = query({
 })
 
 export const create = mutation({
-  args: { name: v.string(), isPrivate: v.optional(v.boolean()) },
+  args: {
+    name: v.string(),
+    isPrivate: v.optional(v.boolean()),
+    userEmail: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx, args.userEmail)
     if (!teamId) throw new Error('No team')
     if (!args.name.trim()) throw new Error('empty channel name')
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery, useMutation } from 'convex/react'
+import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -10,7 +11,9 @@ import { Input } from '@/components/ui/input'
 import { HashIcon, PlusIcon, Hash } from 'lucide-react'
 
 export function ChannelSidebar() {
-  const channels = useQuery(api.channels.byTeam) ?? []
+  const { data: session } = useSession()
+  const userEmail = session?.user?.email ?? undefined
+  const channels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip') ?? []
   const params = useParams()
   const router = useRouter()
 
@@ -21,7 +24,7 @@ export function ChannelSidebar() {
   const handleCreate = async () => {
     if (!name.trim()) return
     try {
-      const channelId = await create({ name })
+      const channelId = await create({ name, userEmail })
       setName('')
       setCreating(false)
       router.push(`/chat/${channelId}`)

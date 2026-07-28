@@ -15,6 +15,11 @@ export async function requireTeam(ctx: QueryCtx | MutationCtx, callerEmail?: str
     .withIndex('by_userId', q => q.eq('userId', userId))
     .first()
 
+  if (!user && cleanEmail) {
+    const users = await ctx.db.query('users').collect()
+    user = users.find(u => u.email.trim().toLowerCase() === cleanEmail) ?? null
+  }
+
   return { identity, user, userId: user?.userId ?? userId, teamId: user?.teamId }
 }
 

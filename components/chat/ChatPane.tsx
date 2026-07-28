@@ -15,7 +15,8 @@ import { HashIcon, SendIcon } from 'lucide-react'
 
 export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   const { data: session } = useSession()
-  const channels = useQuery(api.channels.byTeam) ?? []
+  const userEmail = session?.user?.email ?? undefined
+  const channels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip') ?? []
   const channel = channels.find(c => c._id === channelId)
 
   const messages = useQuery(api.messages.byChannel, { channelId }) ?? []
@@ -41,6 +42,7 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
         channelId,
         body: draft.trim(),
         authorName: session?.user?.email ?? session?.user?.name ?? undefined,
+        userEmail,
       })
       setDraft('')
     } finally {
