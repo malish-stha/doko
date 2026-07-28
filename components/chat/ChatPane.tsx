@@ -14,12 +14,15 @@ import { ReactionList } from './ReactionButton'
 import { ChatHeader } from './ChatHeader'
 import { HashIcon, SendIcon, UserIcon } from 'lucide-react'
 
+import { Skeleton } from '@/components/ui/skeleton'
+
 export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   const { data: session } = useSession()
   const userEmail = session?.user?.email ?? undefined
   const channel = useQuery(api.channels.get, { channelId, userEmail })
 
-  const messages = useQuery(api.messages.byChannel, { channelId }) ?? []
+  const rawMessages = useQuery(api.messages.byChannel, { channelId })
+  const messages = rawMessages ?? []
   const send = useMutation(api.messages.send)
 
   const [draft, setDraft] = useState('')
@@ -57,9 +60,23 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
       {/* Channel Header */}
       <ChatHeader channelId={channelId} />
 
-      {/* Messages Feed */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.length > 0 ? (
+        {rawMessages === undefined ? (
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex gap-3 p-2">
+                <Skeleton className="w-8 h-8 rounded-none shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : messages.length > 0 ? (
           messages.map(m => (
             <MessageContextMenu key={m._id} message={m}>
               <motion.div

@@ -5,6 +5,83 @@ import { useQuery, useMutation } from 'convex/react'
 import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
+import { Skeleton } from '@/components/ui/skeleton'
+
+export function TicketDetailSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      {/* Header / Breadcrumb */}
+      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-5 w-20 rounded-none" />
+        </div>
+        <Skeleton className="h-8 w-24" />
+      </div>
+
+      {/* Main Content Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Column */}
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-9 w-3/4" />
+          
+          <div className="flex items-center gap-4 py-2 border-y border-border/40">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
+          </div>
+
+          {/* Attachments Section */}
+          <div className="space-y-3 pt-4">
+            <Skeleton className="h-5 w-32" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Skeleton className="h-24 w-full rounded-none" />
+              <Skeleton className="h-24 w-full rounded-none" />
+            </div>
+          </div>
+
+          {/* Comments Section */}
+          <div className="space-y-4 pt-6 border-t border-border/40">
+            <Skeleton className="h-6 w-32" />
+            <div className="space-y-3">
+              <Skeleton className="h-20 w-full rounded-none" />
+              <Skeleton className="h-20 w-full rounded-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Column */}
+        <div className="space-y-6 border border-border/40 p-5 rounded-none bg-card/50">
+          <Skeleton className="h-5 w-28" />
+          <div className="space-y-4">
+            <div>
+              <Skeleton className="h-3 w-16 mb-2" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div>
+              <Skeleton className="h-3 w-16 mb-2" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div>
+              <Skeleton className="h-3 w-16 mb-2" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div>
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -121,18 +198,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
   }
 
   if (ticket === undefined) {
-    return (
-      <div className="max-w-3xl mx-auto p-6 animate-pulse">
-        <div className="h-4 w-20 bg-muted mb-4" />
-        <div className="h-8 w-64 bg-muted mb-6" />
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="h-10 bg-muted" />
-          <div className="h-10 bg-muted" />
-          <div className="h-10 bg-muted" />
-        </div>
-        <div className="h-32 bg-muted" />
-      </div>
-    )
+    return <TicketDetailSkeleton />
   }
 
   if (ticket === null) {

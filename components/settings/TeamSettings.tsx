@@ -6,6 +6,54 @@ import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Skeleton } from '@/components/ui/skeleton'
+
+export function TeamSettingsSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      {/* Title & Description Skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+
+      {/* General Settings Card Skeleton */}
+      <div className="rounded-none border border-border/40 bg-card p-6 space-y-4">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="h-4 w-64" />
+        <div className="space-y-3 pt-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full max-w-md" />
+        </div>
+      </div>
+
+      {/* Members Section Skeleton */}
+      <div className="rounded-none border border-border/40 bg-card p-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="space-y-1">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-9 w-28" />
+        </div>
+        <div className="space-y-3 pt-4 border-t border-border/40">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-9 h-9 rounded-none" />
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-44" />
+                </div>
+              </div>
+              <Skeleton className="h-6 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,7 +114,7 @@ export function TeamSettings() {
     }
   }, [team])
 
-  if (team === undefined) return <div className="p-8 animate-pulse font-mono text-xs">Loading team settings…</div>
+  if (team === undefined) return <TeamSettingsSkeleton />
   if (!team) return <div className="p-8 text-xs font-mono text-muted-foreground">No active team found.</div>
 
   const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()

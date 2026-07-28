@@ -18,11 +18,15 @@ import {
 } from '@/components/ui/dialog'
 import { HashIcon, PlusIcon, Hash, MessageSquarePlusIcon, UserIcon } from 'lucide-react'
 
+import { Skeleton } from '@/components/ui/skeleton'
+
 export function ChannelSidebar() {
   const { data: session } = useSession()
   const userEmail = session?.user?.email ?? undefined
-  const channels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip') ?? []
-  const dms = useQuery(api.channels.myDMs, userEmail ? { userEmail } : 'skip') ?? []
+  const rawChannels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip')
+  const rawDms = useQuery(api.channels.myDMs, userEmail ? { userEmail } : 'skip')
+  const channels = rawChannels ?? []
+  const dms = rawDms ?? []
   const teammates = useQuery(api.teamMembers.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
   const openDM = useMutation(api.channels.openDM)
   const createChannel = useMutation(api.channels.create)
@@ -80,23 +84,30 @@ export function ChannelSidebar() {
         </div>
 
         <div className="space-y-0.5 mb-4">
-          {channels.map(c => {
-            const active = params.channelId === c._id
-            return (
-              <Link
-                key={c._id}
-                href={`/chat/${c._id}`}
-                className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                  active
-                    ? 'bg-teal-500/15 text-teal-400 font-semibold'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <HashIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                <span className="truncate">{c.name}</span>
-              </Link>
-            )
-          })}
+          {rawChannels === undefined ? (
+            <div className="space-y-1.5 px-2.5 py-1">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          ) : (
+            channels.map(c => {
+              const active = params.channelId === c._id
+              return (
+                <Link
+                  key={c._id}
+                  href={`/chat/${c._id}`}
+                  className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-teal-500/15 text-teal-400 font-semibold'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <HashIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                  <span className="truncate">{c.name}</span>
+                </Link>
+              )
+            })
+          )}
 
           {creatingChannel && (
             <div className="p-2 border mt-2 bg-background">
@@ -140,7 +151,7 @@ export function ChannelSidebar() {
             </div>
           )}
 
-          {channels.length === 0 && !creatingChannel && (
+          {rawChannels !== undefined && channels.length === 0 && !creatingChannel && (
             <div className="px-2.5 py-1 text-xs text-muted-foreground/60 italic">
               No public channels yet.
             </div>
@@ -156,28 +167,34 @@ export function ChannelSidebar() {
         </div>
 
         <div className="space-y-0.5 mb-3">
-          {dms.map(dm => {
-            const active = params.channelId === dm._id
-            const initial = (dm.name || 'D')[0].toUpperCase()
-            return (
-              <Link
-                key={dm._id}
-                href={`/chat/${dm._id}`}
-                className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                  active
-                    ? 'bg-teal-500/15 text-teal-400 font-semibold'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <div className="w-4 h-4 rounded-none bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-[9px] font-mono font-bold text-teal-300 shrink-0">
-                  {initial}
-                </div>
-                <span className="truncate">{dm.name}</span>
-              </Link>
-            )
-          })}
+          {rawDms === undefined ? (
+            <div className="space-y-1.5 px-2.5 py-1">
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ) : (
+            dms.map(dm => {
+              const active = params.channelId === dm._id
+              const initial = (dm.name || 'D')[0].toUpperCase()
+              return (
+                <Link
+                  key={dm._id}
+                  href={`/chat/${dm._id}`}
+                  className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-teal-500/15 text-teal-400 font-semibold'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-none bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-[9px] font-mono font-bold text-teal-300 shrink-0">
+                    {initial}
+                  </div>
+                  <span className="truncate">{dm.name}</span>
+                </Link>
+              )
+            })
+          )}
 
-          {dms.length === 0 && (
+          {rawDms !== undefined && dms.length === 0 && (
             <div className="px-2.5 py-1 text-xs text-muted-foreground/60 italic">
               No DMs yet.
             </div>

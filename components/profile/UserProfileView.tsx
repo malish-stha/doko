@@ -8,7 +8,54 @@ import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { EditProfileModal } from './EditProfileModal'
+
+export function UserProfileSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-12 space-y-8">
+      {/* Banner & Avatar Skeleton */}
+      <div className="relative rounded-none overflow-hidden border border-border/40 bg-card p-6 md:p-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+          <Skeleton className="w-24 h-24 rounded-none flex-shrink-0" />
+          <div className="space-y-3 flex-1">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-64" />
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-28" />
+            </div>
+          </div>
+          <Skeleton className="h-9 w-28" />
+        </div>
+      </div>
+
+      {/* Stats Skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="p-4 rounded-none border border-border/40 bg-card space-y-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-8 w-12" />
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs & Content Skeleton */}
+      <div className="space-y-4">
+        <div className="flex gap-2 border-b border-border/40 pb-2">
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-8 w-28" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-36 w-full rounded-none" />
+          <Skeleton className="h-36 w-full rounded-none" />
+        </div>
+      </div>
+    </div>
+  )
+}
 import { StartDMButton } from '@/components/chat/StartDMButton'
 import {
   UserIcon,
@@ -55,13 +102,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
   const [editModalOpen, setEditModalOpen] = useState(false)
 
   if (profile === undefined) {
-    return (
-      <div className="max-w-5xl mx-auto px-6 py-12 space-y-6 animate-pulse font-mono text-xs text-muted-foreground">
-        <div className="h-32 bg-slate-900 border border-white/10 rounded-none"></div>
-        <div className="grid grid-cols-4 gap-4 h-20 bg-slate-900 border border-white/10"></div>
-        <div className="h-64 bg-slate-900 border border-white/10"></div>
-      </div>
-    )
+    return <UserProfileSkeleton />
   }
 
   if (!profile) {
