@@ -1,9 +1,14 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation, query, internalQuery } from './_generated/server'
 import { internal } from './_generated/api'
 import { requireTeam, getMembership } from './teamHelper'
 import { appendActivityEvent } from './events'
 import * as jose from 'jose'
+
+export const getById = internalQuery({
+  args: { inviteId: v.id('invites') },
+  handler: async (ctx, args) => await ctx.db.get(args.inviteId),
+})
 
 const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
