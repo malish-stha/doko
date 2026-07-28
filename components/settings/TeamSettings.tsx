@@ -24,6 +24,7 @@ import {
   XIcon,
   Trash2Icon,
 } from 'lucide-react'
+import { StartDMButton } from '@/components/chat/StartDMButton'
 
 export function TeamSettings() {
   const { data: session } = useSession()
@@ -357,34 +358,40 @@ export function TeamSettings() {
                 </div>
               </div>
 
-              {member.role !== 'owner' && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      changeRole({
-                        memberId: member._id,
-                        role: member.role === 'admin' ? 'member' : 'admin',
-                        userEmail,
-                      })
-                    }
-                    className="text-[10px] font-mono uppercase border-white/10 active:scale-[0.97]"
-                  >
-                    <ShieldIcon className="w-3 h-3 mr-1" />
-                    {member.role === 'admin' ? 'Demote' : 'Promote'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => removeMember({ memberId: member._id, userEmail })}
-                    className="text-[10px] font-mono uppercase active:scale-[0.97]"
-                  >
-                    <UserXIcon className="w-3 h-3 mr-1" />
-                    Remove
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {member.userId !== me?.userId && member.email.trim().toLowerCase() !== currentEmail && (
+                  <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-white/10" />
+                )}
+
+                {member.role !== 'owner' && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        changeRole({
+                          memberId: member._id,
+                          role: member.role === 'admin' ? 'member' : 'admin',
+                          userEmail,
+                        })
+                      }
+                      className="text-[10px] font-mono uppercase border-white/10 active:scale-[0.97]"
+                    >
+                      <ShieldIcon className="w-3 h-3 mr-1" />
+                      {member.role === 'admin' ? 'Demote' : 'Promote'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => removeMember({ memberId: member._id, userEmail })}
+                      className="text-[10px] font-mono uppercase active:scale-[0.97]"
+                    >
+                      <UserXIcon className="w-3 h-3 mr-1" />
+                      Remove
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </CardContent>

@@ -8,59 +8,85 @@ import { useParams, useRouter } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { HashIcon, PlusIcon, Hash } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { HashIcon, PlusIcon, Hash, MessageSquarePlusIcon, UserIcon } from 'lucide-react'
 
 export function ChannelSidebar() {
   const { data: session } = useSession()
   const userEmail = session?.user?.email ?? undefined
   const channels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip') ?? []
+  const dms = useQuery(api.channels.myDMs, userEmail ? { userEmail } : 'skip') ?? []
+  const teammates = useQuery(api.teamMembers.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
+  const openDM = useMutation(api.channels.openDM)
+  const createChannel = useMutation(api.channels.create)
+
   const params = useParams()
   const router = useRouter()
 
-  const [creating, setCreating] = useState(false)
-  const [name, setName] = useState('')
-  const create = useMutation(api.channels.create)
+  const [creatingChannel, setCreatingChannel] = useState(false)
+  const [channelName, setChannelName] = useState('')
+  const [pickDMOpen, setPickDMOpen] = useState(false)
+  const [dmError, setDmError] = useState<string | null>(null)
 
-  const handleCreate = async () => {
-    if (!name.trim()) return
+  const handleCreateChannel = async () => {
+    if (!channelName.trim()) return
     try {
-      const channelId = await create({ name, userEmail })
-      setName('')
-      setCreating(false)
+      const channelId = await createChannel({ name: channelName, userEmail })
+      setChannelName('')
+      setCreatingChannel(false)
       router.push(`/chat/${channelId}`)
     } catch (err) {
       console.error('Failed to create channel:', err)
     }
   }
 
+  const handleStartDM = async (otherUserId: string) => {
+    setDmError(null)
+    try {
+      const id = await openDM({ otherUserId, userEmail })
+      setPickDMOpen(false)
+      router.push(`/chat/${id}`)
+    } catch (err: any) {
+      setDmError(err?.message ?? 'Failed to start DM')
+    }
+  }
+
   return (
     <aside className="w-56 border-r border-border bg-card flex flex-col shrink-0 select-none">
-      <div className="p-4 border-b border-border flex items-center justify-between">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Hash className="w-3.5 h-3.5 text-teal-400" />
-          Channels
-        </div>
-        {!creating && (
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors"
-            title="Create channel"
-          >
-            <PlusIcon className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-
       <ScrollArea className="flex-1 p-2">
-        <div className="space-y-0.5">
+        {/* CHANNELS SECTION */}
+        <div className="flex items-center justify-between px-2.5 py-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Hash className="w-3.5 h-3.5 text-teal-400" />
+            Channels
+          </div>
+          {!creatingChannel && (
+            <button
+              type="button"
+              onClick={() => setCreatingChannel(true)}
+              className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors"
+              title="Create channel"
+            >
+              <PlusIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-0.5 mb-4">
           {channels.map(c => {
             const active = params.channelId === c._id
             return (
               <Link
                 key={c._id}
                 href={`/chat/${c._id}`}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-none text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   active
                     ? 'bg-teal-500/15 text-teal-400 font-semibold'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -71,55 +97,152 @@ export function ChannelSidebar() {
               </Link>
             )
           })}
+
+          {creatingChannel && (
+            <div className="p-2 border mt-2 bg-background">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase mb-1 block">
+                New Channel
+              </label>
+              <Input
+                autoFocus
+                placeholder="channel-name"
+                value={channelName}
+                onChange={e => setChannelName(e.target.value)}
+                className="h-7 text-xs"
+                onKeyDown={async e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleCreateChannel()
+                  }
+                  if (e.key === 'Escape') {
+                    setChannelName('')
+                    setCreatingChannel(false)
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-1 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setCreatingChannel(false)}
+                  className="text-[11px] px-2 py-0.5 text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateChannel}
+                  disabled={!channelName.trim()}
+                  className="text-[11px] px-2 py-0.5 bg-teal-500 text-white disabled:opacity-50"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          )}
+
+          {channels.length === 0 && !creatingChannel && (
+            <div className="px-2.5 py-1 text-xs text-muted-foreground/60 italic">
+              No public channels yet.
+            </div>
+          )}
         </div>
 
-        {creating && (
-          <div className="p-2 border mt-2 bg-background">
-            <label className="text-[10px] font-medium text-muted-foreground uppercase mb-1 block">
-              New Channel
-            </label>
-            <Input
-              autoFocus
-              placeholder="channel-name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="h-7 text-xs"
-              onKeyDown={async e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleCreate()
-                }
-                if (e.key === 'Escape') {
-                  setName('')
-                  setCreating(false)
-                }
-              }}
-            />
-            <div className="flex justify-end gap-1 mt-2">
-              <button
-                type="button"
-                onClick={() => setCreating(false)}
-                className="text-[11px] px-2 py-0.5 text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleCreate}
-                disabled={!name.trim()}
-                className="text-[11px] px-2 py-0.5 bg-teal-500 text-white disabled:opacity-50"
-              >
-                Create
-              </button>
-            </div>
+        {/* DIRECT MESSAGES SECTION */}
+        <div className="flex items-center justify-between px-2.5 py-2 border-t border-border/50">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <UserIcon className="w-3.5 h-3.5 text-teal-400" />
+            Direct Messages
           </div>
-        )}
+        </div>
 
-        {channels.length === 0 && !creating && (
-          <div className="p-3 text-center text-xs text-muted-foreground/60 italic">
-            No channels yet. Click + to create one.
-          </div>
-        )}
+        <div className="space-y-0.5 mb-3">
+          {dms.map(dm => {
+            const active = params.channelId === dm._id
+            const initial = (dm.name || 'D')[0].toUpperCase()
+            return (
+              <Link
+                key={dm._id}
+                href={`/chat/${dm._id}`}
+                className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-teal-500/15 text-teal-400 font-semibold'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                <div className="w-4 h-4 rounded-none bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-[9px] font-mono font-bold text-teal-300 shrink-0">
+                  {initial}
+                </div>
+                <span className="truncate">{dm.name}</span>
+              </Link>
+            )
+          })}
+
+          {dms.length === 0 && (
+            <div className="px-2.5 py-1 text-xs text-muted-foreground/60 italic">
+              No DMs yet.
+            </div>
+          )}
+        </div>
+
+        {/* Start DM Button & Dialog */}
+        <div className="p-1">
+          <Dialog open={pickDMOpen} onOpenChange={setPickDMOpen}>
+            <DialogTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs text-muted-foreground hover:text-teal-400 gap-1.5 h-8 px-2 font-mono uppercase"
+                >
+                  <MessageSquarePlusIcon className="w-3.5 h-3.5" />
+                  + New DM
+                </Button>
+              }
+            />
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-sm font-mono uppercase tracking-wider text-teal-400">
+                  Start a direct message
+                </DialogTitle>
+              </DialogHeader>
+
+              {dmError && (
+                <div className="p-2 text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/20">
+                  {dmError}
+                </div>
+              )}
+
+              <div className="space-y-1 max-h-72 overflow-y-auto divide-y divide-border/40">
+                {teammates.length > 0 ? (
+                  teammates.map(m => (
+                    <button
+                      key={m._id}
+                      type="button"
+                      onClick={() => handleStartDM(m.userId)}
+                      className="w-full flex items-center gap-3 p-2.5 hover:bg-teal-500/10 text-left transition-colors cursor-pointer group"
+                    >
+                      <div className="w-7 h-7 bg-teal-500/20 border border-teal-500/30 font-mono text-teal-300 flex items-center justify-center text-xs font-semibold uppercase shrink-0">
+                        {(m.email || 'U')[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-medium text-foreground group-hover:text-teal-300 truncate">
+                          {m.email}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-mono uppercase">
+                          {m.role}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground italic">
+                    No teammates found in this workspace.
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </ScrollArea>
     </aside>
   )

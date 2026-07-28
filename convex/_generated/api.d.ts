@@ -17,6 +17,7 @@ import type * as email from "../email.js";
 import type * as events from "../events.js";
 import type * as invites from "../invites.js";
 import type * as messages from "../messages.js";
+import type * as migrations from "../migrations.js";
 import type * as reactions from "../reactions.js";
 import type * as teamHelper from "../teamHelper.js";
 import type * as teamMembers from "../teamMembers.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   invites: typeof invites;
   messages: typeof messages;
+  migrations: typeof migrations;
   reactions: typeof reactions;
   teamHelper: typeof teamHelper;
   teamMembers: typeof teamMembers;

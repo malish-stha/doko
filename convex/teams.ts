@@ -81,6 +81,7 @@ export const create = mutation({
       teamId: teamId as string,
       name: 'general',
       isPrivate: false,
+      kind: 'public',
       memberIds: [userId],
       createdAt: Date.now(),
     })

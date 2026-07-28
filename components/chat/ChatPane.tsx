@@ -11,13 +11,13 @@ import { formatDistanceToNow } from 'date-fns'
 import { motion, useReducedMotion } from 'motion/react'
 import { MessageContextMenu } from './MessageContextMenu'
 import { ReactionList } from './ReactionButton'
-import { HashIcon, SendIcon } from 'lucide-react'
+import { ChatHeader } from './ChatHeader'
+import { HashIcon, SendIcon, UserIcon } from 'lucide-react'
 
 export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   const { data: session } = useSession()
   const userEmail = session?.user?.email ?? undefined
-  const channels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip') ?? []
-  const channel = channels.find(c => c._id === channelId)
+  const channel = useQuery(api.channels.get, { channelId, userEmail })
 
   const messages = useQuery(api.messages.byChannel, { channelId }) ?? []
   const send = useMutation(api.messages.send)
@@ -41,7 +41,7 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
       await send({
         channelId,
         body: draft.trim(),
-        authorName: session?.user?.email ?? session?.user?.name ?? undefined,
+        authorName: session?.user?.name ?? session?.user?.email ?? undefined,
         userEmail,
       })
       setDraft('')
@@ -50,17 +50,12 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
     }
   }
 
+  const isDM = channel?.kind === 'dm'
+
   return (
     <div className="flex-1 flex flex-col h-full min-w-0 bg-background">
       {/* Channel Header */}
-      <div className="px-6 py-3.5 border-b border-border flex items-center justify-between bg-card">
-        <div className="flex items-center gap-2">
-          <HashIcon className="w-4 h-4 text-teal-400" />
-          <h2 className="font-semibold text-sm tracking-tight">
-            {channel?.name ?? 'channel'}
-          </h2>
-        </div>
-      </div>
+      <ChatHeader channelId={channelId} />
 
       {/* Messages Feed */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -97,10 +92,20 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
           ))
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
-            <HashIcon className="w-8 h-8 mb-2 opacity-30 text-teal-400" />
-            <p className="text-sm font-medium">Welcome to #{channel?.name ?? 'channel'}!</p>
+            {isDM ? (
+              <UserIcon className="w-8 h-8 mb-2 opacity-30 text-teal-400" />
+            ) : (
+              <HashIcon className="w-8 h-8 mb-2 opacity-30 text-teal-400" />
+            )}
+            <p className="text-sm font-medium">
+              {isDM
+                ? `Direct message with ${channel?.name ?? 'teammate'}`
+                : `Welcome to #${channel?.name ?? 'channel'}!`}
+            </p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              This is the start of the #{channel?.name ?? 'channel'} channel.
+              {isDM
+                ? 'This is the start of your 1:1 direct message conversation.'
+                : `This is the start of the #${channel?.name ?? 'channel'} channel.`}
             </p>
           </div>
         )}
@@ -110,7 +115,11 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
       <div className="p-4 border-t border-border bg-card">
         <div className="space-y-2">
           <Textarea
-            placeholder={`Message #${channel?.name ?? 'channel'}…`}
+            placeholder={
+              isDM
+                ? `Message ${channel?.name ?? 'teammate'}…`
+                : `Message #${channel?.name ?? 'channel'}…`
+            }
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
@@ -124,7 +133,8 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
           />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="text-[11px] text-muted-foreground/60">
-              Press <kbd className="font-mono bg-muted px-1 rounded">Enter</kbd> to send, <kbd className="font-mono bg-muted px-1 rounded">Shift+Enter</kbd> for newline
+              Press <kbd className="font-mono bg-muted px-1 rounded">Enter</kbd> to send,{' '}
+              <kbd className="font-mono bg-muted px-1 rounded">Shift+Enter</kbd> for newline
             </span>
             <Button
               size="sm"

@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { internalAction, internalMutation, internalQuery, query } from './_generated/server'
 import { internal } from './_generated/api'
+import { Doc, Id } from './_generated/dataModel'
 import { requireTeam } from './teamHelper'
 
 export const todayForMe = query({
@@ -72,12 +73,52 @@ export const readContext = internalQuery({
     const teamId = user?.teamId ? (user.teamId as string) : 'default-team'
     const yesterdayStart = Date.now() - 24 * 60 * 60 * 1000
 
-    const events = await ctx.db
+    const rawEvents = await ctx.db
       .query('activityEvents')
       .withIndex('by_team_ts', q =>
         q.eq('teamId', teamId).gte('ts', yesterdayStart),
       )
       .take(500)
+
+    // Enrich events with channel kind if event is message/channel related
+    const events = await Promise.all(
+      rawEvents.map(async e => {
+        if (e.refType === 'channel') {
+          const doc = await ctx.db.get(e.refId as Id<'channels'>)
+          const channel = doc as Doc<'channels'> | null
+          if (channel) {
+            return {
+              ...e,
+              payload: {
+                ...(typeof e.payload === 'object' && e.payload ? e.payload : {}),
+                channelKind: channel.kind ?? (channel.isPrivate ? 'private' : 'public'),
+                channelName: channel.name,
+                isDirectRecipient: channel.kind === 'dm' && channel.memberIds.includes(args.userId),
+              },
+            }
+          }
+        } else if (e.refType === 'message') {
+          const msgDoc = await ctx.db.get(e.refId as Id<'messages'>)
+          const msg = msgDoc as Doc<'messages'> | null
+          if (msg && msg.channelId) {
+            const chanDoc = await ctx.db.get(msg.channelId)
+            const channel = chanDoc as Doc<'channels'> | null
+            if (channel) {
+              return {
+                ...e,
+                payload: {
+                  ...(typeof e.payload === 'object' && e.payload ? e.payload : {}),
+                  channelKind: channel.kind ?? (channel.isPrivate ? 'private' : 'public'),
+                  channelName: channel.name,
+                  isDirectRecipient: channel.kind === 'dm' && channel.memberIds.includes(args.userId),
+                },
+              }
+            }
+          }
+        }
+        return e
+      })
+    )
 
     const myTickets = await ctx.db
       .query('tickets')

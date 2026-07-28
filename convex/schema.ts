@@ -104,9 +104,14 @@ export default defineSchema({
     teamId: v.string(),
     name: v.string(),
     isPrivate: v.boolean(),
+    kind: v.optional(v.union(v.literal('public'), v.literal('private'), v.literal('dm'))),
     memberIds: v.array(v.string()),
+    dmKey: v.optional(v.string()),
     createdAt: v.number(),
-  }).index('by_team', ['teamId']),
+  })
+    .index('by_team', ['teamId'])
+    .index('by_team_kind', ['teamId', 'kind'])
+    .index('by_dm_key', ['dmKey']),
 
   messages: defineTable({
     channelId: v.id('channels'),

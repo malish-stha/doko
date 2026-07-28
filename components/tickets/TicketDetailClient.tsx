@@ -18,6 +18,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { ImageIcon, UploadIcon, XIcon, MessageSquareIcon, UserCheckIcon, AlertCircleIcon, UserIcon } from 'lucide-react'
 import { CommentThread } from './CommentThread'
+import { StartDMButton } from '@/components/chat/StartDMButton'
 
 export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
   const { data: session } = useSession()
@@ -269,13 +270,16 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
       </div>
 
       {/* Ticket Metadata Bar (Reporter & Assignee chips) */}
-      <div className="flex items-center gap-4 mb-6 text-xs text-muted-foreground bg-muted/30 p-2.5 border border-border/50 font-mono">
+      <div className="flex items-center gap-4 mb-6 text-xs text-muted-foreground bg-muted/30 p-2.5 border border-border/50 font-mono flex-wrap">
         <div className="flex items-center gap-1.5">
           <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
           <span>Reporter:</span>
           <span className="text-foreground font-semibold">
-            {reporterMember ? `${reporterMember.name} (${reporterMember.email})` : ticket.reporterId}
+            {reporterMember ? `${reporterMember.name}` : ticket.reporterId}
           </span>
+          {ticket.reporterId && ticket.reporterId !== currentUserId && (
+            <StartDMButton userId={reporterMember?.userId ?? ticket.reporterId} label="DM" size="xs" />
+          )}
         </div>
         <span className="text-muted-foreground/40">|</span>
         <div className="flex items-center gap-1.5">
@@ -284,6 +288,9 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           <span className="text-foreground font-semibold">
             {assignedMember ? `${assignedMember.name}` : ticket.assigneeId ? ticket.assigneeId : 'Unassigned'}
           </span>
+          {ticket.assigneeId && ticket.assigneeId !== currentUserId && (
+            <StartDMButton userId={assignedMember?.userId ?? ticket.assigneeId} label="DM" size="xs" />
+          )}
         </div>
       </div>
 

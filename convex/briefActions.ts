@@ -4,7 +4,7 @@ import { v } from 'convex/values'
 import { action, internalAction } from './_generated/server'
 import { internal } from './_generated/api'
 import { summarize } from '../lib/llm'
-import { SYSTEM_PROMPT_V1 } from '../lib/llm/prompts/brief-system'
+import { SYSTEM_PROMPT_V2 } from '../lib/llm/prompts/brief-system'
 import { buildUserPrompt } from '../lib/llm/prompts/brief-user'
 
 export const generateNow = action({
@@ -35,7 +35,7 @@ export const generateNow = action({
       { userId },
     )
 
-    const systemPrompt = SYSTEM_PROMPT_V1
+    const systemPrompt = SYSTEM_PROMPT_V2
     const userPrompt = buildUserPrompt({
       user: loadedUser ?? {
         userId,
@@ -55,7 +55,7 @@ export const generateNow = action({
       systemPrompt,
       userPrompt,
       model: 'brief',
-      cacheKey: 'brief-system-v1',
+      cacheKey: 'brief-system-v2',
     })
 
     await ctx.runMutation(internal.brief.writeBrief, {
@@ -79,7 +79,7 @@ export const generate = internalAction({
     )
     if (!user) return
 
-    const systemPrompt = SYSTEM_PROMPT_V1
+    const systemPrompt = SYSTEM_PROMPT_V2
     const userPrompt = buildUserPrompt({
       user,
       forDate: args.forDate,
@@ -91,7 +91,7 @@ export const generate = internalAction({
       systemPrompt,
       userPrompt,
       model: 'brief',
-      cacheKey: 'brief-system-v1',
+      cacheKey: 'brief-system-v2',
     })
 
     await ctx.runMutation(internal.brief.writeBrief, {
@@ -112,7 +112,7 @@ export const generateForProvider = action({
       { userId: args.userId },
     )
 
-    const systemPrompt = SYSTEM_PROMPT_V1
+    const systemPrompt = SYSTEM_PROMPT_V2
     const userPrompt = buildUserPrompt({
       user: user ?? {
         userId: args.userId,
@@ -133,7 +133,7 @@ export const generateForProvider = action({
       systemPrompt,
       userPrompt,
       model: 'brief',
-      cacheKey: 'brief-system-v1',
+      cacheKey: 'brief-system-v2',
     })
   },
 })
