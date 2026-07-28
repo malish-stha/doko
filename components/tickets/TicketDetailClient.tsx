@@ -293,11 +293,18 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
           <span>Reporter:</span>
           <span className="text-foreground font-semibold">
-            {reporterMember ? `${reporterMember.name}` : ticket.reporterId}
+            {reporterMember
+              ? reporterMember.name
+              : ticket.reporterId === 'anonymous' || ticket.reporterId === 'dev-user'
+              ? (me?.name || session?.user?.name || 'Teammate')
+              : ticket.reporterId}
           </span>
-          {ticket.reporterId && ticket.reporterId !== currentUserId && (
-            <StartDMButton userId={reporterMember?.userId ?? ticket.reporterId} label="DM" size="xs" />
-          )}
+          {ticket.reporterId &&
+            ticket.reporterId !== currentUserId &&
+            ticket.reporterId !== 'anonymous' &&
+            ticket.reporterId !== 'dev-user' && (
+              <StartDMButton userId={reporterMember?.userId ?? ticket.reporterId} label="DM" size="xs" />
+            )}
         </div>
         <span className="text-muted-foreground/40">|</span>
         <div className="flex items-center gap-1.5">
