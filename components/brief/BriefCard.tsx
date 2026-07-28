@@ -5,6 +5,7 @@ import { useAction } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
 import { SparklesIcon, CpuIcon, RefreshCwIcon, Loader2Icon } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 
 export function BriefCard({ brief }: { brief: Doc<'briefs'> }) {
   const [generating, setGenerating] = useState(false)
@@ -15,8 +16,10 @@ export function BriefCard({ brief }: { brief: Doc<'briefs'> }) {
     setGenerating(true)
     try {
       await generateNow()
-    } catch (err) {
+      toast.success('Morning Brief regenerated', 'Brief has been updated with the latest team activity.')
+    } catch (err: any) {
       console.error('Failed to regenerate brief:', err)
+      toast.error('Failed to regenerate brief', err?.message ?? 'Could not regenerate Morning Brief.')
     } finally {
       setGenerating(false)
     }

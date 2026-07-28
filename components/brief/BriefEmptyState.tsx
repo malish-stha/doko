@@ -5,6 +5,7 @@ import { useAction } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { SparklesIcon, ArrowRightIcon, Loader2Icon } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 
 export function BriefEmptyState() {
   const [generating, setGenerating] = useState(false)
@@ -15,8 +16,10 @@ export function BriefEmptyState() {
     setGenerating(true)
     try {
       await generateNow()
-    } catch (err) {
+      toast.success('Morning Brief generated', 'Today\'s brief has been created from team activity.')
+    } catch (err: any) {
       console.error('Failed to generate brief:', err)
+      toast.error('Failed to generate brief', err?.message ?? 'Could not generate Morning Brief.')
     } finally {
       setGenerating(false)
     }

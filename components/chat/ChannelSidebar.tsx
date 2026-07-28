@@ -19,6 +19,7 @@ import {
 import { HashIcon, PlusIcon, Hash, MessageSquarePlusIcon, UserIcon } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from '@/components/ui/toast'
 
 export function ChannelSidebar() {
   const { data: session } = useSession()
@@ -43,11 +44,13 @@ export function ChannelSidebar() {
     if (!channelName.trim()) return
     try {
       const channelId = await createChannel({ name: channelName, userEmail })
+      toast.success('Channel created', `#${channelName.trim()} created successfully.`)
       setChannelName('')
       setCreatingChannel(false)
       router.push(`/chat/${channelId}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create channel:', err)
+      toast.error('Failed to create channel', err?.message ?? 'Could not create channel.')
     }
   }
 
@@ -58,7 +61,9 @@ export function ChannelSidebar() {
       setPickDMOpen(false)
       router.push(`/chat/${id}`)
     } catch (err: any) {
-      setDmError(err?.message ?? 'Failed to start DM')
+      const msg = err?.message ?? 'Failed to start DM'
+      setDmError(msg)
+      toast.error('Failed to start conversation', msg)
     }
   }
 

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SparklesIcon, UsersIcon, CheckIcon, Loader2Icon, PlusIcon } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 
 export function OnboardingClient() {
   const { data: session } = useSession()
@@ -35,10 +36,27 @@ export function OnboardingClient() {
         userEmail: session?.user?.email ?? undefined,
         userName: session?.user?.name ?? undefined,
       })
+      toast.success('Welcome to Doko!', `Team "${name.trim()}" set up successfully.`)
       router.replace('/home')
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create team:', err)
+      toast.error('Failed to create team', err?.message ?? 'Could not create workspace.')
       setCreating(false)
+    }
+  }
+
+  const handleAcceptInvite = async (inv: any) => {
+    try {
+      await acceptInvite({
+        inviteId: inv._id,
+        userEmail: session?.user?.email ?? undefined,
+        userName: session?.user?.name ?? undefined,
+      })
+      toast.success('Joined team!', `You have joined ${inv.teamName}.`)
+      router.replace('/home')
+    } catch (err: any) {
+      console.error('Failed to accept invite:', err)
+      toast.error('Failed to accept invite', err?.message ?? 'Could not join team.')
     }
   }
 
@@ -75,14 +93,7 @@ export function OnboardingClient() {
                 </div>
                 <Button
                   size="sm"
-                  onClick={async () => {
-                    await acceptInvite({
-                      inviteId: inv._id,
-                      userEmail: session?.user?.email ?? undefined,
-                      userName: session?.user?.name ?? undefined,
-                    })
-                    router.replace('/home')
-                  }}
+                  onClick={() => handleAcceptInvite(inv)}
                   className="bg-teal-500 hover:bg-teal-400 text-black font-semibold text-xs uppercase tracking-wider active:scale-[0.97] transition-all duration-150 ease-out cursor-pointer"
                 >
                   <CheckIcon className="w-3.5 h-3.5 mr-1" />

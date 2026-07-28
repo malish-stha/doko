@@ -22,6 +22,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select'
+import { toast } from '@/components/ui/toast'
 import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
 
 export function NewTicketDialog({ projectId }: { projectId: string }) {
@@ -61,8 +62,10 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
       const { storageId } = await result.json()
 
       setAttachments(prev => [...prev, storageId])
-    } catch (err) {
+      toast.success('Image attached', file.name)
+    } catch (err: any) {
       console.error('File upload error:', err)
+      toast.error('Upload failed', err?.message ?? 'Failed to attach image')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -77,7 +80,7 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
     if (!title.trim() || submitting) return
     setSubmitting(true)
     try {
-      await create({
+      const res = await create({
         projectId,
         type,
         title: title.trim(),
@@ -86,6 +89,7 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
         assigneeId: assigneeId || undefined,
         attachments: attachments.length > 0 ? attachments : undefined,
       })
+      toast.success('Ticket created', `"${title.trim()}" created successfully.`)
       setTitle('')
       setDescription('')
       setType('task')
@@ -93,6 +97,9 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
       setAssigneeId('')
       setAttachments([])
       setOpen(false)
+    } catch (err: any) {
+      console.error('Failed to create ticket:', err)
+      toast.error('Failed to create ticket', err?.message ?? 'An error occurred while creating the ticket.')
     } finally {
       setSubmitting(false)
     }

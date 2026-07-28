@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { Loader2Icon, BriefcaseIcon, BuildingIcon, MapPinIcon, PhoneIcon, GlobeIcon, UserIcon } from 'lucide-react'
 
 interface EditProfileModalProps {
@@ -82,10 +83,13 @@ export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditPr
         githubUrl: githubUrl.trim() || undefined,
         linkedinUrl: linkedinUrl.trim() || undefined,
       })
+      toast.success('Profile updated', 'Your profile details have been saved successfully.')
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to update profile')
+      const msg = err instanceof Error ? err.message : 'Failed to update profile'
+      setErrorMsg(msg)
+      toast.error('Failed to update profile', msg)
     } finally {
       setSaving(false)
     }

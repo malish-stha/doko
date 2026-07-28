@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -36,10 +37,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AuthProvider>
           <ConvexClientProvider>
-            <TooltipProvider>{children}</TooltipProvider>
+            <TooltipProvider>
+              {children}
+              <Toaster />
+            </TooltipProvider>
           </ConvexClientProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from '@/components/ui/toast'
 
 export function TicketDetailSkeleton() {
   return (
@@ -157,8 +158,31 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         assigneeId: targetAssigneeId || undefined,
         userEmail,
       })
+      toast.success('Assignee updated')
     } catch (err: any) {
-      setAssignError(err?.message ?? 'Failed to update assignment')
+      const msg = err?.message ?? 'Failed to update assignment'
+      setAssignError(msg)
+      toast.error('Failed to update assignee', msg)
+    }
+  }
+
+  const handleUpdateStatus = async (status: any) => {
+    if (!ticket) return
+    try {
+      await updateStatus({ id: ticket._id, status })
+      toast.success('Status updated', `Changed status to ${status.replace('_', ' ')}`)
+    } catch (err: any) {
+      toast.error('Failed to update status', err?.message ?? 'Could not update ticket status.')
+    }
+  }
+
+  const handleUpdatePriority = async (priority: any) => {
+    if (!ticket) return
+    try {
+      await update({ id: ticket._id, priority })
+      toast.success('Priority updated', `Priority set to ${priority}`)
+    } catch (err: any) {
+      toast.error('Failed to update priority', err?.message ?? 'Could not update ticket priority.')
     }
   }
 
@@ -183,8 +207,10 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         id: ticket._id,
         attachments: [...currentAttachments, storageId],
       })
-    } catch (err) {
+      toast.success('Attachment added', file.name)
+    } catch (err: any) {
       console.error('File upload error:', err)
+      toast.error('Failed to upload file', err?.message ?? 'Could not upload attachment.')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -193,8 +219,13 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
 
   const removeAttachment = async (storageId: string) => {
     if (!ticket) return
-    const updated = (ticket.attachments ?? []).filter(id => id !== storageId)
-    await update({ id: ticket._id, attachments: updated })
+    try {
+      const updated = (ticket.attachments ?? []).filter(id => id !== storageId)
+      await update({ id: ticket._id, attachments: updated })
+      toast.success('Attachment removed')
+    } catch (err: any) {
+      toast.error('Failed to remove attachment', err?.message)
+    }
   }
 
   if (ticket === undefined) {
@@ -278,7 +309,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           </label>
           <Select
             value={ticket.status}
-            onValueChange={v => updateStatus({ id: ticket._id, status: v as any })}
+            onValueChange={v => handleUpdateStatus(v as any)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -299,7 +330,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           </label>
           <Select
             value={ticket.priority}
-            onValueChange={v => update({ id: ticket._id, priority: v as any })}
+            onValueChange={v => handleUpdatePriority(v as any)}
           >
             <SelectTrigger>
               <SelectValue />

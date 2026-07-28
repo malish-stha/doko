@@ -7,6 +7,7 @@ import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 
 export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
   const { data: session } = useSession()
@@ -27,7 +28,11 @@ export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
         userEmail,
         authorName,
       })
+      toast.success('Comment posted')
       setBody('')
+    } catch (err: any) {
+      console.error('Failed to post comment:', err)
+      toast.error('Failed to post comment', err?.message ?? 'Could not add comment.')
     } finally {
       setPending(false)
     }

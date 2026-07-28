@@ -23,6 +23,7 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 import { useRouter } from 'next/navigation'
+import { toast } from '@/components/ui/toast'
 
 export function CreateTicketFromMessageDialog({
   open,
@@ -72,12 +73,14 @@ export function CreateTicketFromMessageDialog({
         assigneeId: assigneeId || undefined,
         sourceMessageId: message._id,
       })
+      toast.success('Ticket created from message', `"${title.trim()}" created.`)
       onOpenChange(false)
       if (res?.key) {
         router.push(`/tickets/${res.key}`)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create ticket from message:', err)
+      toast.error('Failed to create ticket', err?.message ?? 'Could not create ticket from message.')
     } finally {
       setSubmitting(false)
     }

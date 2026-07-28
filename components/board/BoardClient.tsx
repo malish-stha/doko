@@ -18,6 +18,7 @@ import { KanbanColumn } from './KanbanColumn'
 import { NewTicketDialog } from './NewTicketDialog'
 import { BoardFilters } from './BoardFilters'
 
+import { toast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function BoardSkeleton() {
@@ -114,6 +115,9 @@ export function BoardClient() {
 
     try {
       await updateStatus({ id: ticketId, status: newStatus })
+    } catch (err: any) {
+      console.error('Failed to move ticket:', err)
+      toast.error('Failed to update status', err?.message ?? 'Could not move ticket.')
     } finally {
       setOptimisticOverrides(prev => {
         const { [ticketId]: _, ...rest } = prev

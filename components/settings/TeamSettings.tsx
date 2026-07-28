@@ -7,6 +7,7 @@ import { api } from '@/convex/_generated/api'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from '@/components/ui/toast'
 
 export function TeamSettingsSkeleton() {
   return (
@@ -128,9 +129,12 @@ export function TeamSettings() {
     setErrorMsg('')
     try {
       await sendInvite({ email: inviteEmail.trim(), userEmail })
+      toast.success('Invite sent', `Invitation email sent to ${inviteEmail.trim()}`)
       setInviteEmail('')
     } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Failed to send invite')
+      const msg = err?.message ?? 'Failed to send invite'
+      setErrorMsg(msg)
+      toast.error('Failed to send invite', msg)
     } finally {
       setSending(false)
     }
@@ -147,11 +151,13 @@ export function TeamSettings() {
         userEmail: session?.user?.email ?? undefined,
         userName: session?.user?.name ?? undefined,
       })
+      toast.success('Team created', `Workspace "${newTeamName.trim()}" created successfully.`)
       setNewTeamName('')
       setNewTeamDomain('')
       setShowCreateModal(false)
     } catch (err: any) {
       console.error(err)
+      toast.error('Failed to create team', err?.message ?? 'An error occurred while creating the team.')
     } finally {
       setCreatingTeam(false)
     }
@@ -166,9 +172,11 @@ export function TeamSettings() {
         name: editName.trim(),
         workspaceDomain: editDomain.trim() || '',
       })
+      toast.success('Team settings updated', 'Team name and domain preferences have been saved.')
       setEditingTeam(false)
     } catch (err: any) {
       console.error(err)
+      toast.error('Failed to save settings', err?.message ?? 'Could not update team settings.')
     } finally {
       setSavingTeam(false)
     }
@@ -179,14 +187,47 @@ export function TeamSettings() {
       if (isOwner) {
         if (confirm('Are you sure you want to delete this team workspace? All members, channels, and data will be removed.')) {
           await deleteTeam()
+          toast.success('Team workspace deleted')
           router.replace('/onboarding')
         }
       } else {
         await leaveTeam({ userEmail })
+        toast.success('Left team workspace')
         router.replace('/onboarding')
       }
     } catch (err: any) {
       console.error(err)
+      toast.error('Action failed', err?.message ?? 'Could not complete the action.')
+    }
+  }
+
+  const handleChangeRole = async (memberId: any, newRole: 'member' | 'admin') => {
+    try {
+      await changeRole({ memberId, role: newRole, userEmail })
+      toast.success('Member role updated', `User role updated to ${newRole}.`)
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to update role', err?.message ?? 'Could not update member role.')
+    }
+  }
+
+  const handleRemoveMember = async (memberId: any) => {
+    try {
+      await removeMember({ memberId, userEmail })
+      toast.success('Member removed', 'Team member has been removed.')
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to remove member', err?.message ?? 'Could not remove member.')
+    }
+  }
+
+  const handleRevokeInvite = async (inviteId: any) => {
+    try {
+      await revokeInvite({ inviteId, userEmail })
+      toast.success('Invite revoked', 'Pending invitation has been cancelled.')
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to revoke invite', err?.message ?? 'Could not revoke invite.')
     }
   }
 
@@ -427,11 +468,7 @@ export function TeamSettings() {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        changeRole({
-                          memberId: member._id,
-                          role: member.role === 'admin' ? 'member' : 'admin',
-                          userEmail,
-                        })
+                        handleChangeRole(member._id, member.role === 'admin' ? 'member' : 'admin')
                       }
                       className="text-[10px] font-mono uppercase border-white/10 active:scale-[0.97]"
                     >
@@ -441,7 +478,7 @@ export function TeamSettings() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => removeMember({ memberId: member._id, userEmail })}
+                      onClick={() => handleRemoveMember(member._id)}
                       className="text-[10px] font-mono uppercase active:scale-[0.97]"
                     >
                       <UserXIcon className="w-3 h-3 mr-1" />
@@ -479,7 +516,7 @@ export function TeamSettings() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => revokeInvite({ inviteId: inv._id, userEmail })}
+                    onClick={() => handleRevokeInvite(inv._id)}
                     className="text-[10px] font-mono uppercase text-red-400 border-red-500/20 hover:bg-red-500/10 active:scale-[0.97]"
                   >
                     Revoke
