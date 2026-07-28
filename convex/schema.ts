@@ -155,4 +155,11 @@ export default defineSchema({
     sourceEventIds: v.array(v.id('activityEvents')),
     providerUsed: v.string(),
   }).index('by_user_date', ['userId', 'forDate']),
+
+  aiRateLimits: defineTable({
+    userId: v.string(),
+    actionType: v.string(),
+    lastCalledAt: v.number(),
+    callHistory: v.array(v.number()),
+  }).index('by_user_action', ['userId', 'actionType']),
 })

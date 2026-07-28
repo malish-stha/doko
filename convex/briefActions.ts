@@ -30,6 +30,12 @@ export const generateNow = action({
       .toLocaleString('en-CA', { timeZone: tz })
       .split(',')[0]
 
+    // Enforce extreme AI rate limiting before invoking LLM
+    await ctx.runMutation(internal.rateLimit.checkAndRecord, {
+      userId,
+      actionType: 'brief_generation',
+    })
+
     const { events, myTickets, user: loadedUser } = await ctx.runQuery(
       internal.brief.readContext,
       { userId },
@@ -107,6 +113,11 @@ export const generate = internalAction({
 export const generateForProvider = action({
   args: { userId: v.string(), forDate: v.string(), provider: v.string() },
   handler: async (ctx, args) => {
+    await ctx.runMutation(internal.rateLimit.checkAndRecord, {
+      userId: args.userId,
+      actionType: 'brief_generation',
+    })
+
     const { events, myTickets, user } = await ctx.runQuery(
       internal.brief.readContext,
       { userId: args.userId },
