@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useMutation } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
+import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
 import {
@@ -32,10 +33,15 @@ export function CreateTicketFromMessageDialog({
   onOpenChange: (o: boolean) => void
   message: Doc<'messages'>
 }) {
+  const { data: session } = useSession()
+  const userEmail = session?.user?.email ?? undefined
+  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+
   const [type, setType] = useState<'bug' | 'feature' | 'task' | 'epic'>('bug')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
+  const [assigneeId, setAssigneeId] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
 
   const create = useMutation(api.tickets.create)
@@ -49,6 +55,7 @@ export function CreateTicketFromMessageDialog({
       setDescription(message.body)
       setType('bug')
       setPriority('medium')
+      setAssigneeId('')
     }
   }, [open, message])
 
@@ -62,6 +69,7 @@ export function CreateTicketFromMessageDialog({
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
+        assigneeId: assigneeId || undefined,
         sourceMessageId: message._id,
       })
       onOpenChange(false)
@@ -119,6 +127,27 @@ export function CreateTicketFromMessageDialog({
 
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
+              Assignee (optional)
+            </label>
+            <Select value={assigneeId || 'unassigned'} onValueChange={(v: string | null) => setAssigneeId(!v || v === 'unassigned' ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">
+                  <span className="text-muted-foreground">Unassigned</span>
+                </SelectItem>
+                {members.map(m => (
+                  <SelectItem key={m.userId || m.email} value={m.userId || m.email}>
+                    {m.name} ({m.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
               Title
             </label>
             <Input
@@ -153,3 +182,4 @@ export function CreateTicketFromMessageDialog({
     </Dialog>
   )
 }
+

@@ -76,3 +76,63 @@ test('list query filters by mine flag correctly — no cross-user leak', async (
   const leaked = bViewMine.some(t => t.title === 'A private ticket')
   expect(leaked).toBe(false)
 })
+
+test('creator can assign ticket to another user', async () => {
+  const t = convexTest(schema)
+  const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
+  const { id, key } = await asA.mutation(api.tickets.create, {
+    projectId: 'doko',
+    type: 'task',
+    title: 'Assignment test',
+  })
+
+  await asA.mutation(api.tickets.assign, {
+    id,
+    assigneeId: 'user-b@example.com',
+  })
+
+  const updated = await asA.query(api.tickets.getByKey, { key })
+  expect(updated?.assigneeId).toBe('user-b@example.com')
+})
+
+test('user can assign ticket to themselves', async () => {
+  const t = convexTest(schema)
+  const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
+  const asB = t.withIdentity({ subject: 'user-b', email: 'user-b@example.com' })
+
+  const { id, key } = await asA.mutation(api.tickets.create, {
+    projectId: 'doko',
+    type: 'task',
+    title: 'Self assignment test',
+  })
+
+  // User B assigns ticket to themselves
+  await asB.mutation(api.tickets.assign, {
+    id,
+    assigneeId: 'user-b@example.com',
+  })
+
+  const updated = await asB.query(api.tickets.getByKey, { key })
+  expect(updated?.assigneeId).toBe('user-b@example.com')
+})
+
+test('non-creator cannot assign ticket to another third user', async () => {
+  const t = convexTest(schema)
+  const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
+  const asB = t.withIdentity({ subject: 'user-b', email: 'user-b@example.com' })
+
+  const { id } = await asA.mutation(api.tickets.create, {
+    projectId: 'doko',
+    type: 'bug',
+    title: 'Unauthorized assignment test',
+  })
+
+  // User B tries to assign User A's ticket to User C
+  await expect(
+    asB.mutation(api.tickets.assign, {
+      id,
+      assigneeId: 'user-c@example.com',
+    }),
+  ).rejects.toThrow(/Unauthorized/)
+})
+

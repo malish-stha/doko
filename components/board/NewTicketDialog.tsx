@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useMutation } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
+import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import {
   Dialog,
@@ -24,11 +25,16 @@ import {
 import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
 
 export function NewTicketDialog({ projectId }: { projectId: string }) {
+  const { data: session } = useSession()
+  const userEmail = session?.user?.email ?? undefined
+  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<'bug' | 'feature' | 'task' | 'epic'>('task')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
+  const [assigneeId, setAssigneeId] = useState<string>('')
   const [attachments, setAttachments] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -77,12 +83,14 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
+        assigneeId: assigneeId || undefined,
         attachments: attachments.length > 0 ? attachments : undefined,
       })
       setTitle('')
       setDescription('')
       setType('task')
       setPriority('medium')
+      setAssigneeId('')
       setAttachments([])
       setOpen(false)
     } finally {
@@ -133,6 +141,28 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
               </Select>
             </div>
           </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
+              Assignee (optional)
+            </label>
+            <Select value={assigneeId || 'unassigned'} onValueChange={(v: string | null) => setAssigneeId(!v || v === 'unassigned' ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">
+                  <span className="text-muted-foreground">Unassigned</span>
+                </SelectItem>
+                {members.map(m => (
+                  <SelectItem key={m.userId || m.email} value={m.userId || m.email}>
+                    {m.name} ({m.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
               Title
@@ -220,3 +250,4 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
     </Dialog>
   )
 }
+

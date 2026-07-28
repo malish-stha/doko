@@ -3,6 +3,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import type { Doc } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
+import { UserCheckIcon } from 'lucide-react'
 
 const PRIORITY_BAR: Record<string, string> = {
   low: 'bg-muted-foreground/40',
@@ -25,6 +26,12 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
 
+  const assigneeLabel = ticket.assigneeId
+    ? ticket.assigneeId.includes('@')
+      ? ticket.assigneeId.split('@')[0]
+      : ticket.assigneeId.slice(0, 10)
+    : null
+
   return (
     <div
       ref={setNodeRef}
@@ -36,31 +43,43 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
       }`}
     >
       <div className={`w-1 shrink-0 ${PRIORITY_BAR[ticket.priority] ?? 'bg-blue-400'}`} />
-      <div className="flex-1 p-3 min-w-0">
-        <div className="flex items-center justify-between gap-2 mb-1.5">
+      <div className="flex-1 p-3 min-w-0 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <Link
+              href={`/tickets/${ticket.key}`}
+              className="text-xs font-mono tabular-nums text-muted-foreground hover:text-foreground transition-colors hover:underline"
+              onClick={e => e.stopPropagation()}
+            >
+              {ticket.key}
+            </Link>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider font-mono ${
+                TYPE_BADGE[ticket.type] ?? ''
+              }`}
+            >
+              {ticket.type}
+            </span>
+          </div>
           <Link
             href={`/tickets/${ticket.key}`}
-            className="text-xs font-mono tabular-nums text-muted-foreground hover:text-foreground transition-colors hover:underline"
+            className="block text-sm font-medium leading-snug line-clamp-2 hover:text-teal-400 transition-colors mb-2"
             onClick={e => e.stopPropagation()}
           >
-            {ticket.key}
+            {ticket.title}
           </Link>
-          <span
-            className={`text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider font-mono ${
-              TYPE_BADGE[ticket.type] ?? ''
-            }`}
-          >
-            {ticket.type}
-          </span>
         </div>
-        <Link
-          href={`/tickets/${ticket.key}`}
-          className="block text-sm font-medium leading-snug line-clamp-2 hover:text-teal-400 transition-colors"
-          onClick={e => e.stopPropagation()}
-        >
-          {ticket.title}
-        </Link>
+
+        {assigneeLabel && (
+          <div className="flex items-center justify-end mt-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 border border-teal-500/30 text-teal-400 bg-teal-500/10">
+              <UserCheckIcon className="w-2.5 h-2.5" />
+              {assigneeLabel}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
 }
+

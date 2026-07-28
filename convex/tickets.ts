@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query, MutationCtx } from './_generated/server'
 import { appendActivityEvent } from './events'
-import { requireTeam } from './teamHelper'
+import { requireTeam, getMembership } from './teamHelper'
 
 const TICKET_TYPE_PREFIX: Record<string, string> = {
   bug: 'BUG',
@@ -104,6 +104,31 @@ export const getByKey = query({
   },
 })
 
+export const listAssignableMembers = query({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { teamId } = await requireTeam(ctx, args.userEmail)
+    if (!teamId) return []
+    const members = await ctx.db
+      .query('teamMembers')
+      .withIndex('by_team', q => q.eq('teamId', teamId))
+      .collect()
+    const allUsers = await ctx.db.query('users').collect()
+    const userMap = new Map(allUsers.map(u => [u.userId, u]))
+    const emailMap = new Map(allUsers.map(u => [u.email.toLowerCase(), u]))
+
+    return members.map(m => {
+      const u = userMap.get(m.userId) ?? emailMap.get(m.email.toLowerCase())
+      return {
+        userId: m.userId,
+        email: m.email,
+        name: u?.name || m.email.split('@')[0],
+        role: m.role,
+      }
+    })
+  },
+})
+
 export const generateUploadUrl = mutation({
   args: {},
   handler: async ctx => {
@@ -137,6 +162,7 @@ export const create = mutation({
         v.literal('urgent'),
       ),
     ),
+    assigneeId: v.optional(v.string()),
     attachments: v.optional(v.array(v.string())),
     sourceMessageId: v.optional(v.id('messages')),
   },
@@ -154,6 +180,7 @@ export const create = mutation({
       description: args.description,
       status: 'backlog',
       priority: args.priority ?? 'medium',
+      assigneeId: args.assigneeId,
       reporterId,
       labels: [],
       attachments: args.attachments ?? [],
@@ -196,6 +223,61 @@ export const updateStatus = mutation({
   },
 })
 
+export const assign = mutation({
+  args: {
+    id: v.id('tickets'),
+    assigneeId: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
+    const ticket = await ctx.db.get(args.id)
+    if (!ticket) throw new Error('Ticket not found')
+
+    const callerUserId = user?.userId ?? userId
+    const callerEmail = (identity?.email ?? user?.email ?? args.userEmail)?.trim().toLowerCase()
+
+    if (teamId && ticket.teamId && ticket.teamId !== (teamId as string)) {
+      throw new Error('Unauthorized team access')
+    }
+
+    const me = teamId && callerUserId ? await getMembership(ctx, teamId, callerUserId, callerEmail) : null
+    const isAdmin = me?.role === 'owner' || me?.role === 'admin'
+
+    const isCreator =
+      ticket.reporterId === callerUserId ||
+      (callerEmail && ticket.reporterId.trim().toLowerCase() === callerEmail) ||
+      (user && ticket.reporterId === user.userId)
+
+    const isSelfAssign =
+      args.assigneeId !== undefined &&
+      (args.assigneeId === callerUserId ||
+        (callerEmail && args.assigneeId.trim().toLowerCase() === callerEmail) ||
+        (user && args.assigneeId === user.userId))
+
+    if (!isCreator && !isAdmin && !isSelfAssign) {
+      throw new Error(
+        'Unauthorized: Only the ticket creator or team admins can assign tickets to other users. You can assign tickets to yourself.',
+      )
+    }
+
+    await ctx.db.patch(args.id, {
+      assigneeId: args.assigneeId || undefined,
+      updatedAt: Date.now(),
+    })
+
+    await appendActivityEvent(ctx, {
+      kind: 'ticket.assigned',
+      refType: 'ticket',
+      refId: args.id,
+      payload: {
+        assigneeId: args.assigneeId || null,
+        assignedBy: callerUserId,
+      },
+    })
+  },
+})
+
 export const update = mutation({
   args: {
     id: v.id('tickets'),
@@ -210,12 +292,38 @@ export const update = mutation({
       ),
     ),
     assigneeId: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
     labels: v.optional(v.array(v.string())),
     attachments: v.optional(v.array(v.string())),
     dueDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { id, ...rest } = args
+    const { id, userEmail, ...rest } = args
+    const ticket = await ctx.db.get(id)
+    if (!ticket) throw new Error('Ticket not found')
+
+    if (rest.assigneeId !== undefined && rest.assigneeId !== ticket.assigneeId) {
+      const { userId, user, teamId, identity } = await requireTeam(ctx, userEmail)
+      const callerUserId = user?.userId ?? userId
+      const callerEmail = (identity?.email ?? user?.email ?? userEmail)?.trim().toLowerCase()
+      const me = teamId && callerUserId ? await getMembership(ctx, teamId, callerUserId, callerEmail) : null
+      const isAdmin = me?.role === 'owner' || me?.role === 'admin'
+      const isCreator =
+        ticket.reporterId === callerUserId ||
+        (callerEmail && ticket.reporterId.trim().toLowerCase() === callerEmail) ||
+        (user && ticket.reporterId === user.userId)
+      const isSelfAssign =
+        rest.assigneeId === callerUserId ||
+        (callerEmail && rest.assigneeId.trim().toLowerCase() === callerEmail) ||
+        (user && rest.assigneeId === user.userId)
+
+      if (!isCreator && !isAdmin && !isSelfAssign) {
+        throw new Error(
+          'Unauthorized: Only the ticket creator or team admins can assign tickets to other users. You can assign tickets to yourself.',
+        )
+      }
+    }
+
     await ctx.db.patch(id, { ...rest, updatedAt: Date.now() })
     await appendActivityEvent(ctx, {
       kind: 'ticket.updated',
@@ -225,3 +333,4 @@ export const update = mutation({
     })
   },
 })
+
