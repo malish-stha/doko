@@ -144,7 +144,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
   return (
     <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
       {/* Profile Header Banner */}
-      <div className="p-6 bg-slate-900/80 border border-teal-500/30 backdrop-blur-md relative overflow-hidden shadow-xl">
+      <div className="p-6 bg-card border border-border relative overflow-hidden shadow-xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
@@ -160,7 +160,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                 <button
                   type="button"
                   onClick={() => setAvatarPickerOpen(true)}
-                  className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[10px] font-mono font-bold text-teal-300 transition-all cursor-pointer border border-teal-400/50 backdrop-blur-xs"
+                  className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[10px] font-mono font-bold text-teal-300 transition-all cursor-pointer border border-teal-400/50 backdrop-blur-xs"
                   title="Customize DiceBear Avatar"
                 >
                   <SparklesIcon className="w-5 h-5 mb-1 text-teal-400 animate-pulse" />
@@ -184,7 +184,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
 
                 {/* Team Role Badge */}
                 {profile.teamInfo && (
-                  <Badge variant="outline" className="text-[10px] font-mono uppercase border-white/20 text-muted-foreground">
+                  <Badge variant="outline" className="text-[10px] font-mono uppercase border-border text-muted-foreground">
                     <ShieldIcon className="w-3 h-3 mr-1 text-teal-400" />
                     {profile.teamInfo.role} @ {profile.teamInfo.teamName}
                   </Badge>
@@ -248,7 +248,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
 
       {/* Quick Statistics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md">
+        <Card className="bg-card border-border backdrop-blur-md">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Ongoing Tickets</div>
@@ -258,7 +258,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md">
+        <Card className="bg-card border-border backdrop-blur-md">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Tickets Done</div>
@@ -268,17 +268,17 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md">
+        <Card className="bg-card border-border backdrop-blur-md">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Total Tickets</div>
               <div className="text-2xl font-bold font-mono text-foreground mt-1">{totalTickets}</div>
             </div>
-            <TicketIcon className="w-7 h-7 text-white/30" />
+            <TicketIcon className="w-7 h-7 text-muted-foreground/40" />
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md">
+        <Card className="bg-card border-border backdrop-blur-md">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Member Since</div>
@@ -295,7 +295,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
 
       {/* Main Profile Tabs */}
       <div className="space-y-4">
-        <div className="flex border-b border-white/10 gap-2">
+        <div className="flex border-b border-border gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('ongoing')}
@@ -340,7 +340,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
         {activeTab === 'ongoing' && (
           <div className="space-y-3">
             {ongoingTickets.length === 0 ? (
-              <Card className="bg-slate-900/40 border-white/10 p-8 text-center">
+              <Card className="bg-card border-border p-8 text-center">
                 <TicketIcon className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
                 <div className="text-xs font-mono text-muted-foreground">No ongoing tickets currently active.</div>
               </Card>
@@ -348,7 +348,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
               ongoingTickets.map(ticket => (
                 <div
                   key={ticket._id}
-                  className="p-4 bg-slate-900/80 border border-white/10 hover:border-teal-500/40 transition-all flex items-center justify-between gap-4 group"
+                  className="p-4 bg-card border border-border hover:border-teal-500/40 transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -367,7 +367,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                         {ticket.priority}
                       </span>
 
-                      <span>Project: <strong className="text-slate-300">{ticket.projectId}</strong></span>
+                      <span>Project: <strong className="text-foreground">{ticket.projectId}</strong></span>
 
                       <span>Updated {new Date(ticket.updatedAt).toLocaleDateString()}</span>
                     </div>
@@ -375,7 +375,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
 
                   <Link
                     href={`/tickets/${ticket.key}`}
-                    className="p-2 border border-white/10 hover:border-teal-400 hover:bg-teal-500/10 text-muted-foreground hover:text-teal-300 transition-all shrink-0"
+                    className="p-2 border border-border hover:border-teal-400 hover:bg-teal-500/10 text-muted-foreground hover:text-teal-300 transition-all shrink-0"
                     title="View Ticket Details"
                   >
                     <ExternalLinkIcon className="w-4 h-4" />
@@ -390,7 +390,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
         {activeTab === 'completed' && (
           <div className="space-y-3">
             {completedTickets.length === 0 ? (
-              <Card className="bg-slate-900/40 border-white/10 p-8 text-center">
+              <Card className="bg-card border-border p-8 text-center">
                 <CheckCircle2Icon className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
                 <div className="text-xs font-mono text-muted-foreground">No completed ticket history found yet.</div>
               </Card>
@@ -398,7 +398,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
               completedTickets.map(ticket => (
                 <div
                   key={ticket._id}
-                  className="p-4 bg-slate-900/80 border border-white/10 hover:border-teal-500/40 transition-all flex items-center justify-between gap-4 group"
+                  className="p-4 bg-card border border-border hover:border-teal-500/40 transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -417,7 +417,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                         {ticket.priority}
                       </span>
 
-                      <span>Project: <strong className="text-slate-300">{ticket.projectId}</strong></span>
+                      <span>Project: <strong className="text-foreground">{ticket.projectId}</strong></span>
 
                       <span>Completed on {new Date(ticket.updatedAt).toLocaleDateString()}</span>
                     </div>
@@ -425,7 +425,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
 
                   <Link
                     href={`/tickets/${ticket.key}`}
-                    className="p-2 border border-white/10 hover:border-teal-400 hover:bg-teal-500/10 text-muted-foreground hover:text-teal-300 transition-all shrink-0"
+                    className="p-2 border border-border hover:border-teal-400 hover:bg-teal-500/10 text-muted-foreground hover:text-teal-300 transition-all shrink-0"
                     title="View Ticket Details"
                   >
                     <ExternalLinkIcon className="w-4 h-4" />
@@ -440,7 +440,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
         {activeTab === 'info' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Card 1: Office Job & Position */}
-            <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md">
+            <Card className="bg-card border-border backdrop-blur-md">
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
                   <BriefcaseIcon className="w-4 h-4" />
@@ -448,19 +448,19 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-xs">
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Office Job Title:</span>
                   <span className="font-semibold text-foreground">{profile.jobTitle || 'Not specified'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Department:</span>
                   <span className="font-semibold text-foreground">{profile.department || 'General'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Workspace Team:</span>
                   <span className="font-semibold text-teal-400">{profile.teamInfo?.teamName || 'Doko Team'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Team Role:</span>
                   <span className="font-mono uppercase font-semibold text-foreground">{profile.teamInfo?.role || 'Member'}</span>
                 </div>
@@ -472,7 +472,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
             </Card>
 
             {/* Card 2: Contact & Personal Details */}
-            <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md">
+            <Card className="bg-card border-border backdrop-blur-md">
               <CardHeader className="pb-3">
                 <CardTitle className="text-xs font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
                   <UserIcon className="w-4 h-4" />
@@ -480,28 +480,28 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-xs">
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Email Address:</span>
                   <span className="font-mono text-foreground">{profile.email}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Phone / Ext:</span>
                   <span className="font-mono text-foreground">{profile.phone || 'Not provided'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Timezone:</span>
                   <span className="font-mono text-foreground">{profile.timezone}</span>
                 </div>
                 <div className="space-y-1 pt-1">
                   <span className="text-muted-foreground block">Bio / Summary:</span>
-                  <p className="text-slate-300 italic">{profile.bio || 'No bio written yet.'}</p>
+                  <p className="text-foreground/80 italic">{profile.bio || 'No bio written yet.'}</p>
                 </div>
               </CardContent>
             </Card>
 
             {/* Card 3: Social & Professional Links */}
             {(profile.githubUrl || profile.linkedinUrl) && (
-              <Card className="bg-slate-900/60 border-white/10 backdrop-blur-md md:col-span-2">
+              <Card className="bg-card border-border backdrop-blur-md md:col-span-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-xs font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
                     <GlobeIcon className="w-4 h-4" />
@@ -514,7 +514,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                       href={profile.githubUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1.5 border border-white/10 text-xs font-mono text-slate-300 hover:border-teal-400 hover:text-teal-300 transition-all"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-xs font-mono text-foreground hover:border-teal-400 hover:text-teal-300 transition-all"
                     >
                       <GlobeIcon className="w-4 h-4 text-teal-400" />
                       GitHub Profile
@@ -525,7 +525,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
                       href={profile.linkedinUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1.5 border border-white/10 text-xs font-mono text-slate-300 hover:border-teal-400 hover:text-teal-300 transition-all"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-xs font-mono text-foreground hover:border-teal-400 hover:text-teal-300 transition-all"
                     >
                       <GlobeIcon className="w-4 h-4 text-teal-400" />
                       LinkedIn Profile

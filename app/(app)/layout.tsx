@@ -2,7 +2,6 @@ import { UserInit } from '@/components/UserInit'
 import { UserNav } from '@/components/UserNav'
 import { NavTabs } from '@/components/NavTabs'
 import { TeamGuard } from '@/components/TeamGuard'
-import { Footer } from '@/components/Footer'
 import Link from 'next/link'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -25,10 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       <TeamGuard>
-        <div className="flex-1 min-h-0 flex flex-col justify-between">
-          <div>{children}</div>
-          <Footer />
-        </div>
+        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
       </TeamGuard>
     </div>
   )

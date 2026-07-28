@@ -236,7 +236,7 @@ export function TeamSettings() {
   return (
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       {/* Header Banner */}
-      <div className="flex items-center justify-between flex-wrap gap-4 border-b border-white/10 pb-6">
+      <div className="flex items-center justify-between flex-wrap gap-4 border-b border-border pb-6">
         <div>
           {editingTeam ? (
             <form onSubmit={handleSaveTeamSettings} className="space-y-3">
@@ -245,13 +245,13 @@ export function TeamSettings() {
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   placeholder="Team Name"
-                  className="bg-slate-950 border-white/10 font-semibold"
+                  className="bg-background border-border font-semibold"
                 />
                 <Input
                   value={editDomain}
                   onChange={e => setEditDomain(e.target.value)}
                   placeholder="Domain (leave blank to allow all emails)"
-                  className="bg-slate-950 border-white/10 text-xs font-mono"
+                  className="bg-background border-border text-xs font-mono"
                 />
               </div>
               <div className="flex gap-2">
@@ -269,7 +269,7 @@ export function TeamSettings() {
                   variant="outline"
                   size="sm"
                   onClick={() => setEditingTeam(false)}
-                  className="text-xs font-mono uppercase border-white/10"
+                  className="text-xs font-mono uppercase border-border"
                 >
                   <XIcon className="w-3.5 h-3.5 mr-1" />
                   Cancel
@@ -283,7 +283,7 @@ export function TeamSettings() {
                 <button
                   type="button"
                   onClick={() => setEditingTeam(true)}
-                  className="text-slate-400 hover:text-teal-400 p-1 transition-colors"
+                  className="text-muted-foreground hover:text-teal-400 p-1 transition-colors"
                   title="Edit team name or domain restriction"
                 >
                   <EditIcon className="w-4 h-4" />
@@ -294,7 +294,7 @@ export function TeamSettings() {
                 {team.workspaceDomain ? (
                   <span className="text-teal-400 font-semibold">@{team.workspaceDomain}</span>
                 ) : (
-                  <span className="text-slate-400">Open (no domain restriction — any email allowed)</span>
+                  <span className="text-muted-foreground">Open (no domain restriction — any email allowed)</span>
                 )}
               </p>
             </div>
@@ -312,7 +312,7 @@ export function TeamSettings() {
 
       {/* Quick Create Team Box if toggled */}
       {showCreateModal && (
-        <Card className="border border-teal-500/50 bg-slate-900/90 backdrop-blur-md">
+        <Card className="border border-border bg-card backdrop-blur-md">
           <CardHeader>
             <CardTitle className="text-sm font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
               <PlusIcon className="w-4 h-4" />
@@ -331,7 +331,7 @@ export function TeamSettings() {
                   value={newTeamName}
                   onChange={e => setNewTeamName(e.target.value)}
                   placeholder="e.g. Acme Mobile Engineering"
-                  className="bg-slate-950 border-white/10"
+                  className="bg-background border-border"
                 />
               </div>
               <div className="space-y-1.5">
@@ -343,7 +343,7 @@ export function TeamSettings() {
                   value={newTeamDomain}
                   onChange={e => setNewTeamDomain(e.target.value)}
                   placeholder="acme.com"
-                  className="bg-slate-950 border-white/10 text-xs font-mono"
+                  className="bg-background border-border text-xs font-mono"
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -351,7 +351,7 @@ export function TeamSettings() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowCreateModal(false)}
-                  className="text-xs font-mono uppercase border-white/10"
+                  className="text-xs font-mono uppercase border-border"
                 >
                   Cancel
                 </Button>
@@ -370,7 +370,7 @@ export function TeamSettings() {
       )}
 
       {/* Invite Member Section */}
-      <Card className="border border-teal-500/30 bg-slate-900/60 backdrop-blur-md">
+      <Card className="border border-border bg-card backdrop-blur-md">
         <CardHeader>
           <CardTitle className="text-sm font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
             <MailIcon className="w-4 h-4" />
@@ -399,7 +399,7 @@ export function TeamSettings() {
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
                 placeholder={team.workspaceDomain ? `colleague@${team.workspaceDomain}` : 'colleague@example.com'}
-                className="bg-slate-950 border-white/10 text-xs font-mono"
+                className="bg-background border-border text-xs font-mono"
               />
             </div>
             <Button
@@ -425,7 +425,7 @@ export function TeamSettings() {
       </Card>
 
       {/* Team Members List */}
-      <Card className="border border-border/80 bg-card/60 backdrop-blur-md">
+      <Card className="border border-border bg-card backdrop-blur-md">
         <CardHeader>
           <CardTitle className="text-sm font-mono uppercase tracking-wider text-foreground flex items-center gap-2">
             <UsersIcon className="w-4 h-4 text-teal-400" />
@@ -436,7 +436,7 @@ export function TeamSettings() {
           {members.map(member => (
             <div
               key={member._id}
-              className="flex items-center justify-between p-3 border border-white/10 bg-slate-950/60"
+              className="flex items-center justify-between p-3 border border-border bg-background/60"
             >
               <div className="flex items-center gap-3">
                 <UserAvatar user={{ email: member.email, userId: member.userId }} size="md" />
@@ -464,7 +464,7 @@ export function TeamSettings() {
                 </Link>
 
                 {member.userId !== me?.userId && member.email.trim().toLowerCase() !== currentEmail && (
-                  <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-white/10" />
+                  <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-border" />
                 )}
 
                 {member.role !== 'owner' && (
@@ -475,7 +475,7 @@ export function TeamSettings() {
                       onClick={() =>
                         handleChangeRole(member._id, member.role === 'admin' ? 'member' : 'admin')
                       }
-                      className="text-[10px] font-mono uppercase border-white/10 active:scale-[0.97]"
+                      className="text-[10px] font-mono uppercase border-border active:scale-[0.97]"
                     >
                       <ShieldIcon className="w-3 h-3 mr-1" />
                       {member.role === 'admin' ? 'Demote' : 'Promote'}
@@ -486,7 +486,7 @@ export function TeamSettings() {
                       onClick={() => handleRemoveMember(member._id)}
                       className="text-[10px] font-mono uppercase active:scale-[0.97]"
                     >
-                      <UserXIcon className="w-3 h-3 mr-1" />
+                      <UserXIcon className="w-3.5 h-3.5 mr-1" />
                       Remove
                     </Button>
                   </>
@@ -499,7 +499,7 @@ export function TeamSettings() {
 
       {/* Pending Invites List */}
       {invites.length > 0 && (
-        <Card className="border border-border/80 bg-card/60 backdrop-blur-md">
+        <Card className="border border-border bg-card backdrop-blur-md">
           <CardHeader>
             <CardTitle className="text-sm font-mono uppercase tracking-wider text-foreground">
               Pending Invites ({invites.length})
@@ -509,7 +509,7 @@ export function TeamSettings() {
             {invites.map(inv => (
               <div
                 key={inv._id}
-                className="flex items-center justify-between p-3 border border-white/10 bg-slate-950/60"
+                className="flex items-center justify-between p-3 border border-border bg-background/60"
               >
                 <div>
                   <div className="font-mono text-xs font-semibold text-foreground">{inv.email}</div>
@@ -534,7 +534,7 @@ export function TeamSettings() {
       )}
 
       {/* Leave or Delete Team Option */}
-      <div className="pt-4 border-t border-white/10 flex justify-end">
+      <div className="pt-4 border-t border-border flex justify-end">
         <Button
           variant="outline"
           onClick={handleLeaveOrDelete}

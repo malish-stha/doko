@@ -99,8 +99,8 @@ export function DiceBearAvatarPicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-slate-900 border border-teal-500/30 text-foreground shadow-2xl p-6 font-sans backdrop-blur-xl">
-        <DialogHeader className="space-y-1.5 border-b border-white/10 pb-4">
+      <DialogContent className="max-w-xl bg-card border border-border text-foreground shadow-2xl p-6 font-sans backdrop-blur-xl">
+        <DialogHeader className="space-y-1.5 border-b border-border pb-4">
           <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
             <SparklesIcon className="w-5 h-5 text-teal-400" />
             Customize DiceBear Thumbs Avatar
@@ -112,7 +112,7 @@ export function DiceBearAvatarPicker({
 
         <div className="py-4 space-y-6">
           {/* Top Row: Preview & Seed Controls */}
-          <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-950/60 border border-white/10">
+          <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-background border border-border">
             {/* Avatar Preview Box */}
             <div className="relative group shrink-0">
               <div className="w-28 h-28 rounded-none bg-teal-500/10 border-2 border-teal-500/50 flex items-center justify-center overflow-hidden shadow-lg">
@@ -153,7 +153,7 @@ export function DiceBearAvatarPicker({
                     value={seed}
                     onChange={e => setSeed(e.target.value)}
                     placeholder="Enter seed phrase or name..."
-                    className="bg-slate-900 border-white/15 text-xs font-mono focus-visible:ring-teal-500"
+                    className="bg-background border-border text-xs font-mono focus-visible:ring-teal-500"
                   />
                   <Button
                     type="button"
@@ -173,7 +173,7 @@ export function DiceBearAvatarPicker({
                   value={customUrlInput}
                   onChange={e => setCustomUrlInput(e.target.value)}
                   placeholder="https://example.com/my-avatar.png"
-                  className="bg-slate-900 border-white/15 text-xs font-mono focus-visible:ring-teal-500"
+                  className="bg-background border-border text-xs font-mono focus-visible:ring-teal-500"
                 />
               )}
 
@@ -203,11 +203,11 @@ export function DiceBearAvatarPicker({
                       className={`flex items-center gap-2 p-2 border text-left transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-teal-500/20 border-teal-400 text-teal-200 ring-1 ring-teal-400'
-                          : 'bg-slate-950/40 border-white/10 text-muted-foreground hover:bg-slate-800'
+                          : 'bg-background/40 border-border text-muted-foreground hover:bg-muted/40'
                       }`}
                     >
                       <div
-                        className="w-4 h-4 rounded-none border border-white/20 shrink-0"
+                        className="w-4 h-4 rounded-none border border-border shrink-0"
                         style={{ backgroundColor: `#${colorPreset.value[0]}` }}
                       />
                       <span className="text-[11px] font-mono truncate font-medium flex-1">
@@ -223,7 +223,7 @@ export function DiceBearAvatarPicker({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-2">
+        <div className="flex items-center justify-between border-t border-border pt-4 mt-2">
           <Button
             type="button"
             variant="ghost"
@@ -243,7 +243,7 @@ export function DiceBearAvatarPicker({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="text-xs font-mono border-white/20"
+              className="text-xs font-mono border-border"
             >
               Cancel
             </Button>

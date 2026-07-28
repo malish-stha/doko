@@ -98,159 +98,167 @@ export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-slate-900 border-teal-500/30 text-foreground backdrop-blur-xl">
-        <DialogHeader>
-          <DialogTitle className="text-base font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
-            <UserIcon className="w-4 h-4" />
+      <DialogContent className="max-w-lg bg-card border-border text-foreground backdrop-blur-xl p-5 gap-4">
+        <DialogHeader className="space-y-1 border-b border-border/60 pb-3">
+          <DialogTitle className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <UserIcon className="w-4 h-4 text-teal-400" />
             Edit Profile Information
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Update your office job post details, location, contact information, and personal bio.
+          <DialogDescription className="text-[11px] text-muted-foreground leading-snug">
+            Update your office job details, location, contact info, and personal bio.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-3 pt-1">
           {/* Full Name & Job Title */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-name" className="text-xs font-medium flex items-center gap-1.5">
-                <UserIcon className="w-3.5 h-3.5 text-teal-400" /> Full Name *
+            <div className="space-y-1">
+              <Label htmlFor="prof-name" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <UserIcon className="w-3 h-3 text-teal-400/80" /> Full Name *
               </Label>
               <Input
                 id="prof-name"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="e.g. Alex Rivera"
-                className="bg-slate-950 border-white/10 text-xs"
+                className="h-8 text-xs font-sans px-2.5"
                 required
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-title" className="text-xs font-medium flex items-center gap-1.5">
-                <BriefcaseIcon className="w-3.5 h-3.5 text-teal-400" /> Office Job Title / Post
+            <div className="space-y-1">
+              <Label htmlFor="prof-title" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <BriefcaseIcon className="w-3 h-3 text-teal-400/80" /> Office Job Title / Post
               </Label>
               <Input
                 id="prof-title"
                 value={jobTitle}
                 onChange={e => setJobTitle(e.target.value)}
                 placeholder="e.g. Lead Software Engineer"
-                className="bg-slate-950 border-white/10 text-xs"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
           </div>
 
-          {/* Department & Location */}
+          {/* Department & Office Location */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-dept" className="text-xs font-medium flex items-center gap-1.5">
-                <BuildingIcon className="w-3.5 h-3.5 text-teal-400" /> Department / Team
+            <div className="space-y-1">
+              <Label htmlFor="prof-dept" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <BuildingIcon className="w-3 h-3 text-teal-400/80" /> Department
               </Label>
               <Input
                 id="prof-dept"
                 value={department}
                 onChange={e => setDepartment(e.target.value)}
-                placeholder="e.g. Engineering, Product, Design"
-                className="bg-slate-950 border-white/10 text-xs"
+                placeholder="e.g. Engineering / Product"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-loc" className="text-xs font-medium flex items-center gap-1.5">
-                <MapPinIcon className="w-3.5 h-3.5 text-teal-400" /> Office / Work Location
+            <div className="space-y-1">
+              <Label htmlFor="prof-loc" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <MapPinIcon className="w-3 h-3 text-teal-400/80" /> Office Location
               </Label>
               <Input
                 id="prof-loc"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                placeholder="e.g. Kathmandu HQ - Floor 3"
-                className="bg-slate-950 border-white/10 text-xs"
+                placeholder="e.g. San Francisco / Remote"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
           </div>
 
           {/* Phone & Timezone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-phone" className="text-xs font-medium flex items-center gap-1.5">
-                <PhoneIcon className="w-3.5 h-3.5 text-teal-400" /> Phone / Extension
+            <div className="space-y-1">
+              <Label htmlFor="prof-phone" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <PhoneIcon className="w-3 h-3 text-teal-400/80" /> Phone Number / Ext
               </Label>
               <Input
                 id="prof-phone"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                placeholder="e.g. +977 9801234567"
-                className="bg-slate-950 border-white/10 text-xs font-mono"
+                placeholder="e.g. +1 (555) 019-2834"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-tz" className="text-xs font-medium flex items-center gap-1.5">
-                <GlobeIcon className="w-3.5 h-3.5 text-teal-400" /> Timezone
+            <div className="space-y-1">
+              <Label htmlFor="prof-tz" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <GlobeIcon className="w-3 h-3 text-teal-400/80" /> Timezone
               </Label>
               <Input
                 id="prof-tz"
                 value={timezone}
                 onChange={e => setTimezone(e.target.value)}
-                placeholder="e.g. Asia/Kathmandu"
-                className="bg-slate-950 border-white/10 text-xs font-mono"
+                placeholder="e.g. America/New_York"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
           </div>
 
-          {/* Bio */}
-          <div className="space-y-1.5">
-            <Label htmlFor="prof-bio" className="text-xs font-medium">About / Bio</Label>
+          {/* Bio / Summary */}
+          <div className="space-y-1">
+            <Label htmlFor="prof-bio" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+              <UserIcon className="w-3 h-3 text-teal-400/80" /> Personal Bio / Summary
+            </Label>
             <Textarea
               id="prof-bio"
               value={bio}
               onChange={e => setBio(e.target.value)}
-              placeholder="Short bio about your role, responsibilities, or interests..."
-              rows={3}
-              className="bg-slate-950 border-white/10 text-xs resize-none"
+              placeholder="Tell your team about your role or focus area…"
+              rows={2}
+              className="bg-background border-border text-xs font-sans p-2 resize-none"
             />
           </div>
 
-          {/* Social Links */}
+          {/* Social Profiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-github" className="text-xs font-medium">GitHub Profile URL</Label>
+            <div className="space-y-1">
+              <Label htmlFor="prof-gh" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <GlobeIcon className="w-3 h-3 text-teal-400/80" /> GitHub URL
+              </Label>
               <Input
-                id="prof-github"
+                id="prof-gh"
                 value={githubUrl}
                 onChange={e => setGithubUrl(e.target.value)}
                 placeholder="https://github.com/username"
-                className="bg-slate-950 border-white/10 text-xs font-mono"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="prof-linkedin" className="text-xs font-medium">LinkedIn Profile URL</Label>
+            <div className="space-y-1">
+              <Label htmlFor="prof-li" className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <GlobeIcon className="w-3 h-3 text-teal-400/80" /> LinkedIn URL
+              </Label>
               <Input
-                id="prof-linkedin"
+                id="prof-li"
                 value={linkedinUrl}
                 onChange={e => setLinkedinUrl(e.target.value)}
                 placeholder="https://linkedin.com/in/username"
-                className="bg-slate-950 border-white/10 text-xs font-mono"
+                className="h-8 text-xs font-sans px-2.5"
               />
             </div>
           </div>
 
-          {errorMsg && <p className="text-xs font-mono text-red-400 pt-1">{errorMsg}</p>}
+          {errorMsg && <p className="text-[11px] font-mono text-red-400 pt-1">{errorMsg}</p>}
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-3 border-t border-border/60 gap-2 sm:gap-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs font-mono uppercase border-white/10"
+              className="h-8 text-xs font-mono uppercase px-3 border-border"
             >
               Cancel
             </Button>
             <Button
               type="submit"
+              size="sm"
               disabled={!name.trim() || saving}
-              className="bg-teal-500 hover:bg-teal-400 text-black font-semibold text-xs uppercase tracking-wider active:scale-[0.97]"
+              className="h-8 bg-teal-500 hover:bg-teal-400 text-black font-semibold text-xs uppercase tracking-wider px-3.5 active:scale-[0.97]"
             >
               {saving ? <Loader2Icon className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
               Save Profile Changes
