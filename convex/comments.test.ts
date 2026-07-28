@@ -20,5 +20,5 @@ test('addComment succeeds and writes comment record', async () => {
   const list = await asUser.query(api.comments.byTicket, { ticketId })
   expect(list.length).toBe(1)
   expect(list[0].body).toBe('first comment text')
-  expect(list[0].authorId).toBe('User A')
+  expect(list[0].authorId).toBe('user-a')
 })

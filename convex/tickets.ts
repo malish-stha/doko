@@ -347,3 +347,50 @@ export const update = mutation({
   },
 })
 
+export const getUserTickets = query({
+  args: {
+    targetUserId: v.optional(v.string()),
+    targetEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId: callerUserId, teamId, identity } = await requireTeam(ctx)
+    const email = (args.targetEmail ?? identity?.email)?.trim().toLowerCase()
+    const targetId = args.targetUserId ?? callerUserId ?? email
+
+    if (!targetId && !email) return { ongoing: [], completed: [], total: 0 }
+
+    let allTickets = await ctx.db.query('tickets').collect()
+
+    if (teamId) {
+      allTickets = allTickets.filter(t => !t.teamId || t.teamId === (teamId as string))
+    }
+
+    const matchesUser = (id?: string) => {
+      if (!id) return false
+      const clean = id.trim().toLowerCase()
+      if (clean === targetId?.toLowerCase()) return true
+      if (email && clean === email) return true
+      return false
+    }
+
+    const userTickets = allTickets.filter(
+      t => matchesUser(t.assigneeId) || matchesUser(t.reporterId),
+    )
+
+    const ongoing = userTickets
+      .filter(t => t.status !== 'done')
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+
+    const completed = userTickets
+      .filter(t => t.status === 'done')
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+
+    return {
+      ongoing,
+      completed,
+      total: userTickets.length,
+    }
+  },
+})
+
+

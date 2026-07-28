@@ -48,3 +48,123 @@ export const upsert = mutation({
     })
   },
 })
+
+export const getProfile = query({
+  args: {
+    targetUserId: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    const currentEmail = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
+
+    let targetUser = null
+    if (args.targetUserId) {
+      targetUser = await ctx.db
+        .query('users')
+        .withIndex('by_userId', q => q.eq('userId', args.targetUserId!))
+        .first()
+
+      if (!targetUser) {
+        const allUsers = await ctx.db.query('users').collect()
+        targetUser = allUsers.find(u => u.userId === args.targetUserId || u.email.trim().toLowerCase() === args.targetUserId!.trim().toLowerCase()) ?? null
+      }
+    }
+
+    if (!targetUser && currentEmail) {
+      const key = identity?.subject ?? currentEmail
+      targetUser = await ctx.db
+        .query('users')
+        .withIndex('by_userId', q => q.eq('userId', key))
+        .first()
+
+      if (!targetUser) {
+        const allUsers = await ctx.db.query('users').collect()
+        targetUser = allUsers.find(u => u.email.trim().toLowerCase() === currentEmail) ?? null
+      }
+    }
+
+    if (!targetUser) return null
+
+    const isSelf = Boolean(
+      (identity?.subject && targetUser.userId === identity.subject) ||
+        (currentEmail && targetUser.email.trim().toLowerCase() === currentEmail),
+    )
+
+    let teamInfo = null
+    if (targetUser.teamId) {
+      const team = await ctx.db.get(targetUser.teamId)
+      const membership = await ctx.db
+        .query('teamMembers')
+        .withIndex('by_team', q => q.eq('teamId', targetUser.teamId!))
+        .collect()
+      const member = membership.find(
+        m =>
+          m.userId === targetUser!.userId ||
+          m.email.trim().toLowerCase() === targetUser!.email.trim().toLowerCase(),
+      )
+      if (team) {
+        teamInfo = {
+          teamId: team._id,
+          teamName: team.name,
+          role: member?.role ?? 'member',
+          joinedAt: member?.joinedAt ?? team.createdAt,
+          workspaceDomain: team.workspaceDomain,
+        }
+      }
+    }
+
+    return {
+      ...targetUser,
+      isSelf,
+      teamInfo,
+    }
+  },
+})
+
+export const updateProfile = mutation({
+  args: {
+    userEmail: v.optional(v.string()),
+    name: v.optional(v.string()),
+    timezone: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    department: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    location: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    githubUrl: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    const cleanEmail = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
+    if (!cleanEmail) throw new Error('Not authenticated')
+
+    const userId = identity?.subject ?? cleanEmail
+    let user = await ctx.db
+      .query('users')
+      .withIndex('by_userId', q => q.eq('userId', userId))
+      .first()
+
+    if (!user) {
+      const allUsers = await ctx.db.query('users').collect()
+      user = allUsers.find(u => u.email.trim().toLowerCase() === cleanEmail) ?? null
+    }
+
+    if (!user) throw new Error('User record not found')
+
+    const { userEmail: _userEmail, ...patchData } = args
+
+    const cleanPatch: Record<string, unknown> = {}
+    for (const [k, val] of Object.entries(patchData)) {
+      if (val !== undefined) {
+        cleanPatch[k] = val
+      }
+    }
+
+    await ctx.db.patch(user._id, cleanPatch)
+    return user._id
+  },
+})
+

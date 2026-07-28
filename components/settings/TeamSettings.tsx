@@ -23,6 +23,7 @@ import {
   CheckIcon,
   XIcon,
   Trash2Icon,
+  UserIcon,
 } from 'lucide-react'
 import { StartDMButton } from '@/components/chat/StartDMButton'
 
@@ -359,6 +360,15 @@ export function TeamSettings() {
               </div>
 
               <div className="flex items-center gap-2">
+                <Link
+                  href={`/profile?userId=${encodeURIComponent(member.userId)}`}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase border border-teal-500/30 text-teal-300 hover:bg-teal-500/10 transition-all"
+                  title="View Member Profile"
+                >
+                  <UserIcon className="w-3 h-3" />
+                  Profile
+                </Link>
+
                 {member.userId !== me?.userId && member.email.trim().toLowerCase() !== currentEmail && (
                   <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-white/10" />
                 )}
