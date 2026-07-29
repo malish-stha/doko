@@ -58,11 +58,11 @@ function Toast({ className, type, ...props }: ToastPrimitive.Root.Props & { type
       data-slot="toast"
       data-type={type}
       className={cn(
-        "group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(10000-var(--toast-index))] w-full origin-bottom rounded-none border border-slate-800 bg-slate-900/95 text-slate-100 shadow-2xl backdrop-blur-xl will-change-transform outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "data-[type=success]:border-teal-500/40 data-[type=success]:shadow-teal-500/10",
-        "data-[type=error]:border-rose-500/40 data-[type=error]:shadow-rose-500/10",
-        "data-[type=warning]:border-amber-500/40 data-[type=warning]:shadow-amber-500/10",
-        "data-[type=info]:border-cyan-500/40 data-[type=info]:shadow-cyan-500/10",
+        "group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(10000-var(--toast-index))] w-full origin-bottom rounded-none border border-border bg-card text-foreground shadow-2xl backdrop-blur-xl will-change-transform outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "data-[type=success]:border-teal-500/40 data-[type=success]:bg-teal-500/5",
+        "data-[type=error]:border-rose-500/40 data-[type=error]:bg-rose-500/5",
+        "data-[type=warning]:border-amber-500/40 data-[type=warning]:bg-amber-500/5",
+        "data-[type=info]:border-cyan-500/40 data-[type=info]:bg-cyan-500/5",
         "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
         "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
         "after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",

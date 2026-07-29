@@ -2,6 +2,7 @@ import { UserInit } from '@/components/UserInit'
 import { UserNav } from '@/components/UserNav'
 import { NavTabs } from '@/components/NavTabs'
 import { TeamGuard } from '@/components/TeamGuard'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import Link from 'next/link'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <NavTabs />
         </div>
 
-        <UserNav />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <UserNav />
+        </div>
       </header>
 
       <TeamGuard>

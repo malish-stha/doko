@@ -76,7 +76,7 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-teal-500/30 selection:text-teal-200 antialiased flex flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-teal-500/30 selection:text-teal-200 antialiased flex flex-col justify-between relative overflow-hidden">
       {/* Ambient Radial Mesh */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-10%,rgba(20,184,166,0.18),rgba(255,255,255,0))] pointer-events-none" />
       <div className="absolute -bottom-24 -left-24 w-[450px] h-[450px] bg-teal-500/10 blur-[150px] pointer-events-none rounded-full" />
@@ -86,17 +86,17 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
       <header className="px-6 py-6 max-w-6xl mx-auto w-full flex items-center justify-between relative z-10">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition-colors group active:scale-[0.97]"
+          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors group active:scale-[0.97]"
         >
           <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-150 ease-out" />
           Back to home
         </Link>
 
         <div className="flex items-center gap-2 font-bold text-sm tracking-tight">
-          <span className="w-6 h-6 bg-teal-500 text-slate-950 flex items-center justify-center font-mono text-xs font-black rounded-md shadow-xs">
+          <span className="w-6 h-6 bg-teal-500 text-black flex items-center justify-center font-mono text-xs font-black rounded-md shadow-xs">
             D
           </span>
-          <span className="font-semibold tracking-tight text-white text-base">Doko</span>
+          <span className="font-semibold tracking-tight text-foreground text-base">Doko</span>
         </div>
       </header>
 
@@ -109,21 +109,21 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
           transition={{ duration: 0.25, ease: EASE_OUT }}
           className="lg:col-span-7 space-y-6"
         >
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-teal-300 font-mono font-semibold bg-teal-500/10 px-3.5 py-1.5 rounded-full border border-teal-500/20 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-teal-600 dark:text-teal-300 font-mono font-semibold bg-teal-500/10 px-3.5 py-1.5 rounded-full border border-teal-500/20 backdrop-blur-md">
             <SparklesIcon className="w-3.5 h-3.5" />
             How Doko Works Overnight
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-medium tracking-tight leading-tight text-white">
-            From overnight noise to your <span className="text-teal-400 font-semibold underline decoration-teal-500/40 underline-offset-8">8:00 AM answer</span>.
+          <h1 className="text-3xl sm:text-4xl font-medium tracking-tight leading-tight text-foreground">
+            From overnight noise to your <span className="text-teal-600 dark:text-teal-400 font-semibold underline decoration-teal-500/40 underline-offset-8">8:00 AM answer</span>.
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-400 leading-relaxed font-light">
+          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed font-light">
             Click through the 3 steps below to see how Doko compiles your team's updates before you log in.
           </p>
 
           {/* Interactive Step Selection Pills */}
-          <div className="grid grid-cols-3 gap-2 bg-slate-900/90 p-1.5 rounded-xl border border-white/10">
+          <div className="grid grid-cols-3 gap-2 bg-card p-1.5 rounded-xl border border-border shadow-xs">
             {PIPELINE_STEPS.map((step, idx) => {
               const Icon = step.icon
               const active = idx === activeStepIndex
@@ -155,17 +155,17 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
           </div>
 
           {/* Dynamic Step Detail Card */}
-          <div className="relative border border-teal-500/30 bg-slate-900/80 p-6 sm:p-8 rounded-2xl shadow-xl backdrop-blur-xl ring-1 ring-white/10 overflow-hidden min-h-[190px]">
+          <div className="relative border border-teal-500/30 bg-card p-6 sm:p-8 rounded-2xl shadow-xl backdrop-blur-xl overflow-hidden min-h-[190px]">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs uppercase tracking-widest text-teal-400 font-mono font-semibold flex items-center gap-2">
+              <span className="text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400 font-mono font-semibold flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400" />
                 </span>
                 {activeStep.tag}
               </span>
-              <span className="text-[10px] font-mono text-slate-300 uppercase tracking-wider bg-teal-500/20 px-2.5 py-1 rounded-md border border-teal-500/30 font-medium flex items-center gap-1">
-                <CheckCircle2Icon className="w-3 h-3 text-teal-400" />
+              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider bg-teal-500/10 px-2.5 py-1 rounded-md border border-teal-500/30 font-medium flex items-center gap-1">
+                <CheckCircle2Icon className="w-3 h-3 text-teal-600 dark:text-teal-400" />
                 {activeStep.badge}
               </span>
             </div>
@@ -179,10 +179,10 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
                 transition={{ duration: 0.18, ease: EASE_OUT }}
                 className="space-y-2"
               >
-                <h3 className="text-lg sm:text-xl font-medium text-white">
+                <h3 className="text-lg sm:text-xl font-medium text-foreground">
                   {activeStep.headline}
                 </h3>
-                <p className="text-sm text-slate-300 leading-relaxed font-light">
+                <p className="text-sm text-muted-foreground leading-relaxed font-light">
                   {activeStep.desc}
                 </p>
               </motion.div>
@@ -197,16 +197,16 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
           transition={{ duration: 0.25, ease: EASE_OUT }}
           className="lg:col-span-5 flex justify-center"
         >
-          <div className="w-full max-w-md border border-white/10 bg-slate-900/90 p-8 sm:p-10 rounded-2xl shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 relative overflow-hidden">
+          <div className="w-full max-w-md border border-border bg-card p-8 sm:p-10 rounded-2xl shadow-2xl backdrop-blur-2xl relative overflow-hidden">
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-teal-500/15 blur-2xl pointer-events-none rounded-full" />
 
             {/* Title & Header */}
             <div className="text-center mb-8 space-y-2">
-              <div className="inline-flex w-12 h-12 bg-teal-500/10 border border-teal-500/30 rounded-xl items-center justify-center text-teal-400 font-mono font-bold text-xl mb-2 shadow-inner">
+              <div className="inline-flex w-12 h-12 bg-teal-500/10 border border-teal-500/30 rounded-xl items-center justify-center text-teal-600 dark:text-teal-400 font-mono font-bold text-xl mb-2 shadow-inner">
                 D
               </div>
-              <h2 className="text-2xl font-bold tracking-tight text-white">Sign in to Doko</h2>
-              <p className="text-xs font-mono text-slate-400 uppercase tracking-wider">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign in to Doko</h2>
+              <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
                 Workspace & Team Single Sign-On
               </p>
             </div>

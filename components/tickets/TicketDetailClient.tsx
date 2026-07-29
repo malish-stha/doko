@@ -601,7 +601,7 @@ function AttachmentCard({
     const badge = getFileBadge(meta.contentType)
     const { Icon } = badge
     return (
-      <div className="relative group border border-white/10 bg-slate-950/90 p-4 rounded-none flex items-center justify-between gap-3 hover:border-teal-500/60 transition-all shadow-md">
+      <div className="relative group border border-border bg-card p-4 rounded-none flex items-center justify-between gap-3 hover:border-teal-500/60 transition-all shadow-md">
         <div className="flex items-center gap-3 min-w-0">
           <div className={`px-2 py-1 border font-mono text-[10px] font-bold flex items-center gap-1 shrink-0 ${badge.color}`}>
             <Icon className="w-3.5 h-3.5" />
@@ -623,19 +623,18 @@ function AttachmentCard({
             target="_blank"
             rel="noopener noreferrer"
             download
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono text-teal-400 hover:text-white border border-teal-500/30 hover:bg-teal-500/10 transition-colors"
-            title="Download / Open document"
+            className="p-1.5 text-muted-foreground hover:text-teal-400 hover:bg-teal-500/10 border border-transparent hover:border-teal-500/30 transition-all"
+            title="Download file"
           >
-            <DownloadIcon className="w-3.5 h-3.5" />
-            Open
+            <DownloadIcon className="w-4 h-4" />
           </a>
           <button
             type="button"
             onClick={onRemove}
-            className="p-1 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-all"
             title="Remove attachment"
           >
-            <XIcon className="w-3.5 h-3.5" />
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -645,10 +644,10 @@ function AttachmentCard({
   const imageUrl = meta?.url
 
   return (
-    <div className="relative group border border-white/10 bg-slate-950/90 overflow-hidden rounded-none hover:border-teal-500/60 transition-all shadow-xl">
+    <div className="relative group border border-border bg-card overflow-hidden rounded-none hover:border-teal-500/60 transition-all shadow-xl">
       <div
         onClick={onOpenLightbox}
-        className={`cursor-pointer overflow-hidden p-3 flex items-center justify-center bg-black/60 ${
+        className={`cursor-pointer overflow-hidden p-3 flex items-center justify-center bg-muted/40 ${
           isSingle ? 'min-h-[22rem] sm:min-h-[28rem]' : 'min-h-[16rem]'
         }`}
       >

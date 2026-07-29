@@ -16,6 +16,31 @@ export const byTeam = query({
   },
 })
 
+async function getDMName(
+  ctx: any,
+  teamId: string,
+  otherUserId?: string,
+  fallbackName?: string
+) {
+  if (!otherUserId) return fallbackName ?? 'Direct Message'
+  const otherUser = await ctx.db
+    .query('users')
+    .withIndex('by_userId', (q: any) => q.eq('userId', otherUserId))
+    .first()
+  if (otherUser?.name) return otherUser.name
+
+  const members = await ctx.db
+    .query('teamMembers')
+    .withIndex('by_team', (q: any) => q.eq('teamId', teamId as any))
+    .collect()
+  const member = members.find(
+    (m: any) => m.userId === otherUserId || m.email === otherUserId
+  )
+  if (member?.email) return member.email.split('@')[0]
+
+  return fallbackName ?? 'Direct Message'
+}
+
 export const get = query({
   args: { channelId: v.id('channels'), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -24,8 +49,15 @@ export const get = query({
     const chan = await ctx.db.get(args.channelId)
     if (!chan || chan.teamId !== teamId) return null
 
-    if (chan.kind === 'dm' && userId && !chan.memberIds.includes(userId)) {
-      return null
+    if (chan.kind === 'dm') {
+      if (userId && !chan.memberIds.includes(userId)) {
+        return null
+      }
+      if (userId) {
+        const otherUserId = chan.memberIds.find(m => m !== userId)
+        const name = await getDMName(ctx, chan.teamId, otherUserId, chan.name)
+        return { ...chan, name }
+      }
     }
     return chan
   },
@@ -46,6 +78,8 @@ export const myDMs = query({
 
     const enriched = await Promise.all(
       mine.map(async c => {
+        const otherUserId = c.memberIds.find(m => m !== userId)
+        const name = await getDMName(ctx, c.teamId, otherUserId, c.name)
         const lastMsg = await ctx.db
           .query('messages')
           .withIndex('by_channel_created', q => q.eq('channelId', c._id))
@@ -53,6 +87,7 @@ export const myDMs = query({
           .first()
         return {
           ...c,
+          name,
           lastMessageAt: lastMsg?.createdAt ?? c.createdAt,
         }
       })

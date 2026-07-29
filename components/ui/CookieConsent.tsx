@@ -51,11 +51,11 @@ export function CookieConsent() {
           animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, y: 24, scale: 0.96, filter: 'blur(4px)' }}
           transition={{ duration: 0.25, ease: EASE_OUT }}
-          className="fixed bottom-5 right-5 left-5 sm:left-auto sm:max-w-md z-50 p-5 rounded-2xl bg-slate-900/95 border border-teal-500/30 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 text-slate-100 text-xs font-sans"
+          className="fixed bottom-5 right-5 left-5 sm:left-auto sm:max-w-md z-50 p-5 rounded-2xl bg-card border border-teal-500/30 shadow-2xl backdrop-blur-2xl text-foreground text-xs font-sans"
         >
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <div className="p-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400">
                 <CookieIcon className="w-4 h-4" />
               </div>

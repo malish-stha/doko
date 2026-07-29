@@ -46,7 +46,7 @@ export function LandingPage() {
   const reduce = useReducedMotion()
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-teal-500/30 selection:text-teal-200 antialiased relative overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-teal-500/30 selection:text-teal-200 antialiased relative overflow-x-hidden">
       {/* Ambient Radial Mesh Grid */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_-10%,rgba(20,184,166,0.18),rgba(255,255,255,0))] pointer-events-none" />
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-teal-500/5 blur-[120px] pointer-events-none rounded-full" />
@@ -62,21 +62,21 @@ export function LandingPage() {
 
 function LandingNav() {
   return (
-    <nav className="sticky top-0 z-40 backdrop-blur-xl bg-slate-950/75 border-b border-white/10 px-6 py-4 transition-colors">
+    <nav className="sticky top-0 z-40 backdrop-blur-xl bg-card/80 border-b border-border px-6 py-4 transition-colors">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         <Link
           href="/"
           className="flex items-center gap-2.5 font-bold text-sm tracking-tight group active:scale-[0.97] transition-transform duration-150 ease-out"
         >
-          <span className="w-6 h-6 bg-teal-500 text-slate-950 flex items-center justify-center font-mono text-xs font-black rounded-md group-hover:bg-teal-400 transition-colors shadow-xs">
+          <span className="w-6 h-6 bg-teal-500 text-black flex items-center justify-center font-mono text-xs font-black rounded-md group-hover:bg-teal-400 transition-colors shadow-xs">
             D
           </span>
-          <span className="font-semibold tracking-tight text-white text-base">Doko</span>
+          <span className="font-semibold tracking-tight text-foreground text-base">Doko</span>
         </Link>
 
         <Link
           href="/sign-in"
-          className="text-xs font-mono font-medium uppercase tracking-wider px-4 py-2 rounded-lg border border-teal-500/30 text-teal-300 hover:bg-teal-500/10 hover:border-teal-500/50 active:scale-[0.97] transition-all duration-150 ease-out shadow-xs"
+          className="text-xs font-mono font-medium uppercase tracking-wider px-4 py-2 rounded-lg border border-teal-500/30 text-teal-600 dark:text-teal-300 hover:bg-teal-500/10 hover:border-teal-500/50 active:scale-[0.97] transition-all duration-150 ease-out shadow-xs"
         >
           Sign in
         </Link>

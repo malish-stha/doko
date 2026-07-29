@@ -74,9 +74,9 @@ export function OnboardingClient() {
       </div>
 
       {invites.length > 0 && (
-        <Card className="border border-teal-500/40 bg-slate-900/60 backdrop-blur-md">
+        <Card className="border border-teal-500/40 bg-card backdrop-blur-md">
           <CardHeader>
-            <CardTitle className="text-sm font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
+            <CardTitle className="text-sm font-mono uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-2">
               <UsersIcon className="w-4 h-4" />
               Pending Invites
             </CardTitle>
@@ -86,7 +86,7 @@ export function OnboardingClient() {
           </CardHeader>
           <CardContent className="space-y-3">
             {invites.map(inv => (
-              <div key={inv._id} className="flex items-center justify-between p-3 border border-white/10 bg-slate-950/60">
+              <div key={inv._id} className="flex items-center justify-between p-3 border border-border bg-muted/40">
                 <div>
                   <div className="font-semibold text-sm text-foreground">{inv.teamName}</div>
                   <div className="text-xs font-mono text-muted-foreground">from {inv.invitedByEmail}</div>
@@ -108,7 +108,7 @@ export function OnboardingClient() {
       <Card className="border border-border/80 bg-card/60 backdrop-blur-md">
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <PlusIcon className="w-4 h-4 text-teal-400" />
+            <PlusIcon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
             Create a new team
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
@@ -125,7 +125,7 @@ export function OnboardingClient() {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Acme Product Team"
-              className="bg-slate-950 border-white/10"
+              className="bg-background border-border"
             />
           </div>
 
@@ -138,7 +138,7 @@ export function OnboardingClient() {
               value={domain}
               onChange={e => setDomain(e.target.value)}
               placeholder="acme.com"
-              className="bg-slate-950 border-white/10 font-mono text-xs"
+              className="bg-background border-border font-mono text-xs"
             />
           </div>
 

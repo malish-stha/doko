@@ -126,8 +126,8 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
                         <Bubble align={isSelf ? 'end' : 'start'} variant={isSelf ? 'default' : 'secondary'}>
                           <BubbleContent className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                             isSelf
-                              ? 'bg-teal-400 text-slate-950 font-medium shadow-md shadow-teal-500/10'
-                              : 'bg-muted/90 text-foreground border border-white/10'
+                              ? 'bg-teal-600 text-white dark:bg-teal-400 dark:text-slate-950 font-medium shadow-md shadow-teal-500/10'
+                              : 'bg-card text-foreground border border-border shadow-xs'
                           }`}>
                             {m.body}
                           </BubbleContent>

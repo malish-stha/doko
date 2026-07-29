@@ -26,10 +26,10 @@ export function BriefEmptyState() {
   }
 
   return (
-    <article className="p-8 sm:p-10 rounded-none border border-dashed border-teal-500/30 bg-slate-900/40 backdrop-blur-sm flex flex-col items-start space-y-5 shadow-lg relative overflow-hidden group">
-      <div className="text-xs uppercase tracking-widest text-teal-400 flex items-center gap-2 font-mono font-semibold">
-        <span className="w-2 h-2 rounded-full bg-teal-400/80 animate-pulse" />
-        <SparklesIcon className="w-4 h-4 text-teal-400" />
+    <article className="p-8 sm:p-10 rounded-none border border-dashed border-teal-500/40 bg-card backdrop-blur-sm flex flex-col items-start space-y-5 shadow-lg relative overflow-hidden group">
+      <div className="text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400 flex items-center gap-2 font-mono font-semibold">
+        <span className="w-2 h-2 rounded-full bg-teal-500 dark:bg-teal-400/80 animate-pulse" />
+        <SparklesIcon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
         Morning Brief
       </div>
 

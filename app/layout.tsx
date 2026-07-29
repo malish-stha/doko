@@ -20,6 +20,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { ThemeProvider } from "@/components/ThemeProvider";
+
 export const metadata: Metadata = {
   title: "Doko",
   description: "Everything your team carries, in one place.",
@@ -33,18 +35,26 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full dark", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
+      suppressHydrationWarning
+      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <AuthProvider>
-          <ConvexClientProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster />
-              <CookieConsent />
-            </TooltipProvider>
-          </ConvexClientProvider>
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <ConvexClientProvider>
+              <TooltipProvider>
+                {children}
+                <Toaster />
+                <CookieConsent />
+              </TooltipProvider>
+            </ConvexClientProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
