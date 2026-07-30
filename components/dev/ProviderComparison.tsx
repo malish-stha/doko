@@ -32,11 +32,13 @@ export function ProviderComparison() {
           userId: 'dev-user',
           forDate: date,
           provider: 'anthropic',
+          skipRateLimit: true,
         }),
         generateForProvider({
           userId: 'dev-user',
           forDate: date,
           provider: 'google',
+          skipRateLimit: true,
         }),
       ])
       setAnthropicText(ant ?? 'No response')

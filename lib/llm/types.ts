@@ -5,6 +5,7 @@ export type SummarizeArgs = {
   userPrompt: string
   model: ModelTier
   cacheKey?: string
+  provider?: string
 }
 
 export type LLMProvider = {

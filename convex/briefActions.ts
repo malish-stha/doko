@@ -1,6 +1,6 @@
 "use node";
 
-import { v } from 'convex/values'
+import { v, ConvexError } from 'convex/values'
 import { action, internalAction } from './_generated/server'
 import { internal } from './_generated/api'
 import { summarize } from '../lib/llm'
@@ -10,69 +10,75 @@ import { buildUserPrompt } from '../lib/llm/prompts/brief-user'
 export const generateNow = action({
   args: {},
   handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity()
-    const userId = identity?.subject ?? identity?.name ?? 'dev-user'
+    try {
+      const identity = await ctx.auth.getUserIdentity()
+      const userId = identity?.subject ?? identity?.name ?? 'dev-user'
 
-    let user = await ctx.runQuery(internal.brief.readUser, { userId })
-    if (!user) {
-      const tz = 'UTC'
-      await ctx.runMutation(internal.brief.ensureUser, {
+      let user = await ctx.runQuery(internal.brief.readUser, { userId })
+      if (!user) {
+        const tz = 'UTC'
+        await ctx.runMutation(internal.brief.ensureUser, {
+          userId,
+          name: identity?.name ?? 'Dev User',
+          email: identity?.email ?? 'dev@doko.internal',
+          timezone: tz,
+        })
+        user = await ctx.runQuery(internal.brief.readUser, { userId })
+      }
+
+      const tz = user?.timezone ?? 'UTC'
+      const forDate = new Date()
+        .toLocaleString('en-CA', { timeZone: tz })
+        .split(',')[0]
+
+      // Enforce extreme AI rate limiting before invoking LLM
+      await ctx.runMutation(internal.rateLimit.checkAndRecord, {
         userId,
-        name: identity?.name ?? 'Dev User',
-        email: identity?.email ?? 'dev@doko.internal',
-        timezone: tz,
+        actionType: 'brief_generation',
       })
-      user = await ctx.runQuery(internal.brief.readUser, { userId })
-    }
 
-    const tz = user?.timezone ?? 'UTC'
-    const forDate = new Date()
-      .toLocaleString('en-CA', { timeZone: tz })
-      .split(',')[0]
+      const { events, myTickets, user: loadedUser } = await ctx.runQuery(
+        internal.brief.readContext,
+        { userId },
+      )
 
-    // Enforce extreme AI rate limiting before invoking LLM
-    await ctx.runMutation(internal.rateLimit.checkAndRecord, {
-      userId,
-      actionType: 'brief_generation',
-    })
+      const systemPrompt = SYSTEM_PROMPT_V2
+      const userPrompt = buildUserPrompt({
+        user: loadedUser ?? {
+          userId,
+          email: identity?.email ?? 'dev@doko.internal',
+          name: identity?.name ?? 'Dev User',
+          timezone: tz,
+          createdAt: Date.now(),
+          _id: '' as any,
+          _creationTime: Date.now(),
+        },
+        forDate,
+        events: events ?? [],
+        myTickets: myTickets ?? [],
+      })
 
-    const { events, myTickets, user: loadedUser } = await ctx.runQuery(
-      internal.brief.readContext,
-      { userId },
-    )
+      const body = await summarize({
+        systemPrompt,
+        userPrompt,
+        model: 'brief',
+        cacheKey: 'brief-system-v2',
+      })
 
-    const systemPrompt = SYSTEM_PROMPT_V2
-    const userPrompt = buildUserPrompt({
-      user: loadedUser ?? {
+      await ctx.runMutation(internal.brief.writeBrief, {
         userId,
-        email: identity?.email ?? 'dev@doko.internal',
-        name: identity?.name ?? 'Dev User',
-        timezone: tz,
-        createdAt: Date.now(),
-        _id: '' as any,
-        _creationTime: Date.now(),
-      },
-      forDate,
-      events,
-      myTickets,
-    })
+        forDate,
+        body,
+        sourceEventIds: (events ?? []).map(e => e._id),
+        providerUsed: process.env.LLM_BRIEF_PROVIDER ?? 'google',
+      })
 
-    const body = await summarize({
-      systemPrompt,
-      userPrompt,
-      model: 'brief',
-      cacheKey: 'brief-system-v2',
-    })
-
-    await ctx.runMutation(internal.brief.writeBrief, {
-      userId,
-      forDate,
-      body,
-      sourceEventIds: events.map(e => e._id),
-      providerUsed: process.env.LLM_BRIEF_PROVIDER ?? 'google',
-    })
-
-    return body
+      return body
+    } catch (err: any) {
+      if (err instanceof ConvexError) throw err
+      const msg = err?.data ?? err?.message ?? String(err)
+      throw new ConvexError(typeof msg === 'string' ? msg : JSON.stringify(msg))
+    }
   },
 })
 
@@ -111,41 +117,54 @@ export const generate = internalAction({
 })
 
 export const generateForProvider = action({
-  args: { userId: v.string(), forDate: v.string(), provider: v.string() },
+  args: {
+    userId: v.string(),
+    forDate: v.string(),
+    provider: v.string(),
+    skipRateLimit: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    await ctx.runMutation(internal.rateLimit.checkAndRecord, {
-      userId: args.userId,
-      actionType: 'brief_generation',
-    })
+    try {
+      if (!args.skipRateLimit) {
+        await ctx.runMutation(internal.rateLimit.checkAndRecord, {
+          userId: args.userId,
+          actionType: 'brief_generation',
+        })
+      }
 
-    const { events, myTickets, user } = await ctx.runQuery(
-      internal.brief.readContext,
-      { userId: args.userId },
-    )
+      const { events, myTickets, user } = await ctx.runQuery(
+        internal.brief.readContext,
+        { userId: args.userId },
+      )
 
-    const systemPrompt = SYSTEM_PROMPT_V2
-    const userPrompt = buildUserPrompt({
-      user: user ?? {
-        userId: args.userId,
-        email: 'dev@doko.internal',
-        name: 'Dev User',
-        timezone: 'UTC',
-        createdAt: Date.now(),
-        _id: '' as any,
-        _creationTime: Date.now(),
-      },
-      forDate: args.forDate,
-      events: events ?? [],
-      myTickets: myTickets ?? [],
-    })
+      const systemPrompt = SYSTEM_PROMPT_V2
+      const userPrompt = buildUserPrompt({
+        user: user ?? {
+          userId: args.userId,
+          email: 'dev@doko.internal',
+          name: 'Dev User',
+          timezone: 'UTC',
+          createdAt: Date.now(),
+          _id: '' as any,
+          _creationTime: Date.now(),
+        },
+        forDate: args.forDate,
+        events: events ?? [],
+        myTickets: myTickets ?? [],
+      })
 
-    process.env.LLM_BRIEF_PROVIDER = args.provider
-    return await summarize({
-      systemPrompt,
-      userPrompt,
-      model: 'brief',
-      cacheKey: 'brief-system-v2',
-    })
+      return await summarize({
+        systemPrompt,
+        userPrompt,
+        model: 'brief',
+        cacheKey: 'brief-system-v2',
+        provider: args.provider,
+      })
+    } catch (err: any) {
+      if (err instanceof ConvexError) throw err
+      const msg = err?.data ?? err?.message ?? String(err)
+      throw new ConvexError(typeof msg === 'string' ? msg : JSON.stringify(msg))
+    }
   },
 })
 

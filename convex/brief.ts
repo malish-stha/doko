@@ -84,7 +84,9 @@ export const readContext = internalQuery({
     const events = await Promise.all(
       rawEvents.map(async e => {
         if (e.refType === 'channel') {
-          const doc = await ctx.db.get(e.refId as Id<'channels'>)
+          const chanId = ctx.db.normalizeId('channels', e.refId)
+          if (!chanId) return e
+          const doc = await ctx.db.get(chanId)
           const channel = doc as Doc<'channels'> | null
           if (channel) {
             return {
@@ -98,7 +100,9 @@ export const readContext = internalQuery({
             }
           }
         } else if (e.refType === 'message') {
-          const msgDoc = await ctx.db.get(e.refId as Id<'messages'>)
+          const msgId = ctx.db.normalizeId('messages', e.refId)
+          if (!msgId) return e
+          const msgDoc = await ctx.db.get(msgId)
           const msg = msgDoc as Doc<'messages'> | null
           if (msg && msg.channelId) {
             const chanDoc = await ctx.db.get(msg.channelId)

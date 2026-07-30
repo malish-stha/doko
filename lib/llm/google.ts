@@ -2,8 +2,8 @@ import { GoogleGenAI } from '@google/genai'
 import { LLMProvider, SummarizeArgs } from './types'
 
 const MODEL_MAP = {
-  brief: 'gemini-3.5-flash',
-  quick: 'gemini-3.5-flash-lite',
+  brief: 'gemini-2.0-flash',
+  quick: 'gemini-1.5-flash',
 }
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
@@ -14,7 +14,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
     } catch (e: any) {
       lastErr = e
       const status = e?.status ?? e?.code ?? 0
-      if (status < 500 && status !== 429) throw e
+      if (status > 0 && status < 500 && status !== 429) throw e
       const waitMs = 500 * Math.pow(2, i)
       await new Promise(r => setTimeout(r, waitMs))
     }
@@ -32,7 +32,7 @@ export const googleProvider: LLMProvider = {
 
     const client = new GoogleGenAI({ apiKey })
     const primaryModel = MODEL_MAP[args.model]
-    const fallbackModel = 'gemini-2.5-flash'
+    const fallbackModel = 'gemini-1.5-flash'
 
     try {
       const res = await withRetry(() =>

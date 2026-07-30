@@ -14,7 +14,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
     } catch (e: any) {
       lastErr = e
       const status = e?.status ?? 0
-      if (status < 500 && status !== 429) throw e
+      if (status > 0 && status < 500 && status !== 429) throw e
       const waitMs = 500 * Math.pow(2, i)
       await new Promise(r => setTimeout(r, waitMs))
     }
@@ -31,7 +31,12 @@ export const anthropicProvider: LLMProvider = {
     }
 
     try {
-      const client = new Anthropic({ apiKey })
+      const client = new Anthropic({
+        apiKey,
+        defaultHeaders: {
+          'anthropic-beta': 'prompt-caching-2024-07-31',
+        },
+      })
       const model = MODEL_MAP[args.model]
       const res = await withRetry(() =>
         client.messages.create({
