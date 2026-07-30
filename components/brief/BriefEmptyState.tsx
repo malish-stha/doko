@@ -15,7 +15,11 @@ export function BriefEmptyState() {
     if (generating) return
     setGenerating(true)
     try {
-      await generateNow()
+      const res = await generateNow()
+      if (res && !res.success && res.error) {
+        toast.error('Cannot generate brief', res.error)
+        return
+      }
       toast.success('Morning Brief generated', 'Today\'s brief has been created from team activity.')
     } catch (err: any) {
       console.error('Failed to generate brief:', err)

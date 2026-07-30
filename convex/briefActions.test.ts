@@ -20,7 +20,8 @@ test('generateNow executes successfully with string refId in activityEvents', as
   })
 
   const result = await asUser.action(api.briefActions.generateNow, {})
-  expect(result).toBeDefined()
+  expect(result.success).toBe(true)
+  expect(result.body).toBeDefined()
 })
 
 test('generateForProvider executes with skipRateLimit flag', async () => {
@@ -46,10 +47,14 @@ test('generateForProvider executes with skipRateLimit flag', async () => {
   expect(goog).toBeDefined()
 })
 
-test('rate limit triggers structured ConvexError on rapid calls', async () => {
+test('rate limit returns clean error message on rapid calls', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-b', name: 'User B', email: 'userb@example.com' })
 
-  await asUser.action(api.briefActions.generateNow, {})
-  await expect(asUser.action(api.briefActions.generateNow, {})).rejects.toThrow(/Rate Limit/)
+  const res1 = await asUser.action(api.briefActions.generateNow, {})
+  expect(res1.success).toBe(true)
+
+  const res2 = await asUser.action(api.briefActions.generateNow, {})
+  expect(res2.success).toBe(false)
+  expect(res2.error).toContain('AI Rate Limit')
 })

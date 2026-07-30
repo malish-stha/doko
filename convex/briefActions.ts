@@ -9,7 +9,7 @@ import { buildUserPrompt } from '../lib/llm/prompts/brief-user'
 
 export const generateNow = action({
   args: {},
-  handler: async ctx => {
+  handler: async (ctx): Promise<{ success: boolean; body?: string; error?: string }> => {
     try {
       const identity = await ctx.auth.getUserIdentity()
       const userId = identity?.subject ?? identity?.name ?? 'dev-user'
@@ -32,10 +32,18 @@ export const generateNow = action({
         .split(',')[0]
 
       // Enforce extreme AI rate limiting before invoking LLM
-      await ctx.runMutation(internal.rateLimit.checkAndRecord, {
-        userId,
-        actionType: 'brief_generation',
-      })
+      try {
+        await ctx.runMutation(internal.rateLimit.checkAndRecord, {
+          userId,
+          actionType: 'brief_generation',
+        })
+      } catch (rateLimitErr: any) {
+        const rawMsg = rateLimitErr?.data ?? rateLimitErr?.message ?? String(rateLimitErr)
+        const cleanMsg = typeof rawMsg === 'string'
+          ? rawMsg.replace(/^.*ConvexError:\s*/, '').replace(/\[CONVEX M\([^)]+\)\]\s*/, '')
+          : 'AI Rate Limit exceeded. Please wait a few minutes before generating again.'
+        return { success: false, error: cleanMsg }
+      }
 
       const { events, myTickets, user: loadedUser } = await ctx.runQuery(
         internal.brief.readContext,
@@ -73,11 +81,13 @@ export const generateNow = action({
         providerUsed: process.env.LLM_BRIEF_PROVIDER ?? 'google',
       })
 
-      return body
+      return { success: true, body }
     } catch (err: any) {
-      if (err instanceof ConvexError) throw err
-      const msg = err?.data ?? err?.message ?? String(err)
-      throw new ConvexError(typeof msg === 'string' ? msg : JSON.stringify(msg))
+      const rawMsg = err?.data ?? err?.message ?? String(err)
+      const cleanMsg = typeof rawMsg === 'string'
+        ? rawMsg.replace(/^.*ConvexError:\s*/, '').replace(/\[CONVEX M\([^)]+\)\]\s*/, '')
+        : 'Failed to generate brief.'
+      return { success: false, error: cleanMsg }
     }
   },
 })

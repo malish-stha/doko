@@ -15,7 +15,11 @@ export function BriefCard({ brief }: { brief: Doc<'briefs'> }) {
     if (generating) return
     setGenerating(true)
     try {
-      await generateNow()
+      const res = await generateNow()
+      if (res && !res.success && res.error) {
+        toast.error('Cannot regenerate brief', res.error)
+        return
+      }
       toast.success('Morning Brief regenerated', 'Brief has been updated with the latest team activity.')
     } catch (err: any) {
       console.error('Failed to regenerate brief:', err)
