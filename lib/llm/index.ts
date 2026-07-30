@@ -2,10 +2,15 @@ import { anthropicProvider } from './anthropic'
 import { googleProvider } from './google'
 import { LLMProvider, ModelTier, SummarizeArgs } from './types'
 
-function providerFor(tier: ModelTier, providerOverride?: string): LLMProvider {
+export function getProviderUsed(tier: ModelTier, providerOverride?: string): string {
   const envVar = tier === 'brief' ? 'LLM_BRIEF_PROVIDER' : 'LLM_QUICK_PROVIDER'
   const choice = (providerOverride ?? process.env[envVar] ?? 'anthropic').toLowerCase()
-  if (choice === 'google') return googleProvider
+  return choice === 'google' ? 'google' : 'anthropic'
+}
+
+function providerFor(tier: ModelTier, providerOverride?: string): LLMProvider {
+  const name = getProviderUsed(tier, providerOverride)
+  if (name === 'google') return googleProvider
   return anthropicProvider
 }
 

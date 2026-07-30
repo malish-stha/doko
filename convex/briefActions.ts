@@ -3,7 +3,7 @@
 import { v, ConvexError } from 'convex/values'
 import { action, internalAction } from './_generated/server'
 import { internal } from './_generated/api'
-import { summarize } from '../lib/llm'
+import { summarize, getProviderUsed } from '../lib/llm'
 import { SYSTEM_PROMPT_V2 } from '../lib/llm/prompts/brief-system'
 import { buildUserPrompt } from '../lib/llm/prompts/brief-user'
 
@@ -12,7 +12,8 @@ export const generateNow = action({
   handler: async (ctx): Promise<{ success: boolean; body?: string; error?: string }> => {
     try {
       const identity = await ctx.auth.getUserIdentity()
-      const userId = identity?.subject ?? identity?.name ?? 'dev-user'
+      const cleanEmail = identity?.email?.trim().toLowerCase()
+      const userId = identity?.subject ?? cleanEmail ?? 'dev-user'
 
       let user = await ctx.runQuery(internal.brief.readUser, { userId })
       if (!user) {
@@ -66,6 +67,7 @@ export const generateNow = action({
         myTickets: myTickets ?? [],
       })
 
+      const providerUsed = getProviderUsed('brief')
       const body = await summarize({
         systemPrompt,
         userPrompt,
@@ -78,7 +80,7 @@ export const generateNow = action({
         forDate,
         body,
         sourceEventIds: (events ?? []).map(e => e._id),
-        providerUsed: process.env.LLM_BRIEF_PROVIDER ?? 'google',
+        providerUsed,
       })
 
       return { success: true, body }

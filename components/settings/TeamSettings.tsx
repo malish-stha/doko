@@ -436,14 +436,14 @@ export function TeamSettings() {
           {members.map(member => (
             <div
               key={member._id}
-              className="flex items-center justify-between p-3 border border-border bg-background/60"
+              className="flex items-center justify-between p-3 border border-border bg-background/60 flex-wrap sm:flex-nowrap gap-3"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <UserAvatar user={{ email: member.email, userId: member.userId }} size="md" />
-                <div>
-                  <div className="font-semibold text-sm text-foreground flex items-center gap-2">
-                    {member.email}
-                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-teal-500/30 text-teal-400 bg-teal-500/10 font-semibold">
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm text-foreground flex items-center gap-2 flex-wrap">
+                    <span className="truncate">{member.email}</span>
+                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-teal-500/40 text-teal-600 dark:text-teal-400 bg-teal-500/10 font-semibold shrink-0">
                       {member.role}
                     </span>
                   </div>
@@ -453,10 +453,10 @@ export function TeamSettings() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0 flex-wrap">
                 <Link
                   href={`/profile?userId=${encodeURIComponent(member.userId)}`}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase border border-teal-500/30 text-teal-300 hover:bg-teal-500/10 transition-all"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-mono uppercase border border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-500/10 transition-all font-medium"
                   title="View Member Profile"
                 >
                   <UserIcon className="w-3 h-3" />
@@ -464,7 +464,7 @@ export function TeamSettings() {
                 </Link>
 
                 {member.userId !== me?.userId && member.email.trim().toLowerCase() !== currentEmail && (
-                  <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-border" />
+                  <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-border text-foreground" />
                 )}
 
                 {member.role !== 'owner' && (
@@ -475,9 +475,9 @@ export function TeamSettings() {
                       onClick={() =>
                         handleChangeRole(member._id, member.role === 'admin' ? 'member' : 'admin')
                       }
-                      className="text-[10px] font-mono uppercase border-border active:scale-[0.97]"
+                      className="text-[10px] font-mono uppercase border-border text-foreground hover:bg-muted active:scale-[0.97]"
                     >
-                      <ShieldIcon className="w-3 h-3 mr-1" />
+                      <ShieldIcon className="w-3 h-3 mr-1 text-teal-600 dark:text-teal-400" />
                       {member.role === 'admin' ? 'Demote' : 'Promote'}
                     </Button>
                     <Button

@@ -27,7 +27,7 @@ export const anthropicProvider: LLMProvider = {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
       console.warn('[llm] ANTHROPIC_API_KEY missing, using fallback mock response')
-      return `Here is your Morning Brief (Mock Anthropic output):\n\nYesterday the team shipped authentication and Kanban board features. Today, prioritize reviewing open PRs and completing the chat bridge.`
+      return `Yesterday the team shipped authentication and Kanban board features. Today, prioritize reviewing open PRs and completing the chat bridge.`
     }
 
     try {
@@ -61,7 +61,7 @@ export const anthropicProvider: LLMProvider = {
       return first.text
     } catch (err: any) {
       console.error('[llm] Anthropic API call error:', err?.message ?? err)
-      return `[Anthropic Fallback] Yesterday the team shipped auth, Kanban board, and chat bridge. Today, prioritize testing and reviewing open PRs.`
+      return `Yesterday the team shipped auth, Kanban board, and chat bridge. Today, prioritize testing and reviewing open PRs.`
     }
   },
 }

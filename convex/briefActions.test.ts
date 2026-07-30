@@ -47,7 +47,7 @@ test('generateForProvider executes with skipRateLimit flag', async () => {
   expect(goog).toBeDefined()
 })
 
-test('rate limit returns clean error message on rapid calls', async () => {
+test('rapid calls trigger rate limiting with clean error response', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-b', name: 'User B', email: 'userb@example.com' })
 

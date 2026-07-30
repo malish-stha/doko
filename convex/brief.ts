@@ -7,15 +7,16 @@ import { requireTeam } from './teamHelper'
 export const todayForMe = query({
   args: {},
   handler: async ctx => {
-    const { userId } = await requireTeam(ctx)
-    if (!userId) return null
+    const identity = await ctx.auth.getUserIdentity()
+    const cleanEmail = identity?.email?.trim().toLowerCase()
+    const userId = identity?.subject ?? cleanEmail ?? 'dev-user'
 
     const user = await ctx.db
       .query('users')
       .withIndex('by_userId', q => q.eq('userId', userId))
       .first()
 
-    const tz = user?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+    const tz = user?.timezone ?? 'UTC'
     const localDate = new Date()
       .toLocaleString('en-CA', { timeZone: tz })
       .split(',')[0] // YYYY-MM-DD

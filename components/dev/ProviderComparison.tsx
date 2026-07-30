@@ -67,27 +67,27 @@ export function ProviderComparison() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="font-mono text-sm uppercase tracking-wider text-teal-400">
+            <DialogTitle className="font-mono text-sm uppercase tracking-wider text-teal-600 dark:text-teal-400">
               LLM Provider Comparison (A/B Test)
             </DialogTitle>
           </DialogHeader>
           {loading ? (
             <div className="py-12 text-center text-xs font-mono text-muted-foreground animate-pulse">
-              Generating Briefs from Anthropic Sonnet & Google Gemini 3.5…
+              Generating Briefs from Anthropic Sonnet & Google Gemini 2.0…
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-              <div className="p-4 border border-white/10 bg-slate-950 space-y-2">
-                <div className="text-xs font-mono font-semibold uppercase text-teal-400">
+              <div className="p-4 border border-border bg-muted/40 dark:bg-slate-950 space-y-2">
+                <div className="text-xs font-mono font-semibold uppercase text-teal-600 dark:text-teal-400">
                   Anthropic (Claude Sonnet)
                 </div>
                 <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans font-light">
                   {anthropicText}
                 </p>
               </div>
-              <div className="p-4 border border-white/10 bg-slate-950 space-y-2">
-                <div className="text-xs font-mono font-semibold uppercase text-teal-400">
-                  Google (Gemini 3.5 Flash)
+              <div className="p-4 border border-border bg-muted/40 dark:bg-slate-950 space-y-2">
+                <div className="text-xs font-mono font-semibold uppercase text-teal-600 dark:text-teal-400">
+                  Google (Gemini 2.0 Flash)
                 </div>
                 <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans font-light">
                   {googleText}

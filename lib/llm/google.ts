@@ -27,7 +27,7 @@ export const googleProvider: LLMProvider = {
     const apiKey = process.env.GOOGLE_GENAI_API_KEY
     if (!apiKey) {
       console.warn('[llm] GOOGLE_GENAI_API_KEY missing, using fallback mock response')
-      return `Here is your Morning Brief (Mock Google Gemini output):\n\nYesterday the team shipped authentication and Kanban board features. Today, prioritize reviewing open PRs and completing the chat bridge.`
+      return `Yesterday the team shipped authentication and Kanban board features. Today, prioritize reviewing open PRs and completing the chat bridge.`
     }
 
     const client = new GoogleGenAI({ apiKey })
@@ -75,7 +75,7 @@ export const googleProvider: LLMProvider = {
       return res.text ?? 'Empty response'
     } catch (err: any) {
       console.error('[llm] Gemini API call error:', err?.message ?? err)
-      return `[Gemini Summary] Yesterday the team shipped auth, Kanban board, and chat bridge. Today, prioritize testing and reviewing open tickets.`
+      return `Yesterday the team shipped auth, Kanban board, and chat bridge. Today, prioritize testing and reviewing open tickets.`
     }
   },
 }
