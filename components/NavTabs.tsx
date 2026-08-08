@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 export function NavTabs() {
   const pathname = usePathname()
 
+
   const tabs = [
     { href: '/home', label: 'Brief', icon: SparklesIcon, exact: true },
     { href: '/board', label: 'Board', icon: LayoutGridIcon },
@@ -25,6 +26,8 @@ export function NavTabs() {
     { href: '/profile', label: 'Profile', icon: UserIcon },
     { href: '/settings/team', label: 'Team', icon: UsersIcon },
   ]
+
+
 
   return (
     <nav className="flex items-center gap-1 text-xs font-medium">
@@ -58,3 +61,5 @@ export function NavTabs() {
     </nav>
   )
 }
+
+

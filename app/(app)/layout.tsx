@@ -1,5 +1,6 @@
 import { UserInit } from '@/components/UserInit'
 import { UserNav } from '@/components/UserNav'
+import { NotificationDropdown } from '@/components/NotificationDropdown'
 import { NavTabs } from '@/components/NavTabs'
 import { TeamGuard } from '@/components/TeamGuard'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -23,9 +24,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
+          <NotificationDropdown />
           <UserNav />
         </div>
       </header>
+
 
       <TeamGuard>
         <div className="flex-1 min-h-0 flex flex-col">{children}</div>

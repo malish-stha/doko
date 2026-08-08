@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as attachments from "../attachments.js";
 import type * as brief from "../brief.js";
 import type * as briefActions from "../briefActions.js";
 import type * as channels from "../channels.js";
@@ -16,16 +17,20 @@ import type * as crons from "../crons.js";
 import type * as email from "../email.js";
 import type * as events from "../events.js";
 import type * as invites from "../invites.js";
+import type * as mentions from "../mentions.js";
 import type * as messages from "../messages.js";
 import type * as migrations from "../migrations.js";
 import type * as rateLimit from "../rateLimit.js";
 import type * as reactions from "../reactions.js";
 import type * as sprints from "../sprints.js";
+import type * as subtasks from "../subtasks.js";
 import type * as teamHelper from "../teamHelper.js";
 import type * as teamMembers from "../teamMembers.js";
 import type * as teams from "../teams.js";
+import type * as ticketLinks from "../ticketLinks.js";
 import type * as tickets from "../tickets.js";
 import type * as users from "../users.js";
+import type * as watchers from "../watchers.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +39,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  attachments: typeof attachments;
   brief: typeof brief;
   briefActions: typeof briefActions;
   channels: typeof channels;
@@ -42,16 +48,20 @@ declare const fullApi: ApiFromModules<{
   email: typeof email;
   events: typeof events;
   invites: typeof invites;
+  mentions: typeof mentions;
   messages: typeof messages;
   migrations: typeof migrations;
   rateLimit: typeof rateLimit;
   reactions: typeof reactions;
   sprints: typeof sprints;
+  subtasks: typeof subtasks;
   teamHelper: typeof teamHelper;
   teamMembers: typeof teamMembers;
   teams: typeof teams;
+  ticketLinks: typeof ticketLinks;
   tickets: typeof tickets;
   users: typeof users;
+  watchers: typeof watchers;
 }>;
 
 /**

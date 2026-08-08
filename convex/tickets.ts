@@ -3,6 +3,18 @@ import { mutation, query, internalQuery, MutationCtx } from './_generated/server
 import { internal } from './_generated/api'
 import { appendActivityEvent } from './events'
 import { requireTeam, getMembership } from './teamHelper'
+import { ensureWatcher, notifyWatchers } from './watchers'
+import { Id } from './_generated/dataModel'
+
+export async function touchTicket(ctx: MutationCtx, ticketId: Id<'tickets'>) {
+  try {
+    await ctx.db.patch(ticketId, { updatedAt: Date.now() })
+  } catch {
+    // ignore
+  }
+}
+
+
 
 export const getByIdInternal = internalQuery({
   args: { ticketId: v.id('tickets') },
@@ -258,7 +270,8 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, teamId, identity } = await requireTeam(ctx)
-    const reporterId = identity?.email ?? userId
+    const reporterId = userId
+
 
     if (args.type === 'epic') {
       if (args.sprintId) throw new Error('Epics cannot be assigned to sprints')
@@ -310,6 +323,11 @@ export const create = mutation({
       payload: { key, type: args.type, title: args.title },
     })
 
+    await ensureWatcher(ctx, id, reporterId)
+    if (args.assigneeId) {
+      await ensureWatcher(ctx, id, args.assigneeId)
+    }
+
     if (args.assigneeId) {
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
@@ -332,8 +350,10 @@ export const updateStatus = mutation({
       v.literal('review'),
       v.literal('done'),
     ),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const { userId } = await requireTeam(ctx, args.userEmail)
     const ticket = await ctx.db.get(args.id)
     if (!ticket) throw new Error('ticket not found')
     const from = ticket.status
@@ -344,8 +364,10 @@ export const updateStatus = mutation({
       refId: args.id,
       payload: { from, to: args.status },
     })
+    await notifyWatchers(ctx, args.id, userId, 'ticket.status_changed', { from, to: args.status })
   },
 })
+
 
 export const assign = mutation({
   args: {
@@ -401,12 +423,18 @@ export const assign = mutation({
     })
 
     if (args.assigneeId) {
+      await ensureWatcher(ctx, args.id, args.assigneeId)
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: args.id,
         assigneeId: args.assigneeId,
         assignedByEmail: callerEmail,
       })
     }
+
+    await notifyWatchers(ctx, args.id, callerUserId, 'ticket.assigned', {
+      assigneeId: args.assigneeId || null,
+    })
+
   },
 })
 
@@ -491,12 +519,19 @@ export const update = mutation({
     }
 
     await ctx.db.patch(id, patchObj)
-    await appendActivityEvent(ctx, {
-      kind: 'ticket.updated',
-      refType: 'ticket',
-      refId: id,
-      payload: patchObj,
-    })
+    await appendActivityEvent(
+      ctx,
+      {
+        kind: 'ticket.updated',
+        refType: 'ticket',
+        refId: id,
+        payload: patchObj,
+      },
+      userEmail,
+    )
+    const { userId } = await requireTeam(ctx, userEmail)
+    await notifyWatchers(ctx, id, userId, 'ticket.updated', patchObj)
+
     if (rest.assigneeId && rest.assigneeId !== ticket.assigneeId) {
       const { userId, user, identity } = await requireTeam(ctx, userEmail)
       const callerEmail = (identity?.email ?? user?.email ?? userEmail)?.trim().toLowerCase()
@@ -554,5 +589,32 @@ export const getUserTickets = query({
     }
   },
 })
+
+export const search = query({
+  args: {
+    q: v.string(),
+    excludeId: v.optional(v.id('tickets')),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireTeam(ctx, args.userEmail)
+    const all = await ctx.db
+      .query('tickets')
+      .withIndex('by_project_status', q => q.eq('projectId', 'doko'))
+      .collect()
+
+    const needle = args.q.toLowerCase().trim()
+    if (!needle) return all.slice(0, 10)
+
+    return all
+      .filter(
+        t =>
+          (t.title.toLowerCase().includes(needle) || t.key.toLowerCase().includes(needle)) &&
+          t._id !== args.excludeId,
+      )
+      .slice(0, 20)
+  },
+})
+
 
 

@@ -185,4 +185,60 @@ export default defineSchema({
     lastCalledAt: v.number(),
     callHistory: v.array(v.number()),
   }).index('by_user_action', ['userId', 'actionType']),
+
+  subtasks: defineTable({
+    ticketId: v.id('tickets'),
+    title: v.string(),
+    done: v.boolean(),
+    order: v.number(),
+    createdAt: v.number(),
+  }).index('by_ticket', ['ticketId']),
+
+  ticketLinks: defineTable({
+    sourceId: v.id('tickets'),
+    targetId: v.id('tickets'),
+    type: v.union(
+      v.literal('blocks'),
+      v.literal('blocked_by'),
+      v.literal('relates_to'),
+      v.literal('duplicates'),
+      v.literal('duplicated_by'),
+    ),
+    createdAt: v.number(),
+    createdBy: v.string(),
+  })
+    .index('by_source', ['sourceId'])
+    .index('by_target', ['targetId'])
+    .index('by_source_target_type', ['sourceId', 'targetId', 'type']),
+
+  mentions: defineTable({
+    contextRefType: v.string(),
+    contextRefId: v.string(),
+    mentionedUserId: v.string(),
+    mentionedByUserId: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index('by_user_read', ['mentionedUserId', 'read'])
+    .index('by_user', ['mentionedUserId']),
+
+  watchers: defineTable({
+    ticketId: v.id('tickets'),
+    userId: v.string(),
+    subscribedAt: v.number(),
+  })
+    .index('by_ticket', ['ticketId'])
+    .index('by_ticket_user', ['ticketId', 'userId'])
+    .index('by_user', ['userId']),
+
+  attachments: defineTable({
+    ticketId: v.id('tickets'),
+    storageId: v.id('_storage'),
+    filename: v.string(),
+    mimeType: v.string(),
+    size: v.number(),
+    uploadedBy: v.string(),
+    uploadedAt: v.number(),
+  }).index('by_ticket', ['ticketId']),
 })
+

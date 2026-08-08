@@ -11,6 +11,13 @@ import { parseConvexError } from '@/lib/utils'
 import { EpicPill } from './EpicPill'
 import { EpicChildrenTable } from './EpicChildrenTable'
 import { EpicPicker } from './EpicPicker'
+import { SubtaskChecklist } from './SubtaskChecklist'
+import { TicketLinks } from './TicketLinks'
+import { DescriptionEditor } from './DescriptionEditor'
+import { WatchButton } from './WatchButton'
+import { ActivityTimeline } from './ActivityTimeline'
+import { AttachmentDropZone } from './AttachmentDropZone'
+
 
 export function TicketDetailSkeleton() {
   return (
@@ -268,13 +275,17 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         ← Board
       </Link>
 
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="text-xs font-mono text-muted-foreground">{ticket.key}</span>
-        <span className="text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider bg-muted text-muted-foreground">
-          {ticket.type}
-        </span>
-        {ticket.epicId && <EpicPill epicId={ticket.epicId} />}
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-mono text-muted-foreground">{ticket.key}</span>
+          <span className="text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider bg-muted text-muted-foreground">
+            {ticket.type}
+          </span>
+          {ticket.epicId && <EpicPill epicId={ticket.epicId} />}
+        </div>
+        <WatchButton ticketId={ticket._id} userEmail={userEmail} />
       </div>
+
 
       {ticket.sourceMessageId && (
         <div className="mb-4 inline-flex items-center gap-1.5 text-xs text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1">
@@ -490,19 +501,15 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         <label className="text-xs font-mono uppercase font-semibold text-muted-foreground block">
           Description
         </label>
-        <RichTextEditor
-          value={descDraft}
-          onChange={setDescDraft}
-          onBlur={() => {
-            const val = descDraft.trim()
-            if (val !== (ticket.description ?? '')) {
-              update({ id: ticket._id, description: val || undefined })
-            }
-          }}
-          placeholder="Add a detailed description with **bold**, *italic*, `code`, lists..."
-          minHeight="150px"
+        <DescriptionEditor
+          initialValue={ticket.description ?? ''}
+          onSave={val => update({ id: ticket._id, description: val || undefined })}
         />
       </div>
+
+      <SubtaskChecklist ticketId={ticket._id} userEmail={userEmail} />
+
+      <TicketLinks ticketId={ticket._id} userEmail={userEmail} />
 
       {ticket.type === 'epic' && (
         <div className="mb-8 pt-4 border-t border-border/40">
@@ -510,52 +517,14 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         </div>
       )}
 
-      {/* Attachments Section (Images + Documents) */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1.5">
-            <PaperclipIcon className="w-3.5 h-3.5 text-teal-400" />
-            Attachments ({(ticket.attachments ?? []).length})
-          </label>
-          <div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="h-7 text-xs gap-1.5 border-teal-500/30 text-teal-300 hover:text-white"
-            >
-              <UploadIcon className="w-3 h-3" />
-              {uploading ? 'Uploading…' : 'Add Attachment'}
-            </Button>
-          </div>
-        </div>
-
-        {(ticket.attachments ?? []).length > 0 ? (
-          <AttachmentGallery
-            storageIds={ticket.attachments!}
-            onRemove={removeAttachment}
-          />
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border border-dashed rounded-none p-8 text-center text-xs text-muted-foreground/60 cursor-pointer hover:border-teal-500/50 hover:text-muted-foreground transition-colors bg-card/40"
-          >
-            Click or drag files (images, PDF, DOCX, XLSX, etc.) here to attach to this ticket.
-          </div>
-        )}
-      </div>
+      <AttachmentDropZone ticketId={ticket._id} userEmail={userEmail} />
 
       {/* Comment Thread */}
       <CommentThread ticketId={ticket._id} />
+
+      {/* Activity Timeline */}
+      <ActivityTimeline ticketId={ticket._id} userEmail={userEmail} />
+
 
       <div className="text-xs text-muted-foreground/70 font-mono border-t pt-4 mt-8">
         Created {formatDistanceToNow(new Date(ticket.createdAt))} ago · Updated{' '}

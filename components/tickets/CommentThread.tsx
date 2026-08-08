@@ -9,6 +9,8 @@ import { CommentForm } from './CommentForm'
 import { StartDMButton } from '@/components/chat/StartDMButton'
 import { UserAvatar } from '@/components/UserAvatar'
 import { MessageSquareIcon } from 'lucide-react'
+import { MentionBadge } from '@/components/mentions/MentionBadge'
+
 
 export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
   const { data: session } = useSession()
@@ -72,6 +74,7 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
 }
 
 function renderFormattedComment(text: string) {
+
   const lines = text.split('\n')
   return lines.map((line, idx) => {
     if (line.startsWith('- ')) {
@@ -87,29 +90,39 @@ function renderFormattedComment(text: string) {
 }
 
 function parseInlineMarkdown(text: string) {
-  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-semibold text-foreground">
-          {part.slice(2, -2)}
-        </strong>
-      )
+  const mentionParts = text.split(/(@\[[a-zA-Z0-9\-_@.]+:.*?\])/g)
+  return mentionParts.map((part, index) => {
+    const mentionMatch = /@\[([a-zA-Z0-9\-_@.]+):(.*?)]/.exec(part)
+    if (mentionMatch) {
+      const [, userId, label] = mentionMatch
+      return <MentionBadge key={index} userId={userId} label={label} />
     }
-    if (part.startsWith('*') && part.endsWith('*')) {
-      return (
-        <em key={i} className="italic text-teal-300">
-          {part.slice(1, -1)}
-        </em>
-      )
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <code key={i} className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
-          {part.slice(1, -1)}
-        </code>
-      )
-    }
-    return part
+
+    const parts = part.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
+    return parts.map((sub, i) => {
+      if (sub.startsWith('**') && sub.endsWith('**')) {
+        return (
+          <strong key={i} className="font-semibold text-foreground">
+            {sub.slice(2, -2)}
+          </strong>
+        )
+      }
+      if (sub.startsWith('*') && sub.endsWith('*')) {
+        return (
+          <em key={i} className="italic text-teal-300">
+            {sub.slice(1, -1)}
+          </em>
+        )
+      }
+      if (sub.startsWith('`') && sub.endsWith('`')) {
+        return (
+          <code key={i} className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
+            {sub.slice(1, -1)}
+          </code>
+        )
+      }
+      return sub
+    })
   })
 }
+

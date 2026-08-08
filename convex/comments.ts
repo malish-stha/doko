@@ -2,6 +2,10 @@ import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { appendActivityEvent } from './events'
 import { requireTeam } from './teamHelper'
+import { extractMentionIds } from '../lib/mentions'
+import { notifyWatchers } from './watchers'
+import { touchTicket } from './tickets'
+
 
 export const byTicket = query({
   args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
@@ -70,25 +74,52 @@ export const add = mutation({
       args.userEmail ??
       'Teammate'
 
+    const now = Date.now()
     const id = await ctx.db.insert('comments', {
       ticketId: args.ticketId,
       authorId,
       body: args.body.trim(),
-      createdAt: Date.now(),
+      createdAt: now,
     })
 
-    await appendActivityEvent(ctx, {
-      kind: 'ticket.commented',
-      refType: 'comment',
-      refId: id,
-      payload: {
-        ticketId: args.ticketId,
-        ticketKey: ticket.key,
-        bodyPreview: args.body.slice(0, 100),
-        author: authorId,
+    const mentionUserIds = extractMentionIds(args.body)
+    for (const mentionedUserId of mentionUserIds) {
+      if (mentionedUserId === userId || mentionedUserId === authorId) continue
+      await ctx.db.insert('mentions', {
+        contextRefType: 'comment',
+        contextRefId: id,
+        mentionedUserId,
+        mentionedByUserId: authorId,
+        read: false,
+        createdAt: now,
+      })
+    }
+
+    await appendActivityEvent(
+      ctx,
+      {
+        kind: 'ticket.commented',
+        refType: 'comment',
+        refId: id,
+        payload: {
+          ticketId: args.ticketId,
+          ticketKey: ticket.key,
+          bodyPreview: args.body.slice(0, 100),
+          author: authorId,
+        },
       },
+      args.userEmail,
+    )
+
+
+    await notifyWatchers(ctx, args.ticketId, authorId, 'ticket.commented', {
+      bodyPreview: args.body.slice(0, 100),
     })
+
+    await touchTicket(ctx, args.ticketId)
 
     return id
   },
 })
+
+

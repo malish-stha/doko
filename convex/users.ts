@@ -11,6 +11,17 @@ export const getByUserIdInternal = internalQuery({
   },
 })
 
+export const getByUserId = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('users')
+      .withIndex('by_userId', q => q.eq('userId', args.userId))
+      .first()
+  },
+})
+
+
 function makeThumbsAvatarUrl(seed: string): string {
   const cleanSeed = encodeURIComponent(seed.trim().toLowerCase() || 'doko-user')
   return `https://api.dicebear.com/9.x/thumbs/svg?seed=${cleanSeed}`
