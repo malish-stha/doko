@@ -51,6 +51,11 @@ export const list = query({
     mine: v.optional(v.boolean()),
     hipri: v.optional(v.boolean()),
     dueThisWeek: v.optional(v.boolean()),
+    sprintId: v.optional(v.union(v.id('sprints'), v.null())),
+    epicId: v.optional(v.union(v.id('tickets'), v.null())),
+    mode: v.optional(
+      v.union(v.literal('active'), v.literal('all'), v.literal('sprint')),
+    ),
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
@@ -61,7 +66,7 @@ export const list = query({
       .collect()
 
     if (teamId) {
-      results = results.filter(t => t.teamId === (teamId as string))
+      results = results.filter(t => !t.teamId || t.teamId === (teamId as string))
     }
 
     if (args.status) {
@@ -90,6 +95,32 @@ export const list = query({
       results = results.filter(
         t => t.dueDate !== undefined && t.dueDate < oneWeek,
       )
+    }
+
+    if (args.mode === 'active' && teamId) {
+      const active = await ctx.db
+        .query('sprints')
+        .withIndex('by_team_status', q =>
+          q.eq('teamId', teamId).eq('status', 'active'),
+        )
+        .unique()
+      if (active) {
+        results = results.filter(t => t.sprintId === active._id)
+      }
+    } else if (args.sprintId !== undefined) {
+      if (args.sprintId === null) {
+        results = results.filter(t => !t.sprintId)
+      } else {
+        results = results.filter(t => t.sprintId === args.sprintId)
+      }
+    }
+
+    if (args.epicId !== undefined) {
+      if (args.epicId === null) {
+        results = results.filter(t => !t.epicId)
+      } else {
+        results = results.filter(t => t.epicId === args.epicId)
+      }
     }
 
     return results
@@ -164,6 +195,41 @@ export const getAttachmentMetadata = query({
   },
 })
 
+export const listEpics = query({
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
+    let results = await ctx.db
+      .query('tickets')
+      .withIndex('by_project_status', q => q.eq('projectId', 'doko'))
+      .filter(f => f.eq(f.field('type'), 'epic'))
+      .collect()
+
+    if (teamId) {
+      results = results.filter(t => !t.teamId || t.teamId === (teamId as string))
+    }
+
+    return results
+  },
+})
+
+export const epicChildren = query({
+  args: { epicId: v.id('tickets') },
+  handler: async (ctx, args) => {
+    const { teamId } = await requireTeam(ctx)
+    let results = await ctx.db
+      .query('tickets')
+      .withIndex('by_epic', q => q.eq('epicId', args.epicId))
+      .collect()
+
+    if (teamId) {
+      results = results.filter(t => !t.teamId || t.teamId === (teamId as string))
+    }
+
+    return results
+  },
+})
+
 export const create = mutation({
   args: {
     projectId: v.string(),
@@ -186,10 +252,34 @@ export const create = mutation({
     assigneeId: v.optional(v.string()),
     attachments: v.optional(v.array(v.string())),
     sourceMessageId: v.optional(v.id('messages')),
+    sprintId: v.optional(v.id('sprints')),
+    epicId: v.optional(v.id('tickets')),
+    storyPoints: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { userId, teamId, identity } = await requireTeam(ctx)
     const reporterId = identity?.email ?? userId
+
+    if (args.type === 'epic') {
+      if (args.sprintId) throw new Error('Epics cannot be assigned to sprints')
+      if (args.epicId) throw new Error('Epics cannot have parent epics')
+      if (args.storyPoints !== undefined) throw new Error('Epics roll up points from child tickets')
+    }
+
+    if (args.epicId) {
+      const parentEpic = await ctx.db.get(args.epicId)
+      if (!parentEpic || parentEpic.type !== 'epic') {
+        throw new Error('Target parent ticket is not an epic')
+      }
+    }
+
+    if (args.sprintId) {
+      const sprint = await ctx.db.get(args.sprintId)
+      if (!sprint || sprint.teamId !== teamId) {
+        throw new Error('Sprint not found')
+      }
+    }
+
     const key = await nextKey(ctx, args.type)
     const now = Date.now()
     const id = await ctx.db.insert('tickets', {
@@ -206,15 +296,20 @@ export const create = mutation({
       labels: [],
       attachments: args.attachments ?? [],
       sourceMessageId: args.sourceMessageId,
+      sprintId: args.type === 'epic' ? undefined : args.sprintId,
+      epicId: args.type === 'epic' ? undefined : args.epicId,
+      storyPoints: args.type === 'epic' ? undefined : args.storyPoints,
       createdAt: now,
       updatedAt: now,
     })
+
     await appendActivityEvent(ctx, {
       kind: 'ticket.created',
       refType: 'ticket',
       refId: id,
       payload: { key, type: args.type, title: args.title },
     })
+
     if (args.assigneeId) {
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
@@ -222,6 +317,7 @@ export const create = mutation({
         assignedByEmail: identity?.email ?? userId,
       })
     }
+
     return { id, key }
   },
 })
@@ -332,11 +428,34 @@ export const update = mutation({
     labels: v.optional(v.array(v.string())),
     attachments: v.optional(v.array(v.string())),
     dueDate: v.optional(v.number()),
+    sprintId: v.optional(v.union(v.id('sprints'), v.null())),
+    epicId: v.optional(v.union(v.id('tickets'), v.null())),
+    storyPoints: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
-    const { id, userEmail, ...rest } = args
+    const { id, userEmail, sprintId, epicId, storyPoints, ...rest } = args
     const ticket = await ctx.db.get(id)
     if (!ticket) throw new Error('Ticket not found')
+
+    if (ticket.type === 'epic') {
+      if (sprintId !== undefined && sprintId !== null) {
+        throw new Error('Epics cannot be assigned to sprints')
+      }
+      if (epicId !== undefined && epicId !== null) {
+        throw new Error('Epics cannot have parent epics')
+      }
+      if (storyPoints !== undefined && storyPoints !== null) {
+        throw new Error('Epics roll up points from child tickets')
+      }
+    }
+
+    if (epicId) {
+      if (epicId === id) throw new Error('Ticket cannot be its own epic')
+      const parentEpic = await ctx.db.get(epicId)
+      if (!parentEpic || parentEpic.type !== 'epic') {
+        throw new Error('Target parent ticket is not an epic')
+      }
+    }
 
     if (rest.assigneeId !== undefined && rest.assigneeId !== ticket.assigneeId) {
       const { userId, user, teamId, identity } = await requireTeam(ctx, userEmail)
@@ -360,12 +479,23 @@ export const update = mutation({
       }
     }
 
-    await ctx.db.patch(id, { ...rest, updatedAt: Date.now() })
+    const patchObj: Record<string, any> = { ...rest, updatedAt: Date.now() }
+    if (sprintId !== undefined) {
+      patchObj.sprintId = sprintId === null ? undefined : sprintId
+    }
+    if (epicId !== undefined) {
+      patchObj.epicId = epicId === null ? undefined : epicId
+    }
+    if (storyPoints !== undefined) {
+      patchObj.storyPoints = storyPoints === null ? undefined : storyPoints
+    }
+
+    await ctx.db.patch(id, patchObj)
     await appendActivityEvent(ctx, {
       kind: 'ticket.updated',
       refType: 'ticket',
       refId: id,
-      payload: rest,
+      payload: patchObj,
     })
     if (rest.assigneeId && rest.assigneeId !== ticket.assigneeId) {
       const { userId, user, identity } = await requireTeam(ctx, userEmail)

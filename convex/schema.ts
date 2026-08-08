@@ -36,6 +36,23 @@ export default defineSchema({
     .index('by_email_status', ['email', 'status'])
     .index('by_team', ['teamId']),
 
+  sprints: defineTable({
+    teamId: v.id('teams'),
+    name: v.string(),
+    goal: v.optional(v.string()),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    status: v.union(
+      v.literal('planning'),
+      v.literal('active'),
+      v.literal('completed'),
+    ),
+    plannedPoints: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index('by_team_status', ['teamId', 'status'])
+    .index('by_team', ['teamId']),
+
   tickets: defineTable({
     teamId: v.optional(v.string()),
     projectId: v.string(),
@@ -68,13 +85,19 @@ export default defineSchema({
     dueDate: v.optional(v.number()),
     sourceMessageId: v.optional(v.id('messages')),
 
+    sprintId: v.optional(v.id('sprints')),
+    epicId: v.optional(v.id('tickets')),
+    storyPoints: v.optional(v.number()),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_project_status', ['projectId', 'status'])
     .index('by_assignee', ['assigneeId'])
     .index('by_reporter', ['reporterId'])
-    .index('by_key', ['key']),
+    .index('by_key', ['key'])
+    .index('by_sprint', ['sprintId'])
+    .index('by_epic', ['epicId']),
 
   counters: defineTable({
     scope: v.string(),

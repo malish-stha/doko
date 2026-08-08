@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
+import { EpicPicker } from '@/components/tickets/EpicPicker'
 import {
   Select,
   SelectTrigger,
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from '@/components/ui/toast'
 import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
+import type { Id } from '@/convex/_generated/dataModel'
 
 export function NewTicketDialog({ projectId }: { projectId: string }) {
   const { data: session } = useSession()
@@ -36,6 +38,8 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
   const [assigneeId, setAssigneeId] = useState<string>('')
+  const [epicId, setEpicId] = useState<string | undefined>(undefined)
+  const [storyPoints, setStoryPoints] = useState<string>('')
   const [attachments, setAttachments] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -80,7 +84,8 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
     if (!title.trim() || submitting) return
     setSubmitting(true)
     try {
-      const res = await create({
+      const pts = storyPoints !== '' ? parseFloat(storyPoints) : undefined
+      await create({
         projectId,
         type,
         title: title.trim(),
@@ -88,6 +93,8 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
         priority,
         assigneeId: assigneeId || undefined,
         attachments: attachments.length > 0 ? attachments : undefined,
+        epicId: type === 'epic' ? undefined : (epicId as Id<'tickets'> | undefined),
+        storyPoints: type === 'epic' ? undefined : (Number.isFinite(pts) ? pts : undefined),
       })
       toast.success('Ticket created', `"${title.trim()}" created successfully.`)
       setTitle('')
@@ -95,6 +102,8 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
       setType('task')
       setPriority('medium')
       setAssigneeId('')
+      setEpicId(undefined)
+      setStoryPoints('')
       setAttachments([])
       setOpen(false)
     } catch (err: any) {
@@ -109,7 +118,7 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm">New ticket</Button>} />
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New ticket</DialogTitle>
         </DialogHeader>
@@ -148,6 +157,31 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
               </Select>
             </div>
           </div>
+
+          {type !== 'epic' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
+                  Parent Epic
+                </label>
+                <EpicPicker value={epicId} onChange={setEpicId} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
+                  Story Points
+                </label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min={0}
+                  max={100}
+                  placeholder="e.g. 3, 5, 8"
+                  value={storyPoints}
+                  onChange={e => setStoryPoints(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
@@ -257,4 +291,3 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
     </Dialog>
   )
 }
-

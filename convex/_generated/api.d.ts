@@ -20,6 +20,7 @@ import type * as messages from "../messages.js";
 import type * as migrations from "../migrations.js";
 import type * as rateLimit from "../rateLimit.js";
 import type * as reactions from "../reactions.js";
+import type * as sprints from "../sprints.js";
 import type * as teamHelper from "../teamHelper.js";
 import type * as teamMembers from "../teamMembers.js";
 import type * as teams from "../teams.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   rateLimit: typeof rateLimit;
   reactions: typeof reactions;
+  sprints: typeof sprints;
   teamHelper: typeof teamHelper;
   teamMembers: typeof teamMembers;
   teams: typeof teams;

@@ -6,21 +6,35 @@ export async function requireTeam(ctx: QueryCtx | MutationCtx, callerEmail?: str
   const cleanEmail = (identity?.email ?? callerEmail)?.trim().toLowerCase()
   const userId = identity?.subject ?? cleanEmail
 
-  if (!userId) {
-    return { identity, user: null, userId: 'anonymous', teamId: undefined }
+  let user = null
+  if (userId) {
+    user = await ctx.db
+      .query('users')
+      .withIndex('by_userId', q => q.eq('userId', userId))
+      .first()
   }
-
-  let user = await ctx.db
-    .query('users')
-    .withIndex('by_userId', q => q.eq('userId', userId))
-    .first()
 
   if (!user && cleanEmail) {
     const users = await ctx.db.query('users').collect()
     user = users.find(u => u.email.trim().toLowerCase() === cleanEmail) ?? null
   }
 
-  return { identity, user, userId: user?.userId ?? userId, teamId: user?.teamId }
+  let teamId = user?.teamId
+  if (!teamId) {
+    const firstTeam = await ctx.db.query('teams').first()
+    if (firstTeam) {
+      teamId = firstTeam._id
+    } else if ('insert' in ctx.db) {
+      teamId = await (ctx as MutationCtx).db.insert('teams', {
+        slug: 'doko',
+        name: 'Doko Workspace',
+        ownerId: user?.userId ?? userId ?? 'dev-user',
+        createdAt: Date.now(),
+      })
+    }
+  }
+
+  return { identity, user, userId: user?.userId ?? userId ?? 'anonymous', teamId }
 }
 
 export async function getMembership(

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import {
   DndContext,
   DragEndEvent,
@@ -17,6 +18,8 @@ import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { KanbanColumn } from './KanbanColumn'
 import { NewTicketDialog } from './NewTicketDialog'
 import { BoardFilters } from './BoardFilters'
+import { SprintFilterBar, SprintFilterValue } from './SprintFilterBar'
+import { SprintProgress } from './SprintProgress'
 
 import { toast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,6 +70,8 @@ export function BoardSkeleton() {
 const STATUSES = ['backlog', 'todo', 'in_progress', 'review', 'done'] as const
 
 export function BoardClient() {
+  const { data: session } = useSession()
+  const userEmail = session?.user?.email ?? undefined
   const projectId = 'doko' // hardcoded for v1 — single workspace project
   const params = useSearchParams()
 
@@ -75,14 +80,30 @@ export function BoardClient() {
   const hipri = params.get('hipri') === '1'
   const dueThisWeek = params.get('dueThisWeek') === '1'
 
-  const rawTickets = useQuery(api.tickets.list, {
+  const [sprintFilter, setSprintFilter] = useState<SprintFilterValue>('active')
+
+  const activeSprint = useQuery(
+    api.sprints.activeSprint,
+    userEmail ? { userEmail } : {},
+  )
+
+  const listArgs: any = {
     projectId,
     q,
     mine: mine ? true : undefined,
     hipri: hipri ? true : undefined,
     dueThisWeek: dueThisWeek ? true : undefined,
-  })
+  }
 
+  if (sprintFilter === 'active') {
+    listArgs.mode = 'active'
+  } else if (sprintFilter === 'all') {
+    listArgs.mode = 'all'
+  } else {
+    listArgs.sprintId = sprintFilter
+  }
+
+  const rawTickets = useQuery(api.tickets.list, listArgs)
   const tickets = rawTickets ?? []
 
   const updateStatus = useMutation(api.tickets.updateStatus)
@@ -140,7 +161,16 @@ export function BoardClient() {
         <NewTicketDialog projectId={projectId} />
       </div>
 
-      <BoardFilters />
+      <div className="space-y-4 mb-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <BoardFilters />
+          <SprintFilterBar value={sprintFilter} onChange={setSprintFilter} />
+        </div>
+
+        {sprintFilter === 'active' && activeSprint && (
+          <SprintProgress sprint={activeSprint} tickets={displayed} />
+        )}
+      </div>
 
       <DndContext
         sensors={sensors}
@@ -160,4 +190,3 @@ export function BoardClient() {
     </div>
   )
 }
-

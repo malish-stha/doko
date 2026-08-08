@@ -8,6 +8,9 @@ import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
+import { EpicPill } from './EpicPill'
+import { EpicChildrenTable } from './EpicChildrenTable'
+import { EpicPicker } from './EpicPicker'
 
 export function TicketDetailSkeleton() {
   return (
@@ -265,11 +268,12 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         ← Board
       </Link>
 
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="text-xs font-mono text-muted-foreground">{ticket.key}</span>
         <span className="text-[10px] px-1.5 py-0.5 border font-medium uppercase tracking-wider bg-muted text-muted-foreground">
           {ticket.type}
         </span>
+        {ticket.epicId && <EpicPill epicId={ticket.epicId} />}
       </div>
 
       {ticket.sourceMessageId && (
@@ -312,7 +316,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         className="text-2xl font-bold tracking-tight mb-6 border-0 focus-visible:ring-1 focus-visible:ring-teal-500/50 px-0 h-auto py-1"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 text-sm">
         <div>
           <label className="text-xs font-medium uppercase text-muted-foreground mb-1 block">
             Status
@@ -394,6 +398,44 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         </div>
       </div>
 
+      {ticket.type !== 'epic' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
+          <div>
+            <label className="text-xs font-medium uppercase text-muted-foreground mb-1 block">
+              Parent Epic
+            </label>
+            <EpicPicker
+              value={ticket.epicId}
+              onChange={epicId => update({ id: ticket._id, epicId: (epicId as any) ?? null })}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium uppercase text-muted-foreground mb-1 block">
+              Story Points
+            </label>
+            <Input
+              type="number"
+              step="0.5"
+              min={0}
+              max={100}
+              defaultValue={ticket.storyPoints != null ? ticket.storyPoints : ''}
+              onBlur={e => {
+                const val = parseFloat(e.target.value)
+                if (Number.isFinite(val) && val >= 0) {
+                  if (val !== ticket.storyPoints) {
+                    update({ id: ticket._id, storyPoints: val })
+                  }
+                } else if (e.target.value === '') {
+                  update({ id: ticket._id, storyPoints: null })
+                }
+              }}
+              placeholder="Estimate (e.g. 3, 5, 8)..."
+              className="text-xs font-mono"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Ticket Metadata Bar (Reporter & Assignee chips) */}
       <div className="flex items-center gap-4 mb-6 text-xs text-muted-foreground bg-muted/30 p-2.5 border border-border/50 font-mono flex-wrap">
         <div className="flex items-center gap-1.5">
@@ -461,6 +503,12 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           minHeight="150px"
         />
       </div>
+
+      {ticket.type === 'epic' && (
+        <div className="mb-8 pt-4 border-t border-border/40">
+          <EpicChildrenTable epicId={ticket._id} />
+        </div>
+      )}
 
       {/* Attachments Section (Images + Documents) */}
       <div className="mb-8">

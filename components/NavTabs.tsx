@@ -2,7 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { SparklesIcon, LayoutGridIcon, MessageSquareIcon, UsersIcon, UserIcon } from 'lucide-react'
+import {
+  SparklesIcon,
+  LayoutGridIcon,
+  ListTodoIcon,
+  LayersIcon,
+  MessageSquareIcon,
+  UsersIcon,
+  UserIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function NavTabs() {
@@ -11,6 +19,8 @@ export function NavTabs() {
   const tabs = [
     { href: '/home', label: 'Brief', icon: SparklesIcon, exact: true },
     { href: '/board', label: 'Board', icon: LayoutGridIcon },
+    { href: '/backlog', label: 'Backlog', icon: ListTodoIcon },
+    { href: '/epics', label: 'Epics', icon: LayersIcon },
     { href: '/chat', label: 'Chat', icon: MessageSquareIcon },
     { href: '/profile', label: 'Profile', icon: UserIcon },
     { href: '/settings/team', label: 'Team', icon: UsersIcon },
