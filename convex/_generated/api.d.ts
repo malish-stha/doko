@@ -9,6 +9,7 @@
  */
 
 import type * as attachments from "../attachments.js";
+import type * as boardConfig from "../boardConfig.js";
 import type * as brief from "../brief.js";
 import type * as briefActions from "../briefActions.js";
 import type * as channels from "../channels.js";
@@ -22,6 +23,7 @@ import type * as messages from "../messages.js";
 import type * as migrations from "../migrations.js";
 import type * as rateLimit from "../rateLimit.js";
 import type * as reactions from "../reactions.js";
+import type * as savedFilters from "../savedFilters.js";
 import type * as sprints from "../sprints.js";
 import type * as subtasks from "../subtasks.js";
 import type * as teamHelper from "../teamHelper.js";
@@ -40,6 +42,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   attachments: typeof attachments;
+  boardConfig: typeof boardConfig;
   brief: typeof brief;
   briefActions: typeof briefActions;
   channels: typeof channels;
@@ -53,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   rateLimit: typeof rateLimit;
   reactions: typeof reactions;
+  savedFilters: typeof savedFilters;
   sprints: typeof sprints;
   subtasks: typeof subtasks;
   teamHelper: typeof teamHelper;

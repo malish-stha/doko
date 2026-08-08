@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   SparklesIcon,
   LayoutGridIcon,
+  TableIcon,
   ListTodoIcon,
   LayersIcon,
   MessageSquareIcon,
@@ -20,6 +21,7 @@ export function NavTabs() {
   const tabs = [
     { href: '/home', label: 'Brief', icon: SparklesIcon, exact: true },
     { href: '/board', label: 'Board', icon: LayoutGridIcon },
+    { href: '/tickets', label: 'Tickets', icon: TableIcon },
     { href: '/backlog', label: 'Backlog', icon: ListTodoIcon },
     { href: '/epics', label: 'Epics', icon: LayersIcon },
     { href: '/chat', label: 'Chat', icon: MessageSquareIcon },

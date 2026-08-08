@@ -41,7 +41,8 @@ export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
   return (
     <div className="space-y-3">
       <RichTextEditor
-        placeholder="Add a formatted comment (supports **bold**, *italic*, `code`, lists)..."
+        userEmail={userEmail}
+        placeholder="Add a formatted comment (supports **bold**, *italic*, `code`, lists, @mentions)..."
         value={body}
         onChange={setBody}
         minHeight="110px"

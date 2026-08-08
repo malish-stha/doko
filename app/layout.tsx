@@ -21,6 +21,9 @@ const geistMono = Geist_Mono({
 });
 
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { HotkeyProvider } from "@/lib/hotkeys";
+import { GlobalHotkeys } from "@/components/hotkeys/GlobalHotkeys";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export const metadata: Metadata = {
   title: "Doko",
@@ -47,11 +50,15 @@ export default function RootLayout({
         >
           <AuthProvider>
             <ConvexClientProvider>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-                <CookieConsent />
-              </TooltipProvider>
+              <HotkeyProvider>
+                <GlobalHotkeys />
+                <CommandPalette />
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                  <CookieConsent />
+                </TooltipProvider>
+              </HotkeyProvider>
             </ConvexClientProvider>
           </AuthProvider>
         </ThemeProvider>

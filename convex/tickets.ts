@@ -616,5 +616,119 @@ export const search = query({
   },
 })
 
+export const bulkUpdateStatus = mutation({
+  args: {
+    ticketIds: v.array(v.id('tickets')),
+    status: v.union(
+      v.literal('backlog'),
+      v.literal('todo'),
+      v.literal('in_progress'),
+      v.literal('review'),
+      v.literal('done'),
+    ),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireTeam(ctx, args.userEmail)
+    for (const id of args.ticketIds) {
+      const t = await ctx.db.get(id)
+      if (!t || t.status === args.status) continue
+      await ctx.db.patch(id, { status: args.status, updatedAt: Date.now() })
+      await appendActivityEvent(
+        ctx,
+        {
+          kind: 'ticket.status_changed',
+          refType: 'ticket',
+          refId: id,
+          payload: { from: t.status, to: args.status },
+        },
+        args.userEmail,
+      )
+    }
+  },
+})
+
+export const bulkUpdateAssignee = mutation({
+  args: {
+    ticketIds: v.array(v.id('tickets')),
+    assigneeId: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireTeam(ctx, args.userEmail)
+    for (const id of args.ticketIds) {
+      const t = await ctx.db.get(id)
+      if (!t || t.assigneeId === args.assigneeId) continue
+      await ctx.db.patch(id, { assigneeId: args.assigneeId || undefined, updatedAt: Date.now() })
+      await appendActivityEvent(
+        ctx,
+        {
+          kind: 'ticket.assigned',
+          refType: 'ticket',
+          refId: id,
+          payload: { assigneeId: args.assigneeId || null },
+        },
+        args.userEmail,
+      )
+    }
+  },
+})
+
+export const bulkUpdatePriority = mutation({
+  args: {
+    ticketIds: v.array(v.id('tickets')),
+    priority: v.union(
+      v.literal('low'),
+      v.literal('medium'),
+      v.literal('high'),
+      v.literal('urgent'),
+    ),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireTeam(ctx, args.userEmail)
+    for (const id of args.ticketIds) {
+      const t = await ctx.db.get(id)
+      if (!t || t.priority === args.priority) continue
+      await ctx.db.patch(id, { priority: args.priority, updatedAt: Date.now() })
+      await appendActivityEvent(
+        ctx,
+        {
+          kind: 'ticket.updated',
+          refType: 'ticket',
+          refId: id,
+          payload: { priority: args.priority },
+        },
+        args.userEmail,
+      )
+    }
+  },
+})
+
+export const bulkDelete = mutation({
+  args: {
+    ticketIds: v.array(v.id('tickets')),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireTeam(ctx, args.userEmail)
+    for (const id of args.ticketIds) {
+      const t = await ctx.db.get(id)
+      if (!t) continue
+      await ctx.db.delete(id)
+      await appendActivityEvent(
+        ctx,
+        {
+          kind: 'ticket.deleted',
+          refType: 'ticket',
+          refId: id,
+          payload: { key: t.key, title: t.title },
+        },
+        args.userEmail,
+      )
+    }
+  },
+})
+
 
 

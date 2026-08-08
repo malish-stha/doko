@@ -7,17 +7,14 @@ import {
   ItalicIcon,
   CodeIcon,
   ListIcon,
-  ListOrderedIcon,
   QuoteIcon,
   Heading2Icon,
   EyeIcon,
   Edit3Icon,
-  SparklesIcon,
-  CheckIcon,
+  AtSignIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const EASE_OUT = [0.23, 1, 0.32, 1] as const
+import { MentionAutocomplete, TeammateOption } from '@/components/mentions/MentionAutocomplete'
 
 interface RichTextEditorProps {
   value: string
@@ -29,20 +26,27 @@ interface RichTextEditorProps {
   autoFocus?: boolean
   label?: string
   readOnly?: boolean
+  userEmail?: string
 }
 
 export function RichTextEditor({
   value,
   onChange,
   onBlur,
-  placeholder = 'Write details here...',
+  placeholder = 'Write details here... (Type @ to mention teammates)',
   minHeight = '140px',
   className,
   autoFocus = false,
-  label,
   readOnly = false,
+  userEmail,
 }: RichTextEditorProps) {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write')
+  const [mentionState, setMentionState] = useState<{
+    active: boolean
+    query: string
+    atIndex: number
+  } | null>(null)
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const insertFormatting = (prefix: string, suffix: string = prefix, defaultText: string = 'text') => {
@@ -57,10 +61,50 @@ export function RichTextEditor({
     const newValue = value.substring(0, start) + replacement + value.substring(end)
     onChange(newValue)
 
-    // Reset cursor position after insert
     setTimeout(() => {
       el.focus()
       el.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length)
+    }, 10)
+  }
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    onChange(val)
+
+    const el = e.target
+    const cursor = el.selectionStart
+    const textBefore = val.slice(0, cursor)
+
+    const match = textBefore.match(/(?:^|\s)@([a-zA-Z0-9\-_.]*)$/)
+    if (match) {
+      const atIndex = textBefore.lastIndexOf('@')
+      setMentionState({
+        active: true,
+        query: match[1],
+        atIndex,
+      })
+    } else {
+      setMentionState(null)
+    }
+  }
+
+  const handleSelectTeammate = (teammate: TeammateOption) => {
+    const el = textareaRef.current
+    if (!el || !mentionState) return
+
+    const cursor = el.selectionStart
+    const before = value.substring(0, mentionState.atIndex)
+    const mentionToken = `@[${teammate.userId || teammate.email}:${teammate.name}] `
+    const after = value.substring(cursor)
+
+    const newValue = before + mentionToken + after
+    onChange(newValue)
+    setMentionState(null)
+
+    setTimeout(() => {
+      el.focus()
+      const newPos = mentionState.atIndex + mentionToken.length
+      el.setSelectionRange(newPos, newPos)
     }, 10)
   }
 
@@ -76,11 +120,13 @@ export function RichTextEditor({
         e.preventDefault()
         insertFormatting('`', '`', 'code')
       }
+    } else if (e.key === 'Escape' && mentionState?.active) {
+      setMentionState(null)
     }
   }
 
   return (
-    <div className={cn('rounded-none border border-border bg-background shadow-xs overflow-hidden font-sans', className)}>
+    <div className={cn('rounded-none border border-border bg-background shadow-xs overflow-hidden font-sans relative', className)}>
       {/* Header Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 flex-wrap gap-2">
         {/* Formatting Action Buttons */}
@@ -134,6 +180,14 @@ export function RichTextEditor({
           >
             <QuoteIcon className="w-3.5 h-3.5" />
           </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => insertFormatting('@', '', '')}
+            title="Mention Teammate (@)"
+            disabled={activeTab === 'preview' || readOnly}
+          >
+            <AtSignIcon className="w-3.5 h-3.5 text-teal-400" />
+          </ToolbarButton>
         </div>
 
         {/* View Mode Switcher */}
@@ -185,11 +239,12 @@ export function RichTextEditor({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
+            className="relative"
           >
             <textarea
               ref={textareaRef}
               value={value}
-              onChange={e => onChange(e.target.value)}
+              onChange={handleTextChange}
               onBlur={onBlur}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
@@ -198,6 +253,13 @@ export function RichTextEditor({
               style={{ minHeight }}
               className="w-full p-4 bg-background text-foreground placeholder:text-muted-foreground/60 text-sm leading-relaxed outline-none resize-y font-sans border-0 focus:ring-0"
             />
+            {mentionState?.active && (
+              <MentionAutocomplete
+                userEmail={userEmail}
+                filterQuery={mentionState.query}
+                onSelect={handleSelectTeammate}
+              />
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -247,7 +309,6 @@ function ToolbarButton({
 }
 
 function MarkdownRenderer({ content }: { content: string }) {
-  // Simple markdown renderer for preview tab
   const lines = content.split('\n')
 
   return (
@@ -286,31 +347,45 @@ function MarkdownRenderer({ content }: { content: string }) {
 }
 
 function formatFormattedText(text: string) {
-  // Basic bold/italic inline parsing
-  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
+  const mentionParts = text.split(/(@\[[a-zA-Z0-9\-_@.]+:.*?\])/g)
+  return mentionParts.map((part, index) => {
+    const mentionMatch = /@\[([a-zA-Z0-9\-_@.]+):(.*?)]/.exec(part)
+    if (mentionMatch) {
+      const [, , label] = mentionMatch
+      return (
+        <span
+          key={index}
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-mono text-xs bg-teal-500/10 text-teal-400 border border-teal-500/30 font-medium mx-0.5"
+        >
+          @{label}
+        </span>
+      )
+    }
 
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-semibold text-white">
-          {part.slice(2, -2)}
-        </strong>
-      )
-    }
-    if (part.startsWith('*') && part.endsWith('*')) {
-      return (
-        <em key={i} className="italic text-teal-200">
-          {part.slice(1, -1)}
-        </em>
-      )
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <code key={i} className="font-mono text-xs bg-slate-800 text-teal-300 px-1.5 py-0.5 rounded border border-white/10">
-          {part.slice(1, -1)}
-        </code>
-      )
-    }
-    return part
+    const parts = part.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
+    return parts.map((sub, i) => {
+      if (sub.startsWith('**') && sub.endsWith('**')) {
+        return (
+          <strong key={i} className="font-semibold text-white">
+            {sub.slice(2, -2)}
+          </strong>
+        )
+      }
+      if (sub.startsWith('*') && sub.endsWith('*')) {
+        return (
+          <em key={i} className="italic text-teal-200">
+            {sub.slice(1, -1)}
+          </em>
+        )
+      }
+      if (sub.startsWith('`') && sub.endsWith('`')) {
+        return (
+          <code key={i} className="font-mono text-xs bg-slate-800 text-teal-300 px-1.5 py-0.5 rounded border border-white/10">
+            {sub.slice(1, -1)}
+          </code>
+        )
+      }
+      return sub
+    })
   })
 }

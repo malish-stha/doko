@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useMemo } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   DndContext,
@@ -20,6 +20,12 @@ import { NewTicketDialog } from './NewTicketDialog'
 import { BoardFilters } from './BoardFilters'
 import { SprintFilterBar, SprintFilterValue } from './SprintFilterBar'
 import { SprintProgress } from './SprintProgress'
+import { SwimLaneToggle, SwimLaneMode } from './SwimLaneToggle'
+import { BoardWithSwimlanes } from './BoardWithSwimlanes'
+import { BulkActionBar } from './BulkActionBar'
+import { MovePopover } from './MovePopover'
+import { SavedFiltersDropdown } from '@/components/filters/SavedFiltersDropdown'
+import { useHotkey } from '@/lib/hotkeys'
 
 import { toast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -36,7 +42,6 @@ export function BoardSkeleton() {
         <Skeleton className="h-9 w-28" />
       </div>
 
-      {/* Filters Skeleton */}
       <div className="flex items-center gap-3">
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-8 w-20" />
@@ -44,7 +49,6 @@ export function BoardSkeleton() {
         <Skeleton className="h-8 w-24" />
       </div>
 
-      {/* Columns Skeleton */}
       <div className="flex gap-4 overflow-x-auto pb-4">
         {STATUSES.map((title, idx) => (
           <div
@@ -67,21 +71,27 @@ export function BoardSkeleton() {
   )
 }
 
-const STATUSES = ['backlog', 'todo', 'in_progress', 'review', 'done'] as const
+const DEFAULT_STATUSES = ['backlog', 'todo', 'in_progress', 'review', 'done'] as const
 
 export function BoardClient() {
+  const router = useRouter()
   const { data: session } = useSession()
   const userEmail = session?.user?.email ?? undefined
-  const projectId = 'doko' // hardcoded for v1 — single workspace project
+  const projectId = 'doko'
   const params = useSearchParams()
 
   const q = params.get('q') || undefined
   const mine = params.get('mine') === '1'
   const hipri = params.get('hipri') === '1'
   const dueThisWeek = params.get('dueThisWeek') === '1'
+  const laneMode = (params.get('lanes') as SwimLaneMode) || 'none'
 
   const [sprintFilter, setSprintFilter] = useState<SprintFilterValue>('active')
+  const [focusedTicketId, setFocusedTicketId] = useState<Id<'tickets'> | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<Id<'tickets'>>>(new Set())
+  const [movePopoverOpen, setMovePopoverOpen] = useState(false)
 
+  const boardConfig = useQuery(api.boardConfig.forMyTeam, {})
   const activeSprint = useQuery(
     api.sprints.activeSprint,
     userEmail ? { userEmail } : {},
@@ -107,9 +117,10 @@ export function BoardClient() {
   const tickets = rawTickets ?? []
 
   const updateStatus = useMutation(api.tickets.updateStatus)
+  const updateTicket = useMutation(api.tickets.update)
 
   const [optimisticOverrides, setOptimisticOverrides] = useState<
-    Record<Id<'tickets'>, Doc<'tickets'>['status']>
+    Record<Id<'tickets'>, Partial<Doc<'tickets'>>>
   >({})
 
   const sensors = useSensors(
@@ -119,26 +130,171 @@ export function BoardClient() {
     useSensor(KeyboardSensor),
   )
 
-  const displayed = tickets.map(t => ({
-    ...t,
-    status: optimisticOverrides[t._id] ?? t.status,
-  }))
+  const activeColumns = useMemo(() => {
+    if (boardConfig?.visibleColumns && boardConfig.visibleColumns.length > 0) {
+      return boardConfig.visibleColumns
+    }
+    return Array.from(DEFAULT_STATUSES)
+  }, [boardConfig])
+
+  const displayed = useMemo(() => {
+    return tickets.map(t => {
+      const override = optimisticOverrides[t._id]
+      if (!override) return t
+      return { ...t, ...override }
+    })
+  }, [tickets, optimisticOverrides])
+
+  // --- Keyboard navigation hooks ---
+  useHotkey('j', () => {
+    if (displayed.length === 0) return
+    if (!focusedTicketId) {
+      setFocusedTicketId(displayed[0]._id)
+      return
+    }
+    const idx = displayed.findIndex(t => t._id === focusedTicketId)
+    if (idx !== -1 && idx < displayed.length - 1) {
+      setFocusedTicketId(displayed[idx + 1]._id)
+    }
+  }, { description: 'Focus next card', scope: 'Board' })
+
+  useHotkey('k', () => {
+    if (displayed.length === 0) return
+    if (!focusedTicketId) {
+      setFocusedTicketId(displayed[0]._id)
+      return
+    }
+    const idx = displayed.findIndex(t => t._id === focusedTicketId)
+    if (idx > 0) {
+      setFocusedTicketId(displayed[idx - 1]._id)
+    }
+  }, { description: 'Focus previous card', scope: 'Board' })
+
+  useHotkey('h', () => {
+    if (!focusedTicketId) return
+    const focused = displayed.find(t => t._id === focusedTicketId)
+    if (!focused) return
+    const colIdx = activeColumns.indexOf(focused.status)
+    if (colIdx > 0) {
+      const prevCol = activeColumns[colIdx - 1]
+      const prevColTickets = displayed.filter(t => t.status === prevCol)
+      if (prevColTickets.length > 0) {
+        setFocusedTicketId(prevColTickets[0]._id)
+      }
+    }
+  }, { description: 'Move focus to left column', scope: 'Board' })
+
+  useHotkey('l', () => {
+    if (!focusedTicketId) return
+    const focused = displayed.find(t => t._id === focusedTicketId)
+    if (!focused) return
+    const colIdx = activeColumns.indexOf(focused.status)
+    if (colIdx !== -1 && colIdx < activeColumns.length - 1) {
+      const nextCol = activeColumns[colIdx + 1]
+      const nextColTickets = displayed.filter(t => t.status === nextCol)
+      if (nextColTickets.length > 0) {
+        setFocusedTicketId(nextColTickets[0]._id)
+      }
+    }
+  }, { description: 'Move focus to right column', scope: 'Board' })
+
+  useHotkey('x', () => {
+    if (!focusedTicketId) return
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(focusedTicketId)) {
+        next.delete(focusedTicketId)
+      } else {
+        next.add(focusedTicketId)
+      }
+      return next
+    })
+  }, { description: 'Toggle select focused card', scope: 'Board' })
+
+  useHotkey('Enter', () => {
+    if (!focusedTicketId) return
+    const focused = displayed.find(t => t._id === focusedTicketId)
+    if (focused) {
+      router.push(`/tickets/${focused.key}`)
+    }
+  }, { description: 'Open focused ticket detail', scope: 'Board' })
+
+  useHotkey('m', () => {
+    if (selectedIds.size > 0 || focusedTicketId) {
+      setMovePopoverOpen(true)
+    }
+  }, { description: 'Open Move popover', scope: 'Board' })
+
+  useHotkey('Escape', () => {
+    setFocusedTicketId(null)
+    setSelectedIds(new Set())
+  }, { description: 'Clear focus and selection', scope: 'Board' })
+
+  const handleCardClick = (id: Id<'tickets'>) => {
+    setFocusedTicketId(id)
+  }
+
+  const handleCardSelectToggle = (id: Id<'tickets'>) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const onDragEnd = async (e: DragEndEvent) => {
     if (!e.over || e.over.id === undefined) return
     const ticketId = e.active.id as Id<'tickets'>
-    const newStatus = e.over.id as Doc<'tickets'>['status']
+    const targetOverId = String(e.over.id)
+
+    let newStatus: Doc<'tickets'>['status'] | undefined
+    let newLaneKey: string | undefined
+
+    if (targetOverId.startsWith('lane::')) {
+      const parts = targetOverId.split('::')
+      newLaneKey = parts[1]
+      newStatus = parts[2] as Doc<'tickets'>['status']
+    } else {
+      newStatus = targetOverId as Doc<'tickets'>['status']
+    }
 
     const currentTicket = tickets.find(t => t._id === ticketId)
-    if (!currentTicket || currentTicket.status === newStatus) return
+    if (!currentTicket || !newStatus) return
 
-    setOptimisticOverrides(prev => ({ ...prev, [ticketId]: newStatus }))
+    // Check WIP limit warning
+    const wipLimits = boardConfig?.wipLimits as Record<string, number | undefined> | undefined
+    const limit = wipLimits?.[newStatus]
+    if (limit !== undefined && limit > 0) {
+      const targetCount = tickets.filter(t => t.status === newStatus && t._id !== ticketId).length + 1
+      if (targetCount > limit) {
+        toast.warning(
+          `${newStatus.replace('_', ' ').toUpperCase()} is over the WIP limit (${limit}). Consider resolving existing items first.`,
+        )
+      }
+    }
+
+    const patchPayload: Partial<Doc<'tickets'>> = { status: newStatus }
+
+    if (laneMode === 'assignee' && newLaneKey) {
+      patchPayload.assigneeId = newLaneKey === 'Unassigned' ? undefined : newLaneKey
+    } else if (laneMode === 'epic' && newLaneKey) {
+      patchPayload.epicId = newLaneKey === 'No Epic' ? undefined : (newLaneKey as Id<'tickets'>)
+    } else if (laneMode === 'priority' && newLaneKey) {
+      patchPayload.priority = newLaneKey as any
+    }
+
+    setOptimisticOverrides(prev => ({ ...prev, [ticketId]: patchPayload }))
 
     try {
-      await updateStatus({ id: ticketId, status: newStatus })
+      if (Object.keys(patchPayload).length > 1) {
+        await updateTicket({ id: ticketId, ...patchPayload })
+      } else {
+        await updateStatus({ id: ticketId, status: newStatus })
+      }
     } catch (err: any) {
       console.error('Failed to move ticket:', err)
-      toast.error('Failed to update status', err?.message ?? 'Could not move ticket.')
+      toast.error('Failed to update ticket', err?.message ?? 'Could not update ticket.')
     } finally {
       setOptimisticOverrides(prev => {
         const { [ticketId]: _, ...rest } = prev
@@ -150,6 +306,12 @@ export function BoardClient() {
   if (rawTickets === undefined) {
     return <BoardSkeleton />
   }
+
+  const targetIdsForMove = selectedIds.size > 0
+    ? Array.from(selectedIds)
+    : focusedTicketId
+    ? [focusedTicketId]
+    : []
 
   return (
     <div className="p-6">
@@ -163,7 +325,11 @@ export function BoardClient() {
 
       <div className="space-y-4 mb-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <BoardFilters />
+          <div className="flex items-center gap-2 flex-wrap">
+            <BoardFilters />
+            <SavedFiltersDropdown scope="board" />
+            <SwimLaneToggle />
+          </div>
           <SprintFilterBar value={sprintFilter} onChange={setSprintFilter} />
         </div>
 
@@ -177,16 +343,49 @@ export function BoardClient() {
         collisionDetection={closestCenter}
         onDragEnd={onDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {STATUSES.map(status => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              tickets={displayed.filter(t => t.status === status)}
-            />
-          ))}
-        </div>
+        {laneMode !== 'none' ? (
+          <BoardWithSwimlanes
+            tickets={displayed}
+            laneMode={laneMode as 'assignee' | 'epic' | 'priority'}
+            columns={activeColumns}
+            columnLabels={boardConfig?.columnLabels}
+            focusedTicketId={focusedTicketId}
+            selectedIds={selectedIds}
+            onCardClick={handleCardClick}
+            onCardSelectToggle={handleCardSelectToggle}
+          />
+        ) : (
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {activeColumns.map(status => {
+              const wipLimits = boardConfig?.wipLimits as Record<string, number | undefined> | undefined
+              const wipLimit = wipLimits?.[status]
+              const customLabel = boardConfig?.columnLabels?.[status]
+
+              return (
+                <KanbanColumn
+                  key={status}
+                  status={status as Doc<'tickets'>['status']}
+                  tickets={displayed.filter(t => t.status === status)}
+                  wipLimit={wipLimit}
+                  customLabel={customLabel}
+                  focusedTicketId={focusedTicketId}
+                  selectedIds={selectedIds}
+                  onCardClick={handleCardClick}
+                  onCardSelectToggle={handleCardSelectToggle}
+                />
+              )
+            })}
+          </div>
+        )}
       </DndContext>
+
+      <BulkActionBar selectedIds={selectedIds} onClear={() => setSelectedIds(new Set())} />
+
+      <MovePopover
+        open={movePopoverOpen}
+        onOpenChange={setMovePopoverOpen}
+        targetIds={targetIdsForMove}
+      />
     </div>
   )
 }

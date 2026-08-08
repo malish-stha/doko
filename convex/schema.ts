@@ -240,5 +240,32 @@ export default defineSchema({
     uploadedBy: v.string(),
     uploadedAt: v.number(),
   }).index('by_ticket', ['ticketId']),
+
+  boardConfig: defineTable({
+    teamId: v.id('teams'),
+    wipLimits: v.object({
+      backlog: v.optional(v.number()),
+      todo: v.optional(v.number()),
+      in_progress: v.optional(v.number()),
+      review: v.optional(v.number()),
+      done: v.optional(v.number()),
+    }),
+    visibleColumns: v.array(v.string()),
+    columnLabels: v.optional(v.any()),
+    updatedAt: v.number(),
+    updatedBy: v.string(),
+  }).index('by_team', ['teamId']),
+
+  savedFilters: defineTable({
+    teamId: v.id('teams'),
+    userId: v.string(),
+    name: v.string(),
+    scope: v.union(v.literal('board'), v.literal('list')),
+    queryString: v.string(),
+    isShared: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index('by_user_scope', ['userId', 'scope'])
+    .index('by_team_scope_shared', ['teamId', 'scope', 'isShared']),
 })
 

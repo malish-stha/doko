@@ -504,6 +504,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         <DescriptionEditor
           initialValue={ticket.description ?? ''}
           onSave={val => update({ id: ticket._id, description: val || undefined })}
+          userEmail={userEmail}
         />
       </div>
 

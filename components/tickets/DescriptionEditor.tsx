@@ -6,17 +6,26 @@ import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { BoldIcon, ItalicIcon, CodeIcon, ListIcon, CheckSquareIcon, HeadingIcon } from 'lucide-react'
+import { BoldIcon, ItalicIcon, CodeIcon, ListIcon, CheckSquareIcon, HeadingIcon, AtSignIcon } from 'lucide-react'
+import { MentionAutocomplete, TeammateOption } from '@/components/mentions/MentionAutocomplete'
 
 export function DescriptionEditor({
   initialValue,
   onSave,
+  userEmail,
 }: {
   initialValue: string
   onSave: (val: string) => void
+  userEmail?: string
 }) {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write')
   const [value, setValue] = useState(initialValue ?? '')
+  const [mentionState, setMentionState] = useState<{
+    active: boolean
+    query: string
+    atIndex: number
+  } | null>(null)
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const insertText = (prefix: string, suffix: string = '') => {
@@ -36,6 +45,48 @@ export function DescriptionEditor({
       textarea.focus()
       textarea.setSelectionRange(start + prefix.length, start + prefix.length + (selected.length || 4))
     }, 0)
+  }
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setValue(val)
+
+    const el = e.target
+    const cursor = el.selectionStart
+    const textBefore = val.slice(0, cursor)
+
+    const match = textBefore.match(/(?:^|\s)@([a-zA-Z0-9\-_.]*)$/)
+    if (match) {
+      const atIndex = textBefore.lastIndexOf('@')
+      setMentionState({
+        active: true,
+        query: match[1],
+        atIndex,
+      })
+    } else {
+      setMentionState(null)
+    }
+  }
+
+  const handleSelectTeammate = (teammate: TeammateOption) => {
+    const el = textareaRef.current
+    if (!el || !mentionState) return
+
+    const cursor = el.selectionStart
+    const before = value.substring(0, mentionState.atIndex)
+    const mentionToken = `@[${teammate.userId || teammate.email}:${teammate.name}] `
+    const after = value.substring(cursor)
+
+    const newValue = before + mentionToken + after
+    setValue(newValue)
+    onSave(newValue)
+    setMentionState(null)
+
+    setTimeout(() => {
+      el.focus()
+      const newPos = mentionState.atIndex + mentionToken.length
+      el.setSelectionRange(newPos, newPos)
+    }, 10)
   }
 
   const handleBlur = () => {
@@ -134,21 +185,38 @@ export function DescriptionEditor({
             >
               <HeadingIcon className="w-3 h-3" />
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-teal-400"
+              onClick={() => insertText('@')}
+              title="Mention Teammate (@)"
+            >
+              <AtSignIcon className="w-3 h-3" />
+            </Button>
           </div>
         )}
       </div>
 
       {activeTab === 'write' ? (
-        <div>
+        <div className="relative">
           <Textarea
             ref={textareaRef}
             value={value}
-            onChange={e => setValue(e.target.value)}
+            onChange={handleTextChange}
             onBlur={handleBlur}
             rows={8}
             placeholder="Add a description... (Markdown supported, use @ to mention teammates)"
             className="font-mono text-xs bg-background border-border/60 focus-visible:ring-teal-400"
           />
+          {mentionState?.active && (
+            <MentionAutocomplete
+              userEmail={userEmail}
+              filterQuery={mentionState.query}
+              onSelect={handleSelectTeammate}
+            />
+          )}
           <div className="text-[10px] text-muted-foreground mt-1">
             Markdown supported. Tables via | pipes |. Changes save automatically.
           </div>

@@ -5,8 +5,7 @@ import { useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
-import { UserCheckIcon } from 'lucide-react'
-
+import { UserCheckIcon, CheckSquareIcon } from 'lucide-react'
 
 const PRIORITY_BAR: Record<string, string> = {
   low: 'bg-muted-foreground/40',
@@ -22,7 +21,19 @@ const TYPE_BADGE: Record<string, string> = {
   epic: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
 }
 
-export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
+export function TicketCard({
+  ticket,
+  focused,
+  selected,
+  onSelectToggle,
+  onClick,
+}: {
+  ticket: Doc<'tickets'>
+  focused?: boolean
+  selected?: boolean
+  onSelectToggle?: (e: React.MouseEvent) => void
+  onClick?: (e: React.MouseEvent) => void
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: ticket._id })
   const style = transform
@@ -40,13 +51,28 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
       : ticket.assigneeId.slice(0, 10)
     : null
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.shiftKey && onSelectToggle) {
+      e.stopPropagation()
+      onSelectToggle(e)
+    } else if (onClick) {
+      onClick(e)
+    }
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
+      data-ticket-id={ticket._id}
       {...listeners}
       {...attributes}
-      className={`flex bg-card/90 border border-border/80 cursor-grab hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 ease-out select-none rounded-none overflow-hidden ${
+      onClick={handleClick}
+      className={`relative flex border cursor-grab hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 ease-out select-none rounded-none overflow-hidden ${
+        selected
+          ? 'bg-teal-500/15 border-teal-500/70 shadow-sm'
+          : 'bg-card/90 border-border/80'
+      } ${focused ? 'ring-2 ring-teal-400 z-20 shadow-md' : ''} ${
         isDragging ? 'opacity-40 z-50 shadow-xl scale-105' : ''
       }`}
     >
@@ -55,6 +81,9 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
         <div>
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-1.5">
+              {selected && (
+                <CheckSquareIcon className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+              )}
               <Link
                 href={`/tickets/${ticket.key}`}
                 className="text-xs font-mono tabular-nums text-muted-foreground hover:text-foreground transition-colors hover:underline"
@@ -98,4 +127,3 @@ export function TicketCard({ ticket }: { ticket: Doc<'tickets'> }) {
     </div>
   )
 }
-
