@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { MutationCtx, query } from './_generated/server'
-import { Id } from './_generated/dataModel'
-import { requireTeam } from './teamHelper'
+import { Doc, Id } from './_generated/dataModel'
+import { Ctx, assertTicketInTeam, normalizeEmail, requireTeam } from './teamHelper'
 
 export type ActivityEventInput = {
   /** Team the event belongs to. Required: there is no shared "unassigned" bucket. */
@@ -11,6 +11,8 @@ export type ActivityEventInput = {
   kind: string
   refType: string
   refId: string
+  /** Ticket the event relates to, so the ticket timeline can use an index. */
+  ticketId?: Id<'tickets'>
   payload?: Record<string, unknown>
 }
 
@@ -29,9 +31,35 @@ export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEvent
     kind: event.kind,
     refType: event.refType,
     refId: event.refId,
+    ticketId: event.ticketId,
     payload: event.payload ?? {},
     ts: Date.now(),
   })
+}
+
+const MAX_PAGE_SIZE = 100
+
+/** Resolves display info for a set of actor ids without scanning whole tables. */
+async function loadActors(ctx: Ctx, teamId: Id<'teams'>, ids: Iterable<string>) {
+  const result = new Map<string, { name: string; email: string; avatarUrl?: string }>()
+  for (const id of new Set(ids)) {
+    if (!id) continue
+    const user =
+      (await ctx.db.query('users').withIndex('by_userId', q => q.eq('userId', id)).first()) ??
+      (await ctx.db.query('users').withIndex('by_email', q => q.eq('email', normalizeEmail(id))).first())
+    if (user) {
+      result.set(id, { name: user.name || user.email.split('@')[0], email: user.email, avatarUrl: user.avatarUrl })
+      continue
+    }
+    const member = await ctx.db
+      .query('teamMembers')
+      .withIndex('by_team_user', q => q.eq('teamId', teamId).eq('userId', id))
+      .first()
+    if (member) {
+      result.set(id, { name: member.email.split('@')[0], email: member.email })
+    }
+  }
+  return result
 }
 
 export const forTicket = query({
@@ -43,74 +71,46 @@ export const forTicket = query({
   },
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
+    await assertTicketInTeam(ctx, args.ticketId, teamId)
 
-    let events = await ctx.db
+    const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(args.pageSize ?? args.limit ?? 5)))
+    const page = Math.max(1, Math.floor(args.page ?? 1))
+
+    // Newest first, straight from the index; fetch one extra page to know if more exist.
+    const rows: Doc<'activityEvents'>[] = await ctx.db
       .query('activityEvents')
-      .withIndex('by_team_ts', q => q.eq('teamId', teamId))
+      .withIndex('by_ticket_ts', q => q.eq('ticketId', args.ticketId))
       .order('desc')
-      .collect()
+      .take(page * pageSize + 1)
 
-    // Filter events related to this ticket
-    events = events.filter(
-      e =>
-        (e.refType === 'ticket' && e.refId === args.ticketId) ||
-        (e.payload && e.payload.ticketId === args.ticketId) ||
-        (e.payload && e.payload.sourceId === args.ticketId) ||
-        (e.payload && e.payload.targetId === args.ticketId),
+    const hasMore = rows.length > page * pageSize
+    const sliced = rows.slice((page - 1) * pageSize, page * pageSize)
+
+    const actors = await loadActors(
+      ctx,
+      teamId,
+      sliced.flatMap(e => {
+        const alt = e.payload?.author ?? e.payload?.watcherId ?? e.payload?.assignedByEmail
+        return typeof alt === 'string' ? [e.userId, alt] : [e.userId]
+      }),
     )
-
-    const totalCount = events.length
-    const pageSize = args.pageSize ?? args.limit ?? 5
-    const page = Math.max(1, args.page ?? 1)
-    const startIndex = (page - 1) * pageSize
-    const sliced = events.slice(startIndex, startIndex + pageSize)
-    const totalPages = Math.ceil(totalCount / pageSize) || 1
-
-    const users = await ctx.db.query('users').collect()
-    const members = await ctx.db.query('teamMembers').collect()
-    const userMap = new Map(users.map(u => [u.userId, u]))
-    const userEmailMap = new Map(users.map(u => [u.email.toLowerCase(), u]))
-    const memberMap = new Map(members.map(m => [m.userId, m]))
-    const memberEmailMap = new Map(members.map(m => [m.email.toLowerCase(), m]))
 
     return {
       events: sliced.map(e => {
-        let u =
-          userMap.get(e.userId) ??
-          userEmailMap.get(e.userId.toLowerCase()) ??
-          memberMap.get(e.userId) ??
-          memberEmailMap.get(e.userId.toLowerCase())
-
-        if (!u && e.payload) {
-          const alt = e.payload.author || e.payload.watcherId || e.payload.assignedByEmail
-          if (typeof alt === 'string') {
-            u =
-              userMap.get(alt) ??
-              userEmailMap.get(alt.toLowerCase()) ??
-              memberMap.get(alt) ??
-              memberEmailMap.get(alt.toLowerCase())
-          }
-        }
-
-        let userName = 'Teammate'
-        if (u) {
-          userName = 'name' in u && u.name ? u.name : u.email.split('@')[0]
-        } else if (e.userId && e.userId !== 'anonymous') {
-          userName = e.userId.includes('@') ? e.userId.split('@')[0] : e.userId
-        }
-
+        const actor = actors.get(e.userId) ?? (typeof e.payload?.author === 'string' ? actors.get(e.payload.author) : undefined)
         return {
           ...e,
-          userName,
-          userEmail: u ? u.email : e.userId.includes('@') ? e.userId : '',
-          avatarUrl: u && 'avatarUrl' in u ? u.avatarUrl : undefined,
+          userName: actor?.name ?? (e.userId.includes('@') ? e.userId.split('@')[0] : 'Teammate'),
+          userEmail: actor?.email ?? (e.userId.includes('@') ? e.userId : ''),
+          avatarUrl: actor?.avatarUrl,
         }
       }),
-      totalCount,
-      totalPages,
       page,
       pageSize,
-      hasMore: page < totalPages,
+      hasMore,
+      // Kept for existing UI; exact totals would require a full scan.
+      totalCount: (page - 1) * pageSize + sliced.length + (hasMore ? 1 : 0),
+      totalPages: hasMore ? page + 1 : page,
     }
   },
 })

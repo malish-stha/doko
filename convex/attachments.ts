@@ -41,6 +41,7 @@ export const record = mutation({
       kind: 'ticket.attached',
       refType: 'attachment',
       refId: id,
+      ticketId: args.ticketId,
       payload: { ticketId: args.ticketId, filename: args.filename, size: args.size },
     })
 
@@ -94,6 +95,7 @@ export const remove = mutation({
       kind: 'ticket.attachment_removed',
       refType: 'attachment',
       refId: args.attachmentId,
+      ticketId: att.ticketId,
       payload: { ticketId: att.ticketId, filename: att.filename },
     })
 

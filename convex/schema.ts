@@ -62,6 +62,7 @@ export default defineSchema({
       v.literal('completed'),
     ),
     plannedPoints: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_team_status', ['teamId', 'status'])
@@ -123,6 +124,7 @@ export default defineSchema({
     ticketId: v.id('tickets'),
     authorId: v.string(),
     body: v.string(),
+    editedAt: v.optional(v.number()),
     createdAt: v.number(),
   }).index('by_ticket', ['ticketId']),
 
@@ -132,11 +134,15 @@ export default defineSchema({
     kind: v.string(),
     refType: v.string(),
     refId: v.string(),
+    /** Ticket this event belongs to, when any (comments, subtasks, links, watches...). */
+    ticketId: v.optional(v.id('tickets')),
     payload: v.any(),
     ts: v.number(),
   })
     .index('by_team_ts', ['teamId', 'ts'])
-    .index('by_user_ts', ['userId', 'ts']),
+    .index('by_user_ts', ['userId', 'ts'])
+    .index('by_ref', ['refType', 'refId'])
+    .index('by_ticket_ts', ['ticketId', 'ts']),
 
   channels: defineTable({
     teamId: v.string(),
@@ -240,7 +246,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index('by_user_read', ['mentionedUserId', 'read'])
-    .index('by_user', ['mentionedUserId']),
+    .index('by_user', ['mentionedUserId'])
+    .index('by_context', ['contextRefType', 'contextRefId']),
 
   watchers: defineTable({
     ticketId: v.id('tickets'),
@@ -259,7 +266,9 @@ export default defineSchema({
     size: v.number(),
     uploadedBy: v.string(),
     uploadedAt: v.number(),
-  }).index('by_ticket', ['ticketId']),
+  })
+    .index('by_ticket', ['ticketId'])
+    .index('by_storage', ['storageId']),
 
   boardConfig: defineTable({
     teamId: v.id('teams'),
