@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -24,11 +24,12 @@ export function BoardFilters() {
 
   const qParam = params.get('q') ?? ''
   const [searchValue, setSearchValue] = useState(qParam)
-
-  // Re-sync when the URL changes from elsewhere (saved view, back button).
-  useEffect(() => {
+  const [syncedQ, setSyncedQ] = useState(qParam)
+  // Re-sync when the URL changes from elsewhere (saved view, back button): adjust during render.
+  if (syncedQ !== qParam) {
+    setSyncedQ(qParam)
     setSearchValue(qParam)
-  }, [qParam])
+  }
 
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(params.toString())

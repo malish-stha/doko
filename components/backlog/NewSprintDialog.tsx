@@ -42,7 +42,7 @@ export function NewSprintDialog({
       setName('')
       setGoal('')
       onOpenChange(false)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to create sprint', parseConvexError(err))
     } finally {
       setSubmitting(false)

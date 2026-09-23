@@ -7,7 +7,6 @@ import type { Doc, Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
 import { LinkIcon, PlusIcon, XIcon, SearchIcon } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/components/ui/toast'
@@ -50,7 +49,7 @@ export function TicketLinks({
       toast.success('Link created')
       setOpen(false)
       setSearchQuery('')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to create link', parseConvexError(err))
     }
   }
@@ -59,7 +58,7 @@ export function TicketLinks({
     try {
       await removeLink({ linkId })
       toast.success('Link removed')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to remove link', parseConvexError(err))
     }
   }

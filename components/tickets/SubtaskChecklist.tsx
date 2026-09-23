@@ -39,7 +39,7 @@ export function SubtaskChecklist({
     try {
       await add({ ticketId, title })
       setDraft('')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to add sub-task', parseConvexError(err))
     } finally {
       setAdding(false)
@@ -49,7 +49,7 @@ export function SubtaskChecklist({
   const handleToggle = async (subtaskId: Id<'subtasks'>) => {
     try {
       await toggle({ subtaskId })
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to toggle sub-task', parseConvexError(err))
     }
   }
@@ -57,7 +57,7 @@ export function SubtaskChecklist({
   const handleRemove = async (subtaskId: Id<'subtasks'>) => {
     try {
       await remove({ subtaskId })
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to remove sub-task', parseConvexError(err))
     }
   }

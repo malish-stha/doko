@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useDebouncedCallback } from '@/lib/useDebouncedCallback'
 import { Input } from '@/components/ui/input'
@@ -28,9 +28,11 @@ export function FilterBar({
 
   const q = searchParams.get('q') || ''
   const [keyword, setKeyword] = useState(q)
-  useEffect(() => {
+  const [syncedQ, setSyncedQ] = useState(q)
+  if (syncedQ !== q) {
+    setSyncedQ(q)
     setKeyword(q)
-  }, [q])
+  }
   const status = searchParams.get('status') || ''
   const priority = searchParams.get('priority') || ''
   const assignee = searchParams.get('assignee') || ''

@@ -29,8 +29,8 @@ export function SprintFilterBar({
         Scope:
       </span>
       <Select
-        value={value as any}
-        onValueChange={(val: any) => onChange(val as SprintFilterValue)}
+        value={value as string}
+        onValueChange={(val: string | null) => val && onChange(val as SprintFilterValue)}
       >
         <SelectTrigger className="w-[240px] h-8 text-xs font-mono bg-card border-border/80">
           <SelectValue placeholder="Filter by sprint..." />

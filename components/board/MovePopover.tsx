@@ -1,5 +1,6 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import {
@@ -41,8 +42,8 @@ export function MovePopover({
       toast.success(`Moved ${targetIds.length} ticket${targetIds.length > 1 ? 's' : ''} to ${status}`)
       onOpenChange(false)
       if (onSuccess) onSuccess()
-    } catch (err: any) {
-      toast.error('Failed to move tickets', err?.message)
+    } catch (err) {
+      toast.error('Failed to move tickets', parseConvexError(err))
     }
   }
 

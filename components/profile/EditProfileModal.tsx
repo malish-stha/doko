@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import {
@@ -51,8 +51,11 @@ export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalP
 
   const updateProfile = useMutation(api.users.updateProfile)
 
-  useEffect(() => {
-    if (user) {
+  // Seed the fields each time the modal opens (adjusted during render, not in an effect).
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open && user) {
       setName(user.name ?? '')
       setJobTitle(user.jobTitle ?? '')
       setDepartment(user.department ?? '')
@@ -62,8 +65,9 @@ export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalP
       setTimezone(user.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
       setGithubUrl(user.githubUrl ?? '')
       setLinkedinUrl(user.linkedinUrl ?? '')
+      setErrorMsg('')
     }
-  }, [user, open])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,7 +88,7 @@ export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalP
       })
       toast.success('Profile updated', 'Your profile details have been saved successfully.')
       onOpenChange(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       const msg = parseConvexError(err)
       setErrorMsg(msg)

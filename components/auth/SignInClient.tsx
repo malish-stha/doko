@@ -121,7 +121,7 @@ export function SignInClient({ onSignInAction, redirectTo = '/home' }: SignInCli
           </h1>
 
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed font-light">
-            Click through the 3 steps below to see how Doko compiles your team's updates before you log in.
+            Click through the 3 steps below to see how Doko compiles your team&apos;s updates before you log in.
           </p>
 
           {/* Interactive Step Selection Pills */}

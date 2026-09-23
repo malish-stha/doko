@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query, internalMutation, MutationCtx } from './_generated/server'
 import { internal } from './_generated/api'
+import { Doc } from './_generated/dataModel'
 import {
   authError,
   findUser,
@@ -167,7 +168,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const { teamId } = await requireRole(ctx, ['owner', 'admin'])
 
-    const updates: Record<string, any> = {}
+    const updates: Partial<Pick<Doc<'teams'>, 'name' | 'workspaceDomain'>> = {}
     if (args.name !== undefined) {
       if (!args.name.trim()) throw new Error('Team name cannot be empty')
       updates.name = args.name.trim()

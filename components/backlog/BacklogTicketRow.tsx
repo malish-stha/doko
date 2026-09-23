@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -28,9 +28,9 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
     ticket.storyPoints != null ? String(ticket.storyPoints) : '',
   )
   const [editingPts, setEditingPts] = useState(false)
-  useEffect(() => {
-    if (!editingPts) setPtsValue(ticket.storyPoints != null ? String(ticket.storyPoints) : '')
-  }, [ticket.storyPoints, editingPts])
+  const serverPts = ticket.storyPoints != null ? String(ticket.storyPoints) : ''
+  // While not editing, always show the server value; local state only matters mid-edit.
+  const shownPts = editingPts ? ptsValue : serverPts
 
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -41,7 +41,7 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
       if (ticket.storyPoints !== undefined) {
         try {
           await updateTicket({ id: ticket._id, storyPoints: null })
-        } catch (err: any) {
+        } catch (err) {
           toast.error('Failed to update story points', parseConvexError(err))
         }
       }
@@ -52,7 +52,7 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
     if (Number.isFinite(val) && val >= 0 && val !== ticket.storyPoints) {
       try {
         await updateTicket({ id: ticket._id, storyPoints: val })
-      } catch (err: any) {
+      } catch (err) {
         toast.error('Failed to update story points', parseConvexError(err))
       }
     }
@@ -116,9 +116,12 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
         step="0.5"
         min={0}
         max={100}
-        value={ptsValue}
+        value={shownPts}
         onChange={e => setPtsValue(e.target.value)}
-        onFocus={() => setEditingPts(true)}
+        onFocus={() => {
+            setPtsValue(serverPts)
+            setEditingPts(true)
+          }}
           onBlur={() => {
             setEditingPts(false)
             void handlePtsBlur()

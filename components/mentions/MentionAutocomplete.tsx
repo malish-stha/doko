@@ -42,10 +42,8 @@ export function MentionAutocomplete({
       .slice(0, 8)
   }, [members, filterQuery])
 
-  // Keep the highlight in range when the query narrows the list.
-  useEffect(() => {
-    setActiveIndex(i => Math.min(i, Math.max(0, filtered.length - 1)))
-  }, [filtered.length])
+  // Keep the highlight in range when the query narrows the list (derived, not synced).
+  const safeIndex = Math.min(activeIndex, Math.max(0, filtered.length - 1))
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -65,7 +63,7 @@ export function MentionAutocomplete({
         case 'Tab': {
           e.preventDefault()
           e.stopPropagation()
-          const pick = filtered[activeIndex] ?? filtered[0]
+          const pick = filtered[safeIndex] ?? filtered[0]
           if (pick) onSelect(pick)
           break
         }
@@ -78,7 +76,7 @@ export function MentionAutocomplete({
     }
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
-  }, [filtered, activeIndex, onSelect, onClose])
+  }, [filtered, safeIndex, onSelect, onClose])
 
   if (filtered.length === 0) return null
 
@@ -94,7 +92,7 @@ export function MentionAutocomplete({
         Mention teammate · ↑↓ then Enter
       </div>
       {filtered.map((m, index) => {
-        const active = index === activeIndex
+        const active = index === safeIndex
         return (
           <button
             key={m.userId || m.email}

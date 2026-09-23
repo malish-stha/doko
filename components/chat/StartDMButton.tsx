@@ -18,8 +18,8 @@ export function StartDMButton({
 }: {
   userId: string
   label?: string
-  variant?: 'ghost' | 'outline' | 'default' | 'link'
-  size?: 'sm' | 'xs' | 'default' | 'icon'
+  variant?: React.ComponentProps<typeof Button>['variant']
+  size?: React.ComponentProps<typeof Button>['size']
   className?: string
 }) {
   const openDM = useMutation(api.channels.openDM)
@@ -45,8 +45,8 @@ export function StartDMButton({
   return (
     <Button
       type="button"
-      size={size as any}
-      variant={variant as any}
+      size={size}
+      variant={variant}
       onClick={handleClick}
       disabled={loading}
       className={`text-xs text-teal-400 hover:text-teal-300 font-mono ${className}`}

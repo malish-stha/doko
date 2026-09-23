@@ -9,7 +9,6 @@ import { formatDistanceToNow } from 'date-fns'
 import { BellIcon, CheckCheckIcon, InboxIcon, ArrowRightIcon } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { UserAvatar } from './UserAvatar'
-import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
@@ -25,7 +24,7 @@ export function NotificationDropdown() {
   const handleMarkRead = async (id: Id<'mentions'>) => {
     try {
       await markRead({ mentionId: id })
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to mark read', parseConvexError(err))
     }
   }
@@ -34,7 +33,7 @@ export function NotificationDropdown() {
     try {
       await markAllRead({})
       toast.success('All notifications marked as read')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to mark all read', parseConvexError(err))
     }
   }
@@ -135,7 +134,7 @@ export function NotificationDropdown() {
                         )}
                         {m.contextDetail.kind === 'comment' && m.contextDetail.commentBody && (
                           <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                            "{m.contextDetail.commentBody}"
+                            &quot;{m.contextDetail.commentBody}&quot;
                           </div>
                         )}
                       </Link>

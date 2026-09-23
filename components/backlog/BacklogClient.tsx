@@ -95,7 +95,7 @@ export function BacklogClient() {
         await moveTicket({ ticketId, sprintId })
         toast.success('Moved to Sprint', 'Ticket added to sprint.')
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to move ticket', parseConvexError(err))
     }
   }

@@ -22,10 +22,8 @@ export function EpicPicker({
 
   return (
     <Select
-      value={(value ?? 'none') as any}
-      onValueChange={(val: any) =>
-        onChange(!val || val === 'none' ? undefined : val)
-      }
+      value={value ?? 'none'}
+      onValueChange={val => onChange(!val || val === 'none' ? undefined : String(val))}
     >
       <SelectTrigger className="w-full text-xs font-mono bg-card border-border/80">
         <SelectValue placeholder="Select parent epic (optional)..." />

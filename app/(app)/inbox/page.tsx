@@ -26,7 +26,7 @@ export default function InboxPage() {
   const handleMarkRead = async (id: Id<'mentions'>) => {
     try {
       await markRead({ mentionId: id })
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to mark notification as read', parseConvexError(err))
     }
   }
@@ -35,7 +35,7 @@ export default function InboxPage() {
     try {
       await markAllRead({})
       toast.success('All notifications marked as read')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to mark all as read', parseConvexError(err))
     }
   }
@@ -169,12 +169,12 @@ export default function InboxPage() {
                       )}
                       {m.contextDetail.kind === 'comment' && m.contextDetail.commentBody && (
                         <div className="text-muted-foreground line-clamp-2 italic">
-                          "{m.contextDetail.commentBody}"
+                          &quot;{m.contextDetail.commentBody}&quot;
                         </div>
                       )}
                       {m.contextDetail.kind === 'message' && (
                         <div className="text-muted-foreground line-clamp-2 italic">
-                          "{m.contextDetail.messageBody}"
+                          &quot;{m.contextDetail.messageBody}&quot;
                         </div>
                       )}
                     </Link>

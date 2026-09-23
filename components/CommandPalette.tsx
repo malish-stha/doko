@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { toast } from '@/components/ui/toast'
@@ -35,21 +35,24 @@ export function CommandPalette() {
   const [recentTickets, setRecentTickets] = useState<{ key: string; title: string }[]>([])
   const router = useRouter()
 
-  useHotkey('mod+k', () => setOpen(true), {
+  useHotkey('mod+k', openPalette, {
     description: 'Open Command Palette',
     scope: 'Global Navigation',
   })
 
-  useEffect(() => {
+  // Recent tickets are read from localStorage when the palette opens (event-driven, not in an effect).
+  function readRecent(): { key: string; title: string }[] {
     try {
       const stored = localStorage.getItem('doko_recent_tickets')
-      if (stored) {
-        setRecentTickets(JSON.parse(stored).slice(0, 5))
-      }
+      return stored ? JSON.parse(stored).slice(0, 5) : []
     } catch {
-      // ignore
+      return []
     }
-  }, [open])
+  }
+  function openPalette() {
+    setRecentTickets(readRecent())
+    setOpen(true)
+  }
 
   // The palette mounts in the root layout, so it also renders on public pages
   // where no Convex identity exists. Skip team queries until authenticated.
@@ -70,11 +73,11 @@ export function CommandPalette() {
   }
 
   const filteredMembers = query
-    ? teamMembers.filter((m: any) => (m.name ?? m.email).toLowerCase().includes(query.toLowerCase()))
+    ? teamMembers.filter(m => (m.name ?? m.email).toLowerCase().includes(query.toLowerCase()))
     : []
 
   const filteredChannels = query
-    ? channels.filter((c: any) => c.name.toLowerCase().includes(query.toLowerCase()))
+    ? channels.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
     : []
 
   const handleSelect = (action: () => void) => {
@@ -84,7 +87,7 @@ export function CommandPalette() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={o => (o ? openPalette() : setOpen(false))}>
       <DialogContent className="max-w-xl p-0 border border-border shadow-2xl rounded-lg overflow-hidden bg-card">
         <Command className="w-full flex flex-col max-h-[70vh]">
           <div className="flex items-center border-b border-border px-3 py-2">
@@ -122,7 +125,7 @@ export function CommandPalette() {
 
             {ticketResults.length > 0 && (
               <CommandGroup heading="Tickets" className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">
-                {ticketResults.map((t: any) => (
+                {ticketResults.map(t => (
                   <CommandItem
                     key={t._id}
                     onSelect={() => handleSelect(() => router.push(`/tickets/${t.key}`))}
@@ -138,7 +141,7 @@ export function CommandPalette() {
 
             {filteredMembers.length > 0 && (
               <CommandGroup heading="Team Members" className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">
-                {filteredMembers.map((m: any) => (
+                {filteredMembers.map(m => (
                   <CommandItem
                     key={m.userId}
                     onSelect={() => handleSelect(() => openDMWith(m.userId))}
@@ -154,7 +157,7 @@ export function CommandPalette() {
 
             {filteredChannels.length > 0 && (
               <CommandGroup heading="Channels" className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">
-                {filteredChannels.map((c: any) => (
+                {filteredChannels.map(c => (
                   <CommandItem
                     key={c._id}
                     onSelect={() => handleSelect(() => router.push(`/chat/${c._id}`))}

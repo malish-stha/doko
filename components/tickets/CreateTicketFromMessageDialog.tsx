@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { parseConvexError } from '@/lib/utils'
+import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
@@ -45,17 +46,20 @@ export function CreateTicketFromMessageDialog({
   const create = useMutation(api.tickets.create)
   const router = useRouter()
 
-  useEffect(() => {
-    if (open && message) {
-      const preview =
-        message.body.slice(0, 60) + (message.body.length > 60 ? '…' : '')
+  // Seed the form each time the dialog opens (adjusted during render, no effect).
+  const [seededFor, setSeededFor] = useState<string | null>(null)
+  const seedKey = open ? message._id + ':' + message.body : null
+  if (seedKey !== seededFor) {
+    setSeededFor(seedKey)
+    if (seedKey) {
+      const preview = message.body.slice(0, 60) + (message.body.length > 60 ? '…' : '')
       setTitle(preview)
       setDescription(message.body)
       setType('bug')
       setPriority('medium')
       setAssigneeId('')
     }
-  }, [open, message])
+  }
 
   const submit = async () => {
     if (!title.trim() || submitting) return
@@ -75,9 +79,9 @@ export function CreateTicketFromMessageDialog({
       if (res?.key) {
         router.push(`/tickets/${res.key}`)
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create ticket from message:', err)
-      toast.error('Failed to create ticket', err?.message ?? 'Could not create ticket from message.')
+      toast.error('Failed to create ticket', parseConvexError(err))
     } finally {
       setSubmitting(false)
     }
@@ -95,7 +99,7 @@ export function CreateTicketFromMessageDialog({
               <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
                 Type
               </label>
-              <Select value={type} onValueChange={v => setType(v as any)}>
+              <Select value={type} onValueChange={v => v && setType(v as typeof type)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -111,7 +115,7 @@ export function CreateTicketFromMessageDialog({
               <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
                 Priority
               </label>
-              <Select value={priority} onValueChange={v => setPriority(v as any)}>
+              <Select value={priority} onValueChange={v => v && setPriority(v as typeof priority)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

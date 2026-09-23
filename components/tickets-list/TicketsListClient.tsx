@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -101,14 +101,14 @@ export function TicketsListClient() {
     return [...filtered].sort((a, b) => cmp(a, b) * modifier || compareKeys(a.key, b.key))
   }, [filtered, sort.field, sort.dir])
 
-  // Selection never outlives the visible set: drop ids that filtered out.
-  useEffect(() => {
-    if (selectedIds.size === 0) return
+  // Selection never outlives the visible set: drop ids that filtered out (adjusted during render).
+  if (selectedIds.size > 0) {
     const visible = new Set(sorted.map(t => t._id))
-    if (Array.from(selectedIds).every(id => visible.has(id))) return
-    setSelectedIds(prev => new Set(Array.from(prev).filter(id => visible.has(id))))
-    setLastSelectedIndex(null)
-  }, [sorted, selectedIds])
+    if (!Array.from(selectedIds).every(id => visible.has(id))) {
+      setSelectedIds(new Set(Array.from(selectedIds).filter(id => visible.has(id))))
+      setLastSelectedIndex(null)
+    }
+  }
 
   const handleSortClick = (field: SortField) => {
     const nextDir = sort.field === field && sort.dir === 'asc' ? 'desc' : 'asc'

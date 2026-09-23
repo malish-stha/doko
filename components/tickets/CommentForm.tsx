@@ -1,5 +1,6 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -24,9 +25,9 @@ export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
       })
       toast.success('Comment posted')
       setBody('')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to post comment:', err)
-      toast.error('Failed to post comment', err?.message ?? 'Could not add comment.')
+      toast.error('Failed to post comment', parseConvexError(err))
     } finally {
       setPending(false)
     }

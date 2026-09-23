@@ -5,7 +5,7 @@ import { useMutation, useQuery } from 'convex/react'
 import { useDropzone } from 'react-dropzone'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
-import { PaperclipIcon, UploadIcon, XIcon, DownloadIcon, ImageIcon, FileIcon } from 'lucide-react'
+import { PaperclipIcon, UploadIcon, XIcon, DownloadIcon, FileIcon } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
@@ -58,7 +58,7 @@ export function AttachmentDropZone({
           }
           toast.success('Attached file', file.name)
         }
-      } catch (err: any) {
+      } catch (err) {
         toast.error('Upload error', parseConvexError(err))
       } finally {
         setUploading(false)
@@ -73,7 +73,7 @@ export function AttachmentDropZone({
     try {
       await removeAttachment({ attachmentId })
       toast.success('Attachment deleted', filename)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to remove attachment', parseConvexError(err))
     }
   }

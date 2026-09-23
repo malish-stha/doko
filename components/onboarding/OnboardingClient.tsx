@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,7 +35,7 @@ export function OnboardingClient() {
       })
       toast.success('Welcome to Doko!', `Team "${name.trim()}" set up successfully.`)
       router.replace('/home')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create team:', err)
       toast.error('Failed to create team', parseConvexError(err))
     } finally {
@@ -42,12 +43,12 @@ export function OnboardingClient() {
     }
   }
 
-  const handleAcceptInvite = async (inv: any) => {
+  const handleAcceptInvite = async (inv: { _id: Id<'invites'>; teamName: string }) => {
     try {
       const result = await acceptInvite({ inviteId: inv._id })
       toast.success('Joined team!', `You have joined ${result.teamName}. It is now your active team.`)
       router.replace('/home')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to accept invite:', err)
       toast.error('Failed to accept invite', parseConvexError(err))
     }

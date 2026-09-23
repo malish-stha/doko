@@ -47,9 +47,9 @@ export function ChannelSidebar() {
       setChannelName('')
       setCreatingChannel(false)
       router.push(`/chat/${channelId}`)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create channel:', err)
-      toast.error('Failed to create channel', err?.message ?? 'Could not create channel.')
+      toast.error('Failed to create channel', parseConvexError(err))
     }
   }
 
@@ -59,7 +59,7 @@ export function ChannelSidebar() {
       const id = await openDM({ otherUserId })
       setPickDMOpen(false)
       router.push(`/chat/${id}`)
-    } catch (err: any) {
+    } catch (err) {
       const msg = parseConvexError(err)
       setDmError(msg)
       toast.error('Failed to start conversation', msg)

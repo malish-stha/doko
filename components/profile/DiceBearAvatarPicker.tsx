@@ -1,5 +1,6 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import React, { useState } from 'react'
 import {
   getDiceBearThumbsAvatar,
@@ -26,7 +27,6 @@ interface DiceBearAvatarPickerProps {
 export function DiceBearAvatarPicker({
   open,
   onOpenChange,
-  currentAvatarUrl,
   userEmail,
   userName,
 }: DiceBearAvatarPickerProps) {
@@ -71,8 +71,8 @@ export function DiceBearAvatarPicker({
       })
       toast.success('Avatar updated!', 'Your new DiceBear Thumbs avatar has been saved.')
       onOpenChange(false)
-    } catch (err: any) {
-      toast.error('Failed to update avatar', err?.message ?? 'An error occurred.')
+    } catch (err) {
+      toast.error('Failed to update avatar', parseConvexError(err))
     } finally {
       setSaving(false)
     }
@@ -88,8 +88,8 @@ export function DiceBearAvatarPicker({
       })
       toast.success('Avatar reset', 'Reverted to default DiceBear Thumbs avatar.')
       onOpenChange(false)
-    } catch (err: any) {
-      toast.error('Failed to reset avatar', err?.message)
+    } catch (err) {
+      toast.error('Failed to reset avatar', parseConvexError(err))
     } finally {
       setSaving(false)
     }

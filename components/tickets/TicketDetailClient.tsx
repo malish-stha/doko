@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
-import type { Id } from '@/convex/_generated/dataModel'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
@@ -96,9 +96,6 @@ export function TicketDetailSkeleton() {
   )
 }
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
-import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { UserAvatar } from '@/components/UserAvatar'
 import {
   Select,
@@ -144,18 +141,8 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
   const update = useMutation(api.tickets.update)
   const assignMutation = useMutation(api.tickets.assign)
   const updateStatus = useMutation(api.tickets.updateStatus)
-  const generateUploadUrl = useMutation(api.tickets.generateUploadUrl)
 
-  const [uploading, setUploading] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
-  const [descDraft, setDescDraft] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (ticket?.description !== undefined) {
-      setDescDraft(ticket.description ?? '')
-    }
-  }, [ticket?.description])
 
   const currentUserEmail = (session?.user?.email ?? '').trim().toLowerCase()
   const me = members.find(m => m.email.trim().toLowerCase() === currentUserEmail)
@@ -183,72 +170,30 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         assigneeId: targetAssigneeId || undefined,
       })
       toast.success('Assignee updated')
-    } catch (err: any) {
+    } catch (err) {
       const msg = parseConvexError(err)
       setAssignError(msg)
       toast.error('Failed to update assignee', err)
     }
   }
 
-  const handleUpdateStatus = async (status: any) => {
+  const handleUpdateStatus = async (status: Doc<'tickets'>['status']) => {
     if (!ticket) return
     try {
       await updateStatus({ id: ticket._id, status })
       toast.success('Status updated', `Changed status to ${status.replace('_', ' ')}`)
-    } catch (err: any) {
-      toast.error('Failed to update status', err?.message ?? 'Could not update ticket status.')
+    } catch (err) {
+      toast.error('Failed to update status', parseConvexError(err))
     }
   }
 
-  const handleUpdatePriority = async (priority: any) => {
+  const handleUpdatePriority = async (priority: Doc<'tickets'>['priority']) => {
     if (!ticket) return
     try {
       await update({ id: ticket._id, priority })
       toast.success('Priority updated', `Priority set to ${priority}`)
-    } catch (err: any) {
-      toast.error('Failed to update priority', err?.message ?? 'Could not update ticket priority.')
-    }
-  }
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !ticket) return
-
-    setUploading(true)
-    try {
-      const postUrl = await generateUploadUrl()
-      const result = await fetch(postUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        body: file,
-      })
-
-      if (!result.ok) throw new Error('Upload failed')
-      const { storageId } = await result.json()
-
-      const currentAttachments = ticket.attachments ?? []
-      await update({
-        id: ticket._id,
-        attachments: [...currentAttachments, storageId],
-      })
-      toast.success('Attachment added', file.name)
-    } catch (err: any) {
-      console.error('File upload error:', err)
-      toast.error('Failed to upload file', err?.message ?? 'Could not upload attachment.')
-    } finally {
-      setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
-
-  const removeAttachment = async (storageId: string) => {
-    if (!ticket) return
-    try {
-      const updated = (ticket.attachments ?? []).filter(id => id !== storageId)
-      await update({ id: ticket._id, attachments: updated })
-      toast.success('Attachment removed')
-    } catch (err: any) {
-      toast.error('Failed to remove attachment', err?.message)
+    } catch (err) {
+      toast.error('Failed to update priority', parseConvexError(err))
     }
   }
 
@@ -338,7 +283,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           </label>
           <Select
             value={ticket.status}
-            onValueChange={v => handleUpdateStatus(v as any)}
+            onValueChange={v => v && handleUpdateStatus(v as Doc<'tickets'>['status'])}
           >
             <SelectTrigger>
               <SelectValue />
@@ -359,7 +304,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           </label>
           <Select
             value={ticket.priority}
-            onValueChange={v => handleUpdatePriority(v as any)}
+            onValueChange={v => v && handleUpdatePriority(v as Doc<'tickets'>['priority'])}
           >
             <SelectTrigger>
               <SelectValue />
@@ -459,7 +404,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
               name: reporterMember?.name,
               email: reporterMember?.email,
               userId: reporterMember?.userId || ticket.reporterId,
-              avatarUrl: (reporterMember as any)?.avatarUrl,
+              avatarUrl: undefined,
             }}
             seed={reporterMember?.email || reporterMember?.userId || ticket.reporterId}
             size="xs"
@@ -486,7 +431,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
               name: assignedMember?.name,
               email: assignedMember?.email,
               userId: assignedMember?.userId || ticket.assigneeId,
-              avatarUrl: (assignedMember as any)?.avatarUrl,
+              avatarUrl: undefined,
             }}
             seed={assignedMember?.email || assignedMember?.userId || ticket.assigneeId}
             size="xs"
@@ -536,278 +481,5 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         {formatDistanceToNow(new Date(ticket.updatedAt))} ago
       </div>
     </div>
-  )
-}
-
-function formatBytes(bytes?: number | null) {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function getFileBadge(contentType?: string | null) {
-  if (!contentType) return { label: 'FILE', Icon: FileTextIcon, color: 'text-slate-300 border-white/20 bg-slate-800/50' }
-  if (contentType.includes('pdf')) return { label: 'PDF', Icon: FileTextIcon, color: 'text-red-400 border-red-500/30 bg-red-500/10' }
-  if (contentType.includes('word') || contentType.includes('docx') || contentType.includes('msword')) {
-    return { label: 'DOCX', Icon: FileTextIcon, color: 'text-blue-400 border-blue-500/30 bg-blue-500/10' }
-  }
-  if (contentType.includes('sheet') || contentType.includes('excel') || contentType.includes('csv')) {
-    return { label: 'XLSX', Icon: FileSpreadsheetIcon, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' }
-  }
-  if (contentType.includes('zip') || contentType.includes('compressed') || contentType.includes('archive')) {
-    return { label: 'ZIP', Icon: ArchiveIcon, color: 'text-purple-400 border-purple-500/30 bg-purple-500/10' }
-  }
-  return { label: 'FILE', Icon: FileTextIcon, color: 'text-teal-400 border-teal-500/30 bg-teal-500/10' }
-}
-
-function AttachmentGallery({
-  storageIds,
-  onRemove,
-}: {
-  storageIds: string[]
-  onRemove: (storageId: string) => void
-}) {
-  const [activeLightboxIndex, setActiveLightboxIndex] = useState<number | null>(null)
-
-  return (
-    <div className="space-y-4">
-      {/* Attachment Cards Grid */}
-      <div
-        className={`grid ${
-          storageIds.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'
-        } gap-4`}
-      >
-        {storageIds.map((storageId, idx) => (
-          <AttachmentCard
-            key={storageId}
-            storageId={storageId}
-            isSingle={storageIds.length === 1}
-            onOpenLightbox={() => setActiveLightboxIndex(idx)}
-            onRemove={() => onRemove(storageId)}
-          />
-        ))}
-      </div>
-
-      {activeLightboxIndex !== null && (
-        <AttachmentLightboxModal
-          storageIds={storageIds}
-          initialIndex={activeLightboxIndex}
-          onClose={() => setActiveLightboxIndex(null)}
-        />
-      )}
-    </div>
-  )
-}
-
-function AttachmentCard({
-  storageId,
-  isSingle,
-  onOpenLightbox,
-  onRemove,
-}: {
-  storageId: string
-  isSingle: boolean
-  onOpenLightbox: () => void
-  onRemove: () => void
-}) {
-  const meta = useQuery(api.tickets.getAttachmentMetadata, { storageId })
-
-  if (meta === undefined) {
-    return <div className={`${isSingle ? 'h-72 sm:h-80' : 'h-48'} bg-muted animate-pulse border`} />
-  }
-
-  const isImage = meta?.contentType ? meta.contentType.startsWith('image/') : true
-
-  if (!isImage && meta?.url) {
-    const badge = getFileBadge(meta.contentType)
-    const { Icon } = badge
-    return (
-      <div className="relative group border border-border bg-card p-4 rounded-none flex items-center justify-between gap-3 hover:border-teal-500/60 transition-all shadow-md">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`px-2 py-1 border font-mono text-[10px] font-bold flex items-center gap-1 shrink-0 ${badge.color}`}>
-            <Icon className="w-3.5 h-3.5" />
-            {badge.label}
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs font-medium text-foreground truncate font-mono">
-              Attachment ({storageId.slice(-8)})
-            </div>
-            <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
-              {formatBytes(meta.size) || 'Document'}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <a
-            href={meta.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="p-1.5 text-muted-foreground hover:text-teal-400 hover:bg-teal-500/10 border border-transparent hover:border-teal-500/30 transition-all"
-            title="Download file"
-          >
-            <DownloadIcon className="w-4 h-4" />
-          </a>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-all"
-            title="Remove attachment"
-          >
-            <XIcon className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const imageUrl = meta?.url
-
-  return (
-    <div className="relative group border border-border bg-card overflow-hidden rounded-none hover:border-teal-500/60 transition-all shadow-xl">
-      <div
-        onClick={onOpenLightbox}
-        className={`cursor-pointer overflow-hidden p-3 flex items-center justify-center bg-muted/40 ${
-          isSingle ? 'min-h-[22rem] sm:min-h-[28rem]' : 'min-h-[16rem]'
-        }`}
-      >
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt="Attachment preview"
-            className={`w-full ${
-              isSingle ? 'h-80 sm:h-[30rem]' : 'h-60 sm:h-72'
-            } object-contain transition-transform duration-200 group-hover:scale-[1.01]`}
-          />
-        ) : (
-          <div className="text-xs font-mono text-muted-foreground">Loading image…</div>
-        )}
-      </div>
-
-      {/* Hover hint */}
-      <div
-        onClick={onOpenLightbox}
-        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none"
-      >
-        <span className="text-xs font-mono font-semibold text-white bg-slate-950/90 px-3 py-1.5 border border-teal-500/40 shadow-xl flex items-center gap-1.5">
-          <Maximize2Icon className="w-3.5 h-3.5 text-teal-400" />
-          Click to open carousel view
-        </span>
-      </div>
-
-      {/* Delete / Remove button */}
-      <button
-        type="button"
-        onClick={e => {
-          e.stopPropagation()
-          onRemove()
-        }}
-        className="absolute top-2 right-2 p-1.5 bg-slate-950/80 border border-white/20 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:border-red-500 z-10"
-        title="Remove attachment"
-      >
-        <XIcon className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  )
-}
-
-function AttachmentLightboxModal({
-  storageIds,
-  initialIndex,
-  onClose,
-}: {
-  storageIds: string[]
-  initialIndex: number
-  onClose: () => void
-}) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
-  const currentStorageId = storageIds[currentIndex]
-  const meta = useQuery(api.tickets.getAttachmentMetadata, { storageId: currentStorageId })
-
-  const handlePrev = useCallback(() => {
-    setCurrentIndex(prev => (prev > 0 ? prev - 1 : storageIds.length - 1))
-  }, [storageIds.length])
-
-  const handleNext = useCallback(() => {
-    setCurrentIndex(prev => (prev < storageIds.length - 1 ? prev + 1 : 0))
-  }, [storageIds.length])
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') handlePrev()
-      if (e.key === 'ArrowRight') handleNext()
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handlePrev, handleNext, onClose])
-
-  const imageUrl = meta?.url
-
-  return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent
-        showCloseButton={false}
-        className="max-w-[96vw] sm:max-w-none w-[96vw] max-h-[96vh] h-[96vh] bg-black/95 border border-white/10 p-0 flex flex-col items-center justify-center shadow-2xl overflow-hidden focus:outline-none"
-      >
-        {/* Floating Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 bg-slate-900/80 border border-white/20 text-slate-200 hover:text-white hover:bg-slate-800 transition-colors z-50 cursor-pointer"
-          title="Close (Esc)"
-        >
-          <XIcon className="w-5 h-5" />
-        </button>
-
-        {/* Floating Counter Badge */}
-        {storageIds.length > 1 && (
-          <div className="absolute top-4 left-4 px-3.5 py-1.5 bg-slate-900/90 border border-white/20 text-xs font-mono font-semibold text-teal-400 z-50 shadow-lg">
-            Image {currentIndex + 1} of {storageIds.length}
-          </div>
-        )}
-
-        {/* Carousel Prev Button */}
-        {storageIds.length > 1 && (
-          <button
-            type="button"
-            onClick={handlePrev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-slate-900/90 border border-white/20 text-white hover:bg-teal-500 hover:text-black transition-all z-50 cursor-pointer shadow-2xl active:scale-95"
-            title="Previous image (Left Arrow)"
-          >
-            <ChevronLeftIcon className="w-6 h-6" />
-          </button>
-        )}
-
-        {/* Image display */}
-        <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-10 select-none">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={`Attachment ${currentIndex + 1}`}
-              className="max-h-[90vh] max-w-[92vw] object-contain shadow-2xl transition-all"
-            />
-          ) : (
-            <div className="text-xs font-mono text-muted-foreground animate-pulse">
-              Loading image…
-            </div>
-          )}
-        </div>
-
-        {/* Carousel Next Button */}
-        {storageIds.length > 1 && (
-          <button
-            type="button"
-            onClick={handleNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-slate-900/90 border border-white/20 text-white hover:bg-teal-500 hover:text-black transition-all z-50 cursor-pointer shadow-2xl active:scale-95"
-            title="Next image (Right Arrow)"
-          >
-            <ChevronRightIcon className="w-6 h-6" />
-          </button>
-        )}
-      </DialogContent>
-    </Dialog>
   )
 }

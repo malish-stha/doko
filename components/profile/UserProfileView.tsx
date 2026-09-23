@@ -64,7 +64,6 @@ import {
   BriefcaseIcon,
   BuildingIcon,
   MapPinIcon,
-  PhoneIcon,
   GlobeIcon,
   CalendarIcon,
   EditIcon,
@@ -74,7 +73,6 @@ import {
   MailIcon,
   ShieldIcon,
   ExternalLinkIcon,
-  LayersIcon,
 } from 'lucide-react'
 
 interface UserProfileViewProps {

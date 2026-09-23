@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
@@ -35,8 +35,7 @@ export default function BoardSettingsPage() {
   // UI-12: seed the form once from the server; later subscription updates must not clobber edits.
   const [seeded, setSeeded] = useState(false)
 
-  useEffect(() => {
-    if (seeded || config === undefined) return
+  if (!seeded && config !== undefined) {
     if (config) {
       if (config.wipLimits) setWipLimits(config.wipLimits)
       if (config.columnLabels) {
@@ -52,7 +51,7 @@ export default function BoardSettingsPage() {
       }
     }
     setSeeded(true)
-  }, [config, seeded])
+  }
 
   const handleWipChange = (status: string, val: string) => {
     const num = val === '' ? undefined : parseInt(val, 10)
@@ -99,7 +98,7 @@ export default function BoardSettingsPage() {
         visibleColumns: finalVisibleColumns,
       })
       toast.success('Board configuration saved successfully')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to save settings', parseConvexError(err))
     } finally {
       setIsSaving(false)

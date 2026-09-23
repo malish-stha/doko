@@ -39,7 +39,7 @@ export default function PrivacyPage() {
                 1. Data We Collect
               </h2>
               <p>
-                Doko processes ticket state changes, chat activity, and workspace metadata solely to generate your team's daily Morning Brief. We store user profile info (name, email, avatar) provided via Google OAuth.
+                Doko processes ticket state changes, chat activity, and workspace metadata solely to generate your team&apos;s daily Morning Brief. We store user profile info (name, email, avatar) provided via Google OAuth.
               </p>
             </section>
 

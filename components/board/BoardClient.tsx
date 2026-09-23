@@ -145,26 +145,19 @@ export function BoardClient() {
   const updateStatus = useMutation(api.tickets.updateStatus)
   const updateTicket = useMutation(api.tickets.update)
 
-  // Optimistic patches, keyed by ticket id. Cleared once the subscription
-  // reflects the change (or on failure), so the card never flickers back.
+  // Optimistic patches, keyed by ticket id. An override is applied only until
+  // the subscription reflects it (derived below), and removed once the
+  // mutation settles, so the card never flickers back to the old column.
   const [optimisticOverrides, setOptimisticOverrides] = useState<Record<Id<'tickets'>, Partial<Doc<'tickets'>>>>({})
 
-  useEffect(() => {
-    const ids = Object.keys(optimisticOverrides) as Id<'tickets'>[]
-    if (ids.length === 0) return
-    const settled = ids.filter(id => {
-      const override = optimisticOverrides[id]
-      const live = tickets.find(t => t._id === id)
-      if (!live) return true
-      return (Object.keys(override) as (keyof Doc<'tickets'>)[]).every(k => live[k] === override[k])
-    })
-    if (settled.length === 0) return
+  const clearOverride = useCallback((ticketId: Id<'tickets'>) => {
     setOptimisticOverrides(prev => {
+      if (!(ticketId in prev)) return prev
       const next = { ...prev }
-      for (const id of settled) delete next[id]
+      delete next[ticketId]
       return next
     })
-  }, [tickets, optimisticOverrides])
+  }, [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -182,7 +175,9 @@ export function BoardClient() {
     return tickets.map(t => {
       const override = optimisticOverrides[t._id]
       if (!override) return t
-      return { ...t, ...override }
+      // Once the server row already matches, the override is redundant.
+      const settled = (Object.keys(override) as (keyof Doc<'tickets'>)[]).every(k => t[k] === override[k])
+      return settled ? t : { ...t, ...override }
     })
   }, [tickets, optimisticOverrides])
 
@@ -339,12 +334,11 @@ export function BoardClient() {
     } catch (err) {
       console.error('Failed to move ticket:', err)
       toast.error('Failed to update ticket', parseConvexError(err))
-      // Revert: drop the optimistic patch so the card snaps back to the server state.
-      setOptimisticOverrides(prev => {
-        const next = { ...prev }
-        delete next[ticketId]
-        return next
-      })
+    } finally {
+      // Convex applies a committed mutation to local query results before the
+      // promise resolves, so dropping the override here does not flicker; on
+      // failure it reverts the card to the server state.
+      clearOverride(ticketId)
     }
   }
 

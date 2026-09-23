@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { CookieIcon, XIcon, ShieldCheckIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -8,20 +8,31 @@ import Link from 'next/link'
 const EASE_OUT = [0.23, 1, 0.32, 1] as const
 const STORAGE_KEY = 'doko_cookie_consent'
 
+const subscribeStorage = (onChange: () => void) => {
+  window.addEventListener('storage', onChange)
+  return () => window.removeEventListener('storage', onChange)
+}
+const readStoredConsent = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
 export function CookieConsent() {
-  const [consent, setConsent] = useState<string | null>(null)
+  // Stored consent is read as an external store (no setState-in-effect); local state tracks this session's choice.
+  const storedConsent = useSyncExternalStore(subscribeStorage, readStoredConsent, () => null)
+  const [sessionConsent, setSessionConsent] = useState<string | null>(null)
+  const setConsent = setSessionConsent
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
-    const savedConsent = localStorage.getItem(STORAGE_KEY)
-    if (savedConsent) {
-      setConsent(savedConsent)
-    } else {
-      // Short delay after mounting so banner slides in smoothly after page load
-      const timer = setTimeout(() => setIsOpen(true), 800)
-      return () => clearTimeout(timer)
-    }
-  }, [])
+    if (storedConsent) return
+    // Short delay after mounting so the banner slides in smoothly after page load
+    const timer = setTimeout(() => setIsOpen(true), 800)
+    return () => clearTimeout(timer)
+  }, [storedConsent])
 
   useEffect(() => {
     const handleOpenSettings = () => {

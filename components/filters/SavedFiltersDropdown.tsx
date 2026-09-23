@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -72,29 +73,29 @@ export function SavedFiltersDropdown({ scope }: { scope: 'board' | 'list' }) {
       setSaveModalOpen(false)
       setFilterName('')
       setIsShared(false)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to save view', parseConvexError(err))
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDelete = async (e: React.MouseEvent, id: any) => {
+  const handleDelete = async (e: React.MouseEvent, id: Id<'savedFilters'>) => {
     e.stopPropagation()
     try {
       await removeFilter({ id })
       toast.success('Saved view removed')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to remove view', parseConvexError(err))
     }
   }
 
-  const handleToggleShare = async (e: React.MouseEvent, id: any, currentShare: boolean) => {
+  const handleToggleShare = async (e: React.MouseEvent, id: Id<'savedFilters'>, currentShare: boolean) => {
     e.stopPropagation()
     try {
       await shareFilter({ id, isShared: !currentShare })
       toast.success(currentShare ? 'Unshared view' : 'Shared view with team')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to update share setting', parseConvexError(err))
     }
   }

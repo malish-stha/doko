@@ -36,7 +36,7 @@ export function WatchButton({
         await subscribe({ ticketId })
         toast.success('Watching ticket', 'You will receive notifications for activity on this ticket')
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to update watcher status', parseConvexError(err))
     } finally {
       setLoading(false)
