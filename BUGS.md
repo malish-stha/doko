@@ -150,27 +150,27 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| NOTIF-01 | H | `convex/mentions.ts` `markRead` | No ownership check | Assert | open | |
-| NOTIF-02 | M | `convex/mentions.ts` | Id cast throws in `Promise.all` | `normalizeId` | open | |
-| NOTIF-03 | M | `convex/mentions.ts` `forMe` | Not team-filtered | Filter | open | |
+| NOTIF-01 | H | `convex/mentions.ts` `markRead` | No ownership check | Assert | fixed | 8cd748d |
+| NOTIF-02 | M | `convex/mentions.ts` | Id cast throws in `Promise.all` | `normalizeId` | fixed | 8cd748d |
+| NOTIF-03 | M | `convex/mentions.ts` `forMe` | Not team-filtered | Filter | fixed | 8cd748d |
 | NOTIF-04 | H | `convex/watchers.ts` | `isWatching` vs `unsubscribe` mismatch → stuck watching | Canonical ids | fixed | f5ffd19 |
 | NOTIF-05 | H | `convex/watchers.ts` | No team check; leaks emails | Assert | fixed | f5ffd19 |
-| NOTIF-06 | M | `convex/watchers.ts` | Self-notify on id mismatch | Canonical ids | open | |
-| NOTIF-07 | M | `convex/watchers.ts` | Unbounded fan-out | Upsert per (user, ticket) | open | |
+| NOTIF-06 | M | `convex/watchers.ts` | Self-notify on id mismatch | Canonical ids | fixed | 8cd748d |
+| NOTIF-07 | M | `convex/watchers.ts` | Unbounded fan-out | Upsert per (user, ticket) | fixed | 8cd748d |
 | NOTIF-08 | M | `convex/tickets.ts` `bulk*` | No notifications | Notify | fixed | 53410da |
-| NOTIF-09 | H | dropdown, inbox, links, email | `/board?ticket=KEY` never handled | `/tickets/${key}` | open | |
-| NOTIF-10 | M | `NotificationDropdown.tsx`, inbox | Queries before session; no loading state | Skip; skeleton | open | |
-| NOTIF-11 | M | `lib/mentions.ts` | Regex excludes `\|`/`:` | Widen; tests | open | |
-| NOTIF-12 | L | `lib/mentions.ts` | Code spans extracted; dedupe mismatch | Strip; dedupe | open | |
+| NOTIF-09 | H | dropdown, inbox, links, email | `/board?ticket=KEY` never handled | `/tickets/${key}` | fixed | 556a0ff |
+| NOTIF-10 | M | `NotificationDropdown.tsx`, inbox | Queries before session; no loading state | Skip; skeleton | fixed | 556a0ff |
+| NOTIF-11 | M | `lib/mentions.ts` | Regex excludes `\|`/`:` | fixed | 6f97d62 | |
+| NOTIF-12 | L | `lib/mentions.ts` | Code spans extracted; dedupe mismatch | Strip; dedupe | fixed | 6f97d62 |
 | NOTIF-13 | M | `convex/tickets.ts` | Description mentions never notify | Extract | fixed | 53410da |
 
 ## FILE
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| FILE-01 | H | `convex/attachments.ts` `remove` | No ownership/team check; irreversible | Uploader/admin + team | open | |
-| FILE-02 | H | `convex/attachments.ts` `byTicket` | Signed URLs without team check | Assert | open | |
-| FILE-03 | M | `convex/attachments.ts` `record` | Trusts storageId/size/mime | `getMetadata`; caps; allow-list | open | |
+| FILE-01 | H | `convex/attachments.ts` `remove` | No ownership/team check; irreversible | Uploader/admin + team | fixed | 8203cf3 |
+| FILE-02 | H | `convex/attachments.ts` `byTicket` | Signed URLs without team check | Assert | fixed | 8203cf3 |
+| FILE-03 | M | `convex/attachments.ts` `record` | Trusts storageId/size/mime | `getMetadata`; caps; allow-list | fixed | 8203cf3 |
 | FILE-04 | M | schema, `tickets.ts`, `TicketDetailClient.tsx` | Two attachment stores; creation uploads never shown | Migrate to table; drop column; remove dead code | open | |
 
 ## BOARD
