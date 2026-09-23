@@ -266,9 +266,9 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | INFRA-03 | M | `convex/migrations.ts` | Unpaginated; no id canonicalisation / backfills | Paginated migrations | fixed | cd78d7c |
 | INFRA-04 | H | `.github/workflows/e2e.yml`, `playwright.config.ts` | No `e2e/`; missing `AUTH_URL`; fork secrets | Smoke spec; env; fork guard; artifacts | fixed | f827e9e |
 | INFRA-05 | M | `vitest.config.ts` | Single edge env; 5 s timeout | Projects; timeout | fixed | 659b882 |
-| INFRA-06 | M | eslint | 152 errors | Fix; lint in CI | open | |
+| INFRA-06 | M | eslint | 152 errors | Fix; lint in CI | fixed | 5e77fa7 |
 | INFRA-07 | M | `convex/teams.test.ts` | Isolation test proves nothing | Same project; assert 0 | fixed | f823ccc |
-| INFRA-08 | H | `convex/*.test.ts` | No negative auth tests | `authorization.test.ts` | open | |
+| INFRA-08 | H | `convex/*.test.ts` | No negative auth tests | `authorization.test.ts` | fixed | 441edab |
 | INFRA-09 | M | `lib/llm/index.test.ts` | Providers fully mocked | Failure-path tests | fixed | f4a3a94 |
 | INFRA-10 | L | `next.config.ts` | No security headers / remote patterns | Add | fixed | 955b6d9 |
 | INFRA-11 | L | `README.md` | Template; no env docs | Document env + dev JWKS caveat | fixed | 3a98583 |
