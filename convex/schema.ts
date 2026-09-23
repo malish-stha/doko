@@ -282,8 +282,24 @@ export default defineSchema({
       review: v.optional(v.number()),
       done: v.optional(v.number()),
     }),
-    visibleColumns: v.array(v.string()),
-    columnLabels: v.optional(v.any()),
+    visibleColumns: v.array(
+      v.union(
+        v.literal('backlog'),
+        v.literal('todo'),
+        v.literal('in_progress'),
+        v.literal('review'),
+        v.literal('done'),
+      ),
+    ),
+    columnLabels: v.optional(
+      v.object({
+        backlog: v.optional(v.string()),
+        todo: v.optional(v.string()),
+        in_progress: v.optional(v.string()),
+        review: v.optional(v.string()),
+        done: v.optional(v.string()),
+      }),
+    ),
     updatedAt: v.number(),
     updatedBy: v.string(),
   }).index('by_team', ['teamId']),
