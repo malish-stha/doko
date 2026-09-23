@@ -29,7 +29,7 @@ export function EpicsSkeleton() {
 }
 
 export function EpicsClient() {
-  const epics = useQuery(api.tickets.listEpics)
+  const epics = useQuery(api.tickets.listEpics, {})
   const allTickets = useQuery(api.tickets.list, { projectId: 'doko' }) ?? []
 
   if (epics === undefined) {

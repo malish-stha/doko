@@ -18,7 +18,7 @@ export function EpicPicker({
   value: string | undefined
   onChange: (epicId: string | undefined) => void
 }) {
-  const epics = useQuery(api.tickets.listEpics) ?? []
+  const epics = useQuery(api.tickets.listEpics, {}) ?? []
 
   return (
     <Select

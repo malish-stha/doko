@@ -86,20 +86,27 @@ test('list query filters by mine flag correctly — no cross-user leak', async (
 test('creator can assign ticket to another user', async () => {
   const t = convexTest(schema)
   const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
-  await asA.mutation(api.teams.create, { name: 'Test Team' })
+  const teamId = await asA.mutation(api.teams.create, { name: 'Test Team' })
+  await joinTeam(t, teamId, { subject: 'user-b', email: 'user-b@example.com' })
   const { id, key } = await asA.mutation(api.tickets.create, {
     projectId: 'doko',
     type: 'task',
     title: 'Assignment test',
   })
 
+  // Assignees may be given by email; the canonical membership id is stored.
   await asA.mutation(api.tickets.assign, {
     id,
     assigneeId: 'user-b@example.com',
   })
 
   const updated = await asA.query(api.tickets.getByKey, { key })
-  expect(updated?.assigneeId).toBe('user-b@example.com')
+  expect(updated?.assigneeId).toBe('user-b')
+
+  // Non-members cannot be assigned.
+  await expect(
+    asA.mutation(api.tickets.assign, { id, assigneeId: 'stranger@example.com' }),
+  ).rejects.toThrow(/member of this team/)
 })
 
 test('user can assign ticket to themselves', async () => {
@@ -122,7 +129,7 @@ test('user can assign ticket to themselves', async () => {
   })
 
   const updated = await asB.query(api.tickets.getByKey, { key })
-  expect(updated?.assigneeId).toBe('user-b@example.com')
+  expect(updated?.assigneeId).toBe('user-b')
 })
 
 test('non-creator cannot assign ticket to another third user', async () => {
@@ -138,12 +145,14 @@ test('non-creator cannot assign ticket to another third user', async () => {
     title: 'Unauthorized assignment test',
   })
 
+  await joinTeam(t, teamId, { subject: 'user-c', email: 'user-c@example.com' })
+
   // User B tries to assign User A's ticket to User C
   await expect(
     asB.mutation(api.tickets.assign, {
       id,
       assigneeId: 'user-c@example.com',
     }),
-  ).rejects.toThrow(/Unauthorized/)
+  ).rejects.toThrow(/Only the ticket creator or team admins/)
 })
 

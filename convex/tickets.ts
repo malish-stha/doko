@@ -2,19 +2,47 @@ import { v } from 'convex/values'
 import { mutation, query, internalQuery, MutationCtx } from './_generated/server'
 import { internal } from './_generated/api'
 import { appendActivityEvent } from './events'
-import { requireTeam, isAdminRole } from './teamHelper'
+import {
+  Ctx,
+  TeamContext,
+  assertTicketInTeam,
+  authError,
+  getMembership,
+  isAdminRole,
+  normalizeEmail,
+  requireTeam,
+} from './teamHelper'
 import { ensureWatcher, notifyWatchers } from './watchers'
-import { Id } from './_generated/dataModel'
+import { Doc, Id } from './_generated/dataModel'
+import { extractMentionIds } from '../lib/mentions'
+import { activeSprintFor, recomputePlannedPoints } from './sprintHelper'
 
+const TICKET_STATUS = v.union(
+  v.literal('backlog'),
+  v.literal('todo'),
+  v.literal('in_progress'),
+  v.literal('review'),
+  v.literal('done'),
+)
+const TICKET_PRIORITY = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+  v.literal('urgent'),
+)
+const TICKET_TYPE = v.union(
+  v.literal('bug'),
+  v.literal('feature'),
+  v.literal('task'),
+  v.literal('epic'),
+)
+
+/** Bumps updatedAt. Throws NOT_FOUND for a missing ticket instead of hiding it. */
 export async function touchTicket(ctx: MutationCtx, ticketId: Id<'tickets'>) {
-  try {
-    await ctx.db.patch(ticketId, { updatedAt: Date.now() })
-  } catch {
-    // ignore
-  }
+  const ticket = await ctx.db.get(ticketId)
+  if (!ticket) throw authError('NOT_FOUND', 'Ticket not found.')
+  await ctx.db.patch(ticketId, { updatedAt: Date.now() })
 }
-
-
 
 export const getByIdInternal = internalQuery({
   args: { ticketId: v.id('tickets') },
@@ -30,14 +58,15 @@ const TICKET_TYPE_PREFIX: Record<string, string> = {
   epic: 'EPIC',
 }
 
-async function nextKey(ctx: MutationCtx, type: string) {
+/** Per-team, per-type counter so two teams never collide on BUG-1. */
+async function nextKey(ctx: MutationCtx, teamId: Id<'teams'>, type: string) {
   const prefix = TICKET_TYPE_PREFIX[type]
   if (!prefix) throw new Error(`unknown ticket type: ${type}`)
-  const scope = `tickets:${prefix}`
+  const scope = `tickets:${teamId}:${prefix}`
   const existing = await ctx.db
     .query('counters')
     .withIndex('by_scope', q => q.eq('scope', scope))
-    .unique()
+    .first()
   const next = (existing?.value ?? 0) + 1
   if (existing) {
     await ctx.db.patch(existing._id, { value: next })
@@ -47,43 +76,140 @@ async function nextKey(ctx: MutationCtx, type: string) {
   return `${prefix}-${next}`
 }
 
+/**
+ * Resolves an assignee to a canonical membership userId. Accepts the
+ * member's userId or email; rejects anything that is not on the team.
+ */
+async function resolveAssignee(ctx: Ctx, teamId: Id<'teams'>, raw: string) {
+  const member = await getMembership(ctx, teamId, raw.trim(), normalizeEmail(raw))
+  if (!member) {
+    throw authError('NOT_A_MEMBER', 'Assignee must be a member of this team.')
+  }
+  return member.userId
+}
+
+/** Creator, team admin, or self-assignment may set an assignee. */
+function assertCanAssign(ticket: Doc<'tickets'>, caller: TeamContext, assigneeUserId: string | undefined) {
+  const isCreator = ticket.reporterId === caller.userId || normalizeEmail(ticket.reporterId) === caller.email
+  const isSelfAssign = assigneeUserId !== undefined && assigneeUserId === caller.userId
+  if (!isCreator && !isAdminRole(caller.role) && !isSelfAssign) {
+    throw authError(
+      'FORBIDDEN',
+      'Only the ticket creator or team admins can assign tickets to other users. You can assign tickets to yourself.',
+    )
+  }
+}
+
+/** Reporter or team admin may delete. */
+function assertCanDelete(ticket: Doc<'tickets'>, caller: TeamContext) {
+  const isCreator = ticket.reporterId === caller.userId || normalizeEmail(ticket.reporterId) === caller.email
+  if (!isCreator && !isAdminRole(caller.role)) {
+    throw authError('FORBIDDEN', 'Only the ticket creator or team admins can delete tickets.')
+  }
+}
+
+async function assertEpicInTeam(ctx: Ctx, epicId: Id<'tickets'>, teamId: Id<'teams'>) {
+  const parentEpic = await ctx.db.get(epicId)
+  if (!parentEpic || parentEpic.teamId !== (teamId as string) || parentEpic.type !== 'epic') {
+    throw authError('NOT_FOUND', 'Target parent ticket is not an epic in this team.')
+  }
+  return parentEpic
+}
+
+async function assertSprintInTeam(ctx: Ctx, sprintId: Id<'sprints'>, teamId: Id<'teams'>) {
+  const sprint = await ctx.db.get(sprintId)
+  if (!sprint || sprint.teamId !== teamId) throw authError('NOT_FOUND', 'Sprint not found.')
+  return sprint
+}
+
+/** Mentions in a description notify teammates (never the author). */
+async function notifyDescriptionMentions(
+  ctx: MutationCtx,
+  teamId: Id<'teams'>,
+  ticketId: Id<'tickets'>,
+  authorId: string,
+  description: string | undefined,
+) {
+  if (!description) return
+  const now = Date.now()
+  for (const mentioned of extractMentionIds(description)) {
+    const member = await getMembership(ctx, teamId, mentioned, normalizeEmail(mentioned))
+    if (!member || member.userId === authorId) continue
+    await ctx.db.insert('mentions', {
+      contextRefType: 'ticket',
+      contextRefId: ticketId,
+      mentionedUserId: member.userId,
+      mentionedByUserId: authorId,
+      read: false,
+      createdAt: now,
+    })
+  }
+}
+
+/** Deletes a ticket and everything attached to it, including storage blobs. */
+export async function deleteTicketCascade(ctx: MutationCtx, ticket: Doc<'tickets'>) {
+  const id = ticket._id
+  const comments = await ctx.db.query('comments').withIndex('by_ticket', q => q.eq('ticketId', id)).collect()
+  for (const c of comments) {
+    const commentMentions = await ctx.db
+      .query('mentions')
+      .withIndex('by_context', q => q.eq('contextRefType', 'comment').eq('contextRefId', c._id))
+      .collect()
+    for (const m of commentMentions) await ctx.db.delete(m._id)
+    await ctx.db.delete(c._id)
+  }
+  const subtasks = await ctx.db.query('subtasks').withIndex('by_ticket', q => q.eq('ticketId', id)).collect()
+  for (const s of subtasks) await ctx.db.delete(s._id)
+  const watchers = await ctx.db.query('watchers').withIndex('by_ticket', q => q.eq('ticketId', id)).collect()
+  for (const w of watchers) await ctx.db.delete(w._id)
+  const mentions = await ctx.db
+    .query('mentions')
+    .withIndex('by_context', q => q.eq('contextRefType', 'ticket').eq('contextRefId', id))
+    .collect()
+  for (const m of mentions) await ctx.db.delete(m._id)
+  const outgoing = await ctx.db.query('ticketLinks').withIndex('by_source', q => q.eq('sourceId', id)).collect()
+  const incoming = await ctx.db.query('ticketLinks').withIndex('by_target', q => q.eq('targetId', id)).collect()
+  for (const l of [...outgoing, ...incoming]) await ctx.db.delete(l._id)
+  const attachments = await ctx.db.query('attachments').withIndex('by_ticket', q => q.eq('ticketId', id)).collect()
+  const blobIds = new Set<string>(attachments.map(a => a.storageId as string))
+  for (const legacy of ticket.attachments ?? []) blobIds.add(legacy)
+  for (const a of attachments) await ctx.db.delete(a._id)
+  for (const blob of blobIds) {
+    try {
+      await ctx.storage.delete(blob as Id<'_storage'>)
+    } catch {
+      // already gone
+    }
+  }
+  await ctx.db.delete(id)
+}
+
 export const list = query({
   args: {
     projectId: v.string(),
-    status: v.optional(
-      v.union(
-        v.literal('backlog'),
-        v.literal('todo'),
-        v.literal('in_progress'),
-        v.literal('review'),
-        v.literal('done'),
-      ),
-    ),
+    status: v.optional(TICKET_STATUS),
     q: v.optional(v.string()),
     mine: v.optional(v.boolean()),
     hipri: v.optional(v.boolean()),
     dueThisWeek: v.optional(v.boolean()),
     sprintId: v.optional(v.union(v.id('sprints'), v.null())),
     epicId: v.optional(v.union(v.id('tickets'), v.null())),
-    mode: v.optional(
-      v.union(v.literal('active'), v.literal('all'), v.literal('sprint')),
-    ),
+    mode: v.optional(v.union(v.literal('active'), v.literal('all'), v.literal('sprint'))),
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
 
-    let results = await ctx.db
-      .query('tickets')
-      .withIndex('by_project_status', ix => ix.eq('projectId', args.projectId))
-      .collect()
+    let results = args.status
+      ? await ctx.db
+          .query('tickets')
+          .withIndex('by_team_status', ix => ix.eq('teamId', teamId as string).eq('status', args.status!))
+          .collect()
+      : await ctx.db
+          .query('tickets')
+          .withIndex('by_team_status', ix => ix.eq('teamId', teamId as string))
+          .collect()
 
-    if (teamId) {
-      results = results.filter(t => !t.teamId || t.teamId === (teamId as string))
-    }
-
-    if (args.status) {
-      results = results.filter(t => t.status === args.status)
-    }
+    results = results.filter(t => t.projectId === args.projectId)
 
     if (args.q) {
       const needle = args.q.toLowerCase()
@@ -91,48 +217,34 @@ export const list = query({
     }
 
     if (args.mine) {
-      results = results.filter(
-        t => userId && (t.reporterId === userId || t.assigneeId === userId),
-      )
+      results = results.filter(t => t.reporterId === userId || t.assigneeId === userId)
     }
 
     if (args.hipri) {
-      results = results.filter(
-        t => t.priority === 'high' || t.priority === 'urgent',
-      )
+      results = results.filter(t => t.priority === 'high' || t.priority === 'urgent')
     }
 
     if (args.dueThisWeek) {
-      const oneWeek = Date.now() + 7 * 24 * 60 * 60 * 1000
-      results = results.filter(
-        t => t.dueDate !== undefined && t.dueDate < oneWeek,
-      )
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      const lower = startOfToday.getTime()
+      const upper = Date.now() + 7 * 24 * 60 * 60 * 1000
+      results = results.filter(t => t.dueDate !== undefined && t.dueDate >= lower && t.dueDate < upper)
     }
 
-    if (args.mode === 'active' && teamId) {
-      const active = await ctx.db
-        .query('sprints')
-        .withIndex('by_team_status', q =>
-          q.eq('teamId', teamId).eq('status', 'active'),
-        )
-        .unique()
-      if (active) {
-        results = results.filter(t => t.sprintId === active._id)
-      }
+    if (args.mode === 'active') {
+      const active = await activeSprintFor(ctx, teamId)
+      results = active ? results.filter(t => t.sprintId === active._id) : []
     } else if (args.sprintId !== undefined) {
-      if (args.sprintId === null) {
-        results = results.filter(t => !t.sprintId)
-      } else {
-        results = results.filter(t => t.sprintId === args.sprintId)
-      }
+      results = args.sprintId === null
+        ? results.filter(t => !t.sprintId)
+        : results.filter(t => t.sprintId === args.sprintId)
     }
 
     if (args.epicId !== undefined) {
-      if (args.epicId === null) {
-        results = results.filter(t => !t.epicId)
-      } else {
-        results = results.filter(t => t.epicId === args.epicId)
-      }
+      results = args.epicId === null
+        ? results.filter(t => !t.epicId)
+        : results.filter(t => t.epicId === args.epicId)
     }
 
     return results
@@ -143,14 +255,21 @@ export const getByKey = query({
   args: { key: v.string() },
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
-    const ticket = await ctx.db
+    const matches = await ctx.db
       .query('tickets')
       .withIndex('by_key', q => q.eq('key', args.key))
-      .unique()
+      .collect()
+    // Keys are unique per team, not globally (see nextKey).
+    return matches.find(t => t.teamId === (teamId as string)) ?? null
+  },
+})
 
-    if (ticket && teamId && ticket.teamId && ticket.teamId !== (teamId as string)) {
-      return null
-    }
+export const getById = query({
+  args: { id: v.id('tickets') },
+  handler: async (ctx, args) => {
+    const { teamId } = await requireTeam(ctx)
+    const ticket = await ctx.db.get(args.id)
+    if (!ticket || ticket.teamId !== (teamId as string)) return null
     return ticket
   },
 })
@@ -182,45 +301,62 @@ export const listAssignableMembers = query({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async ctx => {
+    await requireTeam(ctx)
     return await ctx.storage.generateUploadUrl()
   },
 })
 
+/** Resolves a storage id to an attachment row the caller's team owns. */
+async function attachmentForStorage(ctx: Ctx, storageId: string, teamId: Id<'teams'>) {
+  // Storage ids cannot be normalised via db.normalizeId; the index lookup validates them.
+  const normalized = storageId as Id<'_storage'>
+  const row = await ctx.db
+    .query('attachments')
+    .withIndex('by_storage', q => q.eq('storageId', normalized))
+    .first()
+  if (!row) return null
+  const ticket = await ctx.db.get(row.ticketId)
+  if (!ticket || ticket.teamId !== (teamId as string)) return null
+  return { row, storageId: normalized }
+}
+
 export const getAttachmentUrl = query({
   args: { storageId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.storageId)
+    const { teamId } = await requireTeam(ctx)
+    const found = await attachmentForStorage(ctx, args.storageId, teamId)
+    if (!found) return null
+    return await ctx.storage.getUrl(found.storageId)
   },
 })
 
 export const getAttachmentMetadata = query({
   args: { storageId: v.string() },
   handler: async (ctx, args) => {
-    const url = await ctx.storage.getUrl(args.storageId)
-    const meta = await ctx.storage.getMetadata(args.storageId as any)
+    const { teamId } = await requireTeam(ctx)
+    const found = await attachmentForStorage(ctx, args.storageId, teamId)
+    if (!found) return null
+    const url = await ctx.storage.getUrl(found.storageId)
     return {
       url,
-      contentType: meta?.contentType ?? null,
-      size: meta?.size ?? null,
+      contentType: found.row.mimeType,
+      size: found.row.size,
+      filename: found.row.filename,
     }
   },
 })
 
 export const listEpics = query({
-  args: {},
-  handler: async ctx => {
+  args: { projectId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
-    let results = await ctx.db
+    const rows = await ctx.db
       .query('tickets')
-      .withIndex('by_project_status', q => q.eq('projectId', 'doko'))
-      .filter(f => f.eq(f.field('type'), 'epic'))
+      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
       .collect()
-
-    if (teamId) {
-      results = results.filter(t => !t.teamId || t.teamId === (teamId as string))
-    }
-
-    return results
+    return rows.filter(
+      t => t.type === 'epic' && (args.projectId === undefined || t.projectId === args.projectId),
+    )
   },
 })
 
@@ -228,38 +364,23 @@ export const epicChildren = query({
   args: { epicId: v.id('tickets') },
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
-    let results = await ctx.db
+    const epic = await ctx.db.get(args.epicId)
+    if (!epic || epic.teamId !== (teamId as string)) return []
+    const rows = await ctx.db
       .query('tickets')
       .withIndex('by_epic', q => q.eq('epicId', args.epicId))
       .collect()
-
-    if (teamId) {
-      results = results.filter(t => !t.teamId || t.teamId === (teamId as string))
-    }
-
-    return results
+    return rows.filter(t => t.teamId === (teamId as string))
   },
 })
 
 export const create = mutation({
   args: {
     projectId: v.string(),
-    type: v.union(
-      v.literal('bug'),
-      v.literal('feature'),
-      v.literal('task'),
-      v.literal('epic'),
-    ),
+    type: TICKET_TYPE,
     title: v.string(),
     description: v.optional(v.string()),
-    priority: v.optional(
-      v.union(
-        v.literal('low'),
-        v.literal('medium'),
-        v.literal('high'),
-        v.literal('urgent'),
-      ),
-    ),
+    priority: v.optional(TICKET_PRIORITY),
     assigneeId: v.optional(v.string()),
     attachments: v.optional(v.array(v.string())),
     sourceMessageId: v.optional(v.id('messages')),
@@ -268,9 +389,10 @@ export const create = mutation({
     storyPoints: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
-    const reporterId = userId
-
+    const caller = await requireTeam(ctx)
+    const { userId, teamId } = caller
+    const title = args.title.trim()
+    if (!title) throw authError('FORBIDDEN', 'Title is required.')
 
     if (args.type === 'epic') {
       if (args.sprintId) throw new Error('Epics cannot be assigned to sprints')
@@ -278,33 +400,24 @@ export const create = mutation({
       if (args.storyPoints !== undefined) throw new Error('Epics roll up points from child tickets')
     }
 
-    if (args.epicId) {
-      const parentEpic = await ctx.db.get(args.epicId)
-      if (!parentEpic || parentEpic.type !== 'epic') {
-        throw new Error('Target parent ticket is not an epic')
-      }
-    }
+    if (args.epicId) await assertEpicInTeam(ctx, args.epicId, teamId)
+    if (args.sprintId) await assertSprintInTeam(ctx, args.sprintId, teamId)
 
-    if (args.sprintId) {
-      const sprint = await ctx.db.get(args.sprintId)
-      if (!sprint || sprint.teamId !== teamId) {
-        throw new Error('Sprint not found')
-      }
-    }
+    const assigneeId = args.assigneeId ? await resolveAssignee(ctx, teamId, args.assigneeId) : undefined
 
-    const key = await nextKey(ctx, args.type)
+    const key = await nextKey(ctx, teamId, args.type)
     const now = Date.now()
     const id = await ctx.db.insert('tickets', {
-      teamId: teamId as string | undefined,
+      teamId: teamId as string,
       projectId: args.projectId,
       key,
       type: args.type,
-      title: args.title,
+      title,
       description: args.description,
       status: 'backlog',
       priority: args.priority ?? 'medium',
-      assigneeId: args.assigneeId,
-      reporterId,
+      assigneeId,
+      reporterId: userId,
       labels: [],
       attachments: args.attachments ?? [],
       sourceMessageId: args.sourceMessageId,
@@ -321,21 +434,21 @@ export const create = mutation({
       kind: 'ticket.created',
       refType: 'ticket',
       refId: id,
-      payload: { key, type: args.type, title: args.title },
+      ticketId: id,
+      payload: { key, type: args.type, title },
     })
 
-    await ensureWatcher(ctx, id, reporterId)
-    if (args.assigneeId) {
-      await ensureWatcher(ctx, id, args.assigneeId)
-    }
-
-    if (args.assigneeId) {
+    await ensureWatcher(ctx, id, userId)
+    if (assigneeId) {
+      await ensureWatcher(ctx, id, assigneeId)
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
-        assigneeId: args.assigneeId,
+        assigneeId,
         assignedByUserId: userId,
       })
     }
+
+    await notifyDescriptionMentions(ctx, teamId, id, userId, args.description)
 
     return { id, key }
   },
@@ -344,18 +457,12 @@ export const create = mutation({
 export const updateStatus = mutation({
   args: {
     id: v.id('tickets'),
-    status: v.union(
-      v.literal('backlog'),
-      v.literal('todo'),
-      v.literal('in_progress'),
-      v.literal('review'),
-      v.literal('done'),
-    ),
+    status: TICKET_STATUS,
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
-    const ticket = await ctx.db.get(args.id)
-    if (!ticket) throw new Error('ticket not found')
+    const ticket = await assertTicketInTeam(ctx, args.id, teamId)
+    if (ticket.status === args.status) return
     const from = ticket.status
     await ctx.db.patch(args.id, { status: args.status, updatedAt: Date.now() })
     await appendActivityEvent(ctx, {
@@ -364,167 +471,173 @@ export const updateStatus = mutation({
       kind: 'ticket.status_changed',
       refType: 'ticket',
       refId: args.id,
+      ticketId: args.id,
       payload: { from, to: args.status },
     })
     await notifyWatchers(ctx, args.id, userId, 'ticket.status_changed', { from, to: args.status })
   },
 })
 
-
 export const assign = mutation({
   args: {
     id: v.id('tickets'),
-    assigneeId: v.optional(v.string()),
+    assigneeId: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
-    const { userId: callerUserId, email: callerEmail, teamId, role } = await requireTeam(ctx)
-    const ticket = await ctx.db.get(args.id)
-    if (!ticket) throw new Error('Ticket not found')
+    const caller = await requireTeam(ctx)
+    const { userId, teamId, email } = caller
+    const ticket = await assertTicketInTeam(ctx, args.id, teamId)
 
-    if (ticket.teamId && ticket.teamId !== (teamId as string)) {
-      throw new Error('Unauthorized team access')
-    }
+    const assigneeId = args.assigneeId ? await resolveAssignee(ctx, teamId, args.assigneeId) : undefined
+    assertCanAssign(ticket, caller, assigneeId)
+    if ((ticket.assigneeId ?? undefined) === assigneeId) return
 
-    const isAdmin = isAdminRole(role)
-
-    const isCreator =
-      ticket.reporterId === callerUserId ||
-      ticket.reporterId.trim().toLowerCase() === callerEmail
-
-    const isSelfAssign =
-      args.assigneeId !== undefined &&
-      (args.assigneeId === callerUserId ||
-        args.assigneeId.trim().toLowerCase() === callerEmail)
-
-    if (!isCreator && !isAdmin && !isSelfAssign) {
-      throw new Error(
-        'Unauthorized: Only the ticket creator or team admins can assign tickets to other users. You can assign tickets to yourself.',
-      )
-    }
-
-    await ctx.db.patch(args.id, {
-      assigneeId: args.assigneeId || undefined,
-      updatedAt: Date.now(),
-    })
+    await ctx.db.patch(args.id, { assigneeId, updatedAt: Date.now() })
 
     await appendActivityEvent(ctx, {
       teamId,
-      userId: callerUserId,
+      userId,
       kind: 'ticket.assigned',
       refType: 'ticket',
       refId: args.id,
-      payload: {
-        assigneeId: args.assigneeId || null,
-        assignedByEmail: callerEmail,
-      },
+      ticketId: args.id,
+      payload: { assigneeId: assigneeId ?? null, assignedByEmail: email },
     })
 
-    if (args.assigneeId) {
-      await ensureWatcher(ctx, args.id, args.assigneeId)
+    if (assigneeId) {
+      await ensureWatcher(ctx, args.id, assigneeId)
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: args.id,
-        assigneeId: args.assigneeId,
-        assignedByUserId: callerUserId,
+        assigneeId,
+        assignedByUserId: userId,
       })
     }
 
-    await notifyWatchers(ctx, args.id, callerUserId, 'ticket.assigned', {
-      assigneeId: args.assigneeId || null,
-    })
-
+    await notifyWatchers(ctx, args.id, userId, 'ticket.assigned', { assigneeId: assigneeId ?? null })
   },
 })
+
+type UpdatePatch = Partial<
+  Pick<
+    Doc<'tickets'>,
+    | 'title'
+    | 'description'
+    | 'priority'
+    | 'assigneeId'
+    | 'labels'
+    | 'attachments'
+    | 'dueDate'
+    | 'sprintId'
+    | 'epicId'
+    | 'storyPoints'
+  >
+>
 
 export const update = mutation({
   args: {
     id: v.id('tickets'),
     title: v.optional(v.string()),
-    description: v.optional(v.string()),
-    priority: v.optional(
-      v.union(
-        v.literal('low'),
-        v.literal('medium'),
-        v.literal('high'),
-        v.literal('urgent'),
-      ),
-    ),
-    assigneeId: v.optional(v.string()),
+    description: v.optional(v.union(v.string(), v.null())),
+    priority: v.optional(TICKET_PRIORITY),
+    assigneeId: v.optional(v.union(v.string(), v.null())),
     labels: v.optional(v.array(v.string())),
     attachments: v.optional(v.array(v.string())),
-    dueDate: v.optional(v.number()),
+    dueDate: v.optional(v.union(v.number(), v.null())),
     sprintId: v.optional(v.union(v.id('sprints'), v.null())),
     epicId: v.optional(v.union(v.id('tickets'), v.null())),
     storyPoints: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
-    const { id, sprintId, epicId, storyPoints, ...rest } = args
-    const { userId: callerUserId, email: callerEmail, role, teamId } = await requireTeam(ctx)
-    const ticket = await ctx.db.get(id)
-    if (!ticket) throw new Error('Ticket not found')
+    const caller = await requireTeam(ctx)
+    const { userId, teamId } = caller
+    const ticket = await assertTicketInTeam(ctx, args.id, teamId)
 
     if (ticket.type === 'epic') {
-      if (sprintId !== undefined && sprintId !== null) {
-        throw new Error('Epics cannot be assigned to sprints')
-      }
-      if (epicId !== undefined && epicId !== null) {
-        throw new Error('Epics cannot have parent epics')
-      }
-      if (storyPoints !== undefined && storyPoints !== null) {
-        throw new Error('Epics roll up points from child tickets')
+      if (args.sprintId) throw new Error('Epics cannot be assigned to sprints')
+      if (args.epicId) throw new Error('Epics cannot have parent epics')
+      if (args.storyPoints) throw new Error('Epics roll up points from child tickets')
+    }
+
+    const patch: UpdatePatch = {}
+    // `null` clears an optional field; `undefined` leaves it untouched.
+    const clear = <K extends keyof UpdatePatch>(key: K, value: UpdatePatch[K] | null | undefined) => {
+      if (value === undefined) return
+      const next = value === null ? undefined : value
+      if (ticket[key] !== next) patch[key] = next as UpdatePatch[K]
+    }
+
+    if (args.title !== undefined) {
+      const title = args.title.trim()
+      if (!title) throw authError('FORBIDDEN', 'Title cannot be empty.')
+      if (title !== ticket.title) patch.title = title
+    }
+    clear('description', args.description)
+    clear('priority', args.priority)
+    clear('dueDate', args.dueDate)
+    clear('storyPoints', args.storyPoints)
+    if (args.labels !== undefined && JSON.stringify(args.labels) !== JSON.stringify(ticket.labels)) {
+      patch.labels = args.labels
+    }
+    if (
+      args.attachments !== undefined &&
+      JSON.stringify(args.attachments) !== JSON.stringify(ticket.attachments ?? [])
+    ) {
+      patch.attachments = args.attachments
+    }
+
+    if (args.epicId) {
+      if (args.epicId === args.id) throw new Error('Ticket cannot be its own epic')
+      await assertEpicInTeam(ctx, args.epicId, teamId)
+    }
+    clear('epicId', args.epicId)
+
+    if (args.sprintId) await assertSprintInTeam(ctx, args.sprintId, teamId)
+    clear('sprintId', args.sprintId)
+
+    let newAssignee: string | undefined | null = null // null = unchanged
+    if (args.assigneeId !== undefined) {
+      const resolved = args.assigneeId ? await resolveAssignee(ctx, teamId, args.assigneeId) : undefined
+      if ((ticket.assigneeId ?? undefined) !== resolved) {
+        assertCanAssign(ticket, caller, resolved)
+        patch.assigneeId = resolved
+        newAssignee = resolved
       }
     }
 
-    if (epicId) {
-      if (epicId === id) throw new Error('Ticket cannot be its own epic')
-      const parentEpic = await ctx.db.get(epicId)
-      if (!parentEpic || parentEpic.type !== 'epic') {
-        throw new Error('Target parent ticket is not an epic')
-      }
-    }
+    if (Object.keys(patch).length === 0) return
 
-    if (rest.assigneeId !== undefined && rest.assigneeId !== ticket.assigneeId) {
-      const isAdmin = isAdminRole(role)
-      const isCreator =
-        ticket.reporterId === callerUserId ||
-        ticket.reporterId.trim().toLowerCase() === callerEmail
-      const isSelfAssign =
-        rest.assigneeId === callerUserId ||
-        rest.assigneeId.trim().toLowerCase() === callerEmail
+    await ctx.db.patch(args.id, { ...patch, updatedAt: Date.now() })
 
-      if (!isCreator && !isAdmin && !isSelfAssign) {
-        throw new Error(
-          'Unauthorized: Only the ticket creator or team admins can assign tickets to other users. You can assign tickets to yourself.',
-        )
-      }
-    }
+    // Event payload records every field that actually changed; explicit null = cleared.
+    const changed: Record<string, unknown> = {}
+    for (const [k, val] of Object.entries(patch)) changed[k] = val === undefined ? null : val
 
-    const patchObj: Record<string, any> = { ...rest, updatedAt: Date.now() }
-    if (sprintId !== undefined) {
-      patchObj.sprintId = sprintId === null ? undefined : sprintId
-    }
-    if (epicId !== undefined) {
-      patchObj.epicId = epicId === null ? undefined : epicId
-    }
-    if (storyPoints !== undefined) {
-      patchObj.storyPoints = storyPoints === null ? undefined : storyPoints
-    }
-
-    await ctx.db.patch(id, patchObj)
     await appendActivityEvent(ctx, {
       teamId,
-      userId: callerUserId,
+      userId,
       kind: 'ticket.updated',
       refType: 'ticket',
-      refId: id,
-      payload: patchObj,
+      refId: args.id,
+      ticketId: args.id,
+      payload: changed,
     })
-    await notifyWatchers(ctx, id, callerUserId, 'ticket.updated', patchObj)
+    await notifyWatchers(ctx, args.id, userId, 'ticket.updated', changed)
 
-    if (rest.assigneeId && rest.assigneeId !== ticket.assigneeId) {
+    if ('description' in patch) {
+      await notifyDescriptionMentions(ctx, teamId, args.id, userId, patch.description)
+    }
+
+    if ('sprintId' in patch || 'storyPoints' in patch) {
+      await recomputePlannedPoints(ctx, ticket.sprintId)
+      await recomputePlannedPoints(ctx, patch.sprintId)
+    }
+
+    if (newAssignee) {
+      await ensureWatcher(ctx, args.id, newAssignee)
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
-        ticketId: id,
-        assigneeId: rest.assigneeId,
-        assignedByUserId: callerUserId,
+        ticketId: args.id,
+        assigneeId: newAssignee,
+        assignedByUserId: userId,
       })
     }
   },
@@ -537,42 +650,26 @@ export const getUserTickets = query({
   },
   handler: async (ctx, args) => {
     const { userId: callerUserId, teamId, email: callerEmail } = await requireTeam(ctx)
-    const email = (args.targetEmail ?? callerEmail).trim().toLowerCase()
-    const targetId = args.targetUserId ?? callerUserId
+    const email = normalizeEmail(args.targetEmail ?? callerEmail)
+    const targetId = (args.targetUserId ?? callerUserId).trim().toLowerCase()
 
-    if (!targetId && !email) return { ongoing: [], completed: [], total: 0 }
-
-    let allTickets = await ctx.db.query('tickets').collect()
-
-    if (teamId) {
-      allTickets = allTickets.filter(t => !t.teamId || t.teamId === (teamId as string))
-    }
+    const teamTickets = await ctx.db
+      .query('tickets')
+      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
+      .collect()
 
     const matchesUser = (id?: string) => {
       if (!id) return false
       const clean = id.trim().toLowerCase()
-      if (clean === targetId?.toLowerCase()) return true
-      if (email && clean === email) return true
-      return false
+      return clean === targetId || clean === email
     }
 
-    const userTickets = allTickets.filter(
-      t => matchesUser(t.assigneeId) || matchesUser(t.reporterId),
-    )
+    const userTickets = teamTickets.filter(t => matchesUser(t.assigneeId) || matchesUser(t.reporterId))
 
-    const ongoing = userTickets
-      .filter(t => t.status !== 'done')
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+    const ongoing = userTickets.filter(t => t.status !== 'done').sort((a, b) => b.updatedAt - a.updatedAt)
+    const completed = userTickets.filter(t => t.status === 'done').sort((a, b) => b.updatedAt - a.updatedAt)
 
-    const completed = userTickets
-      .filter(t => t.status === 'done')
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-
-    return {
-      ongoing,
-      completed,
-      total: userTickets.length,
-    }
+    return { ongoing, completed, total: userTickets.length }
   },
 })
 
@@ -582,50 +679,55 @@ export const search = query({
     excludeId: v.optional(v.id('tickets')),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx)
+    const { teamId } = await requireTeam(ctx)
+    const needle = args.q.toLowerCase().trim()
+    if (!needle) return []
+
     const all = await ctx.db
       .query('tickets')
-      .withIndex('by_project_status', q => q.eq('projectId', 'doko'))
+      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
       .collect()
-
-    const needle = args.q.toLowerCase().trim()
-    if (!needle) return all.slice(0, 10)
 
     return all
       .filter(
         t =>
-          (t.title.toLowerCase().includes(needle) || t.key.toLowerCase().includes(needle)) &&
-          t._id !== args.excludeId,
+          t._id !== args.excludeId &&
+          (t.title.toLowerCase().includes(needle) || t.key.toLowerCase().includes(needle)),
       )
       .slice(0, 20)
   },
 })
 
+/** Loads every id, asserting each belongs to the caller's team. */
+async function loadTeamTickets(ctx: Ctx, ids: Id<'tickets'>[], teamId: Id<'teams'>) {
+  const unique = Array.from(new Set(ids))
+  if (unique.length > 200) throw authError('FORBIDDEN', 'Bulk actions are limited to 200 tickets.')
+  const tickets: Doc<'tickets'>[] = []
+  for (const id of unique) tickets.push(await assertTicketInTeam(ctx, id, teamId))
+  return tickets
+}
+
 export const bulkUpdateStatus = mutation({
   args: {
     ticketIds: v.array(v.id('tickets')),
-    status: v.union(
-      v.literal('backlog'),
-      v.literal('todo'),
-      v.literal('in_progress'),
-      v.literal('review'),
-      v.literal('done'),
-    ),
+    status: TICKET_STATUS,
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
-    for (const id of args.ticketIds) {
-      const t = await ctx.db.get(id)
-      if (!t || t.status === args.status) continue
-      await ctx.db.patch(id, { status: args.status, updatedAt: Date.now() })
+    const tickets = await loadTeamTickets(ctx, args.ticketIds, teamId)
+    for (const t of tickets) {
+      if (t.status === args.status) continue
+      await ctx.db.patch(t._id, { status: args.status, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
         teamId,
         userId,
         kind: 'ticket.status_changed',
         refType: 'ticket',
-        refId: id,
+        refId: t._id,
+        ticketId: t._id,
         payload: { from: t.status, to: args.status },
       })
+      await notifyWatchers(ctx, t._id, userId, 'ticket.status_changed', { from: t.status, to: args.status })
     }
   },
 })
@@ -633,22 +735,36 @@ export const bulkUpdateStatus = mutation({
 export const bulkUpdateAssignee = mutation({
   args: {
     ticketIds: v.array(v.id('tickets')),
-    assigneeId: v.optional(v.string()),
+    assigneeId: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
-    for (const id of args.ticketIds) {
-      const t = await ctx.db.get(id)
-      if (!t || t.assigneeId === args.assigneeId) continue
-      await ctx.db.patch(id, { assigneeId: args.assigneeId || undefined, updatedAt: Date.now() })
+    const caller = await requireTeam(ctx)
+    const { userId, teamId, email } = caller
+    const tickets = await loadTeamTickets(ctx, args.ticketIds, teamId)
+    const assigneeId = args.assigneeId ? await resolveAssignee(ctx, teamId, args.assigneeId) : undefined
+    for (const t of tickets) assertCanAssign(t, caller, assigneeId)
+
+    for (const t of tickets) {
+      if ((t.assigneeId ?? undefined) === assigneeId) continue
+      await ctx.db.patch(t._id, { assigneeId, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
         teamId,
         userId,
         kind: 'ticket.assigned',
         refType: 'ticket',
-        refId: id,
-        payload: { assigneeId: args.assigneeId || null },
+        refId: t._id,
+        ticketId: t._id,
+        payload: { assigneeId: assigneeId ?? null, assignedByEmail: email },
       })
+      await notifyWatchers(ctx, t._id, userId, 'ticket.assigned', { assigneeId: assigneeId ?? null })
+      if (assigneeId) {
+        await ensureWatcher(ctx, t._id, assigneeId)
+        await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
+          ticketId: t._id,
+          assigneeId,
+          assignedByUserId: userId,
+        })
+      }
     }
   },
 })
@@ -656,27 +772,24 @@ export const bulkUpdateAssignee = mutation({
 export const bulkUpdatePriority = mutation({
   args: {
     ticketIds: v.array(v.id('tickets')),
-    priority: v.union(
-      v.literal('low'),
-      v.literal('medium'),
-      v.literal('high'),
-      v.literal('urgent'),
-    ),
+    priority: TICKET_PRIORITY,
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
-    for (const id of args.ticketIds) {
-      const t = await ctx.db.get(id)
-      if (!t || t.priority === args.priority) continue
-      await ctx.db.patch(id, { priority: args.priority, updatedAt: Date.now() })
+    const tickets = await loadTeamTickets(ctx, args.ticketIds, teamId)
+    for (const t of tickets) {
+      if (t.priority === args.priority) continue
+      await ctx.db.patch(t._id, { priority: args.priority, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
         teamId,
         userId,
         kind: 'ticket.updated',
         refType: 'ticket',
-        refId: id,
+        refId: t._id,
+        ticketId: t._id,
         payload: { priority: args.priority },
       })
+      await notifyWatchers(ctx, t._id, userId, 'ticket.updated', { priority: args.priority })
     }
   },
 })
@@ -686,22 +799,23 @@ export const bulkDelete = mutation({
     ticketIds: v.array(v.id('tickets')),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
-    for (const id of args.ticketIds) {
-      const t = await ctx.db.get(id)
-      if (!t) continue
-      await ctx.db.delete(id)
+    const caller = await requireTeam(ctx)
+    const { userId, teamId } = caller
+    const tickets = await loadTeamTickets(ctx, args.ticketIds, teamId)
+    for (const t of tickets) assertCanDelete(t, caller)
+
+    for (const t of tickets) {
+      await notifyWatchers(ctx, t._id, userId, 'ticket.deleted', { key: t.key, title: t.title })
+      await deleteTicketCascade(ctx, t)
       await appendActivityEvent(ctx, {
         teamId,
         userId,
         kind: 'ticket.deleted',
         refType: 'ticket',
-        refId: id,
+        refId: t._id,
+        ticketId: t._id,
         payload: { key: t.key, title: t.title },
       })
     }
   },
 })
-
-
-
