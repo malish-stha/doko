@@ -115,7 +115,6 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
     )
   }
 
-  const initial = (profile.name || profile.email || 'U').slice(0, 1).toUpperCase()
   const ongoingTickets = ticketData?.ongoing ?? []
   const completedTickets = ticketData?.completed ?? []
   const totalTickets = ticketData?.total ?? 0

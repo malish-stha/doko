@@ -23,7 +23,7 @@ const readStoredConsent = () => {
 export function CookieConsent() {
   // Stored consent is read as an external store (no setState-in-effect); local state tracks this session's choice.
   const storedConsent = useSyncExternalStore(subscribeStorage, readStoredConsent, () => null)
-  const [sessionConsent, setSessionConsent] = useState<string | null>(null)
+  const [, setSessionConsent] = useState<string | null>(null)
   const setConsent = setSessionConsent
   const [isOpen, setIsOpen] = useState(false)
 

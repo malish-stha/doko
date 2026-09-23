@@ -67,6 +67,7 @@ export function UserAvatar({
       )}
       {...props}
     >
+      {/* eslint-disable-next-line @next/next/no-img-element -- remote user content, already sized */}
       <img
         src={src}
         alt={alt ?? displayName ?? displayEmail ?? 'User avatar'}

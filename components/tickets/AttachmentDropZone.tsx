@@ -119,6 +119,7 @@ export function AttachmentDropZone({
                 className="group relative flex items-center gap-3 p-2 bg-muted/20 border border-border/40 rounded-none hover:border-border transition-colors text-xs"
               >
                 {isImage && att.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote user content, already sized
                   <img
                     src={att.url}
                     alt={att.filename}

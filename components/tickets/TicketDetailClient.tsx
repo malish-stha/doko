@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
@@ -105,27 +105,9 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 import { formatDistanceToNow } from 'date-fns'
-import {
-  ImageIcon,
-  UploadIcon,
-  XIcon,
-  MessageSquareIcon,
-  UserCheckIcon,
-  AlertCircleIcon,
-  UserIcon,
-  Maximize2Icon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  FileTextIcon,
-  FileSpreadsheetIcon,
-  ArchiveIcon,
-  DownloadIcon,
-  PaperclipIcon,
-  ExternalLinkIcon,
-} from 'lucide-react'
+import { XIcon, MessageSquareIcon, UserCheckIcon, AlertCircleIcon } from 'lucide-react'
 import { CommentThread } from './CommentThread'
 import { StartDMButton } from '@/components/chat/StartDMButton'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
   const { data: session } = useSession()

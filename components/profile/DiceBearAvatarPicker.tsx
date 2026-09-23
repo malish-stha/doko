@@ -115,6 +115,7 @@ export function DiceBearAvatarPicker({
             <div className="relative group shrink-0">
               <div className="w-28 h-28 rounded-none bg-teal-500/10 border-2 border-teal-500/50 flex items-center justify-center overflow-hidden shadow-lg">
                 {activeAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote user content, already sized
                   <img
                     src={activeAvatarUrl}
                     alt="DiceBear Thumbs Avatar Preview"
