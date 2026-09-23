@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useDebouncedCallback } from '@/lib/useDebouncedCallback'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,6 +25,10 @@ export function FilterBar({
   const searchParams = useSearchParams()
 
   const q = searchParams.get('q') || ''
+  const [keyword, setKeyword] = useState(q)
+  useEffect(() => {
+    setKeyword(q)
+  }, [q])
   const status = searchParams.get('status') || ''
   const priority = searchParams.get('priority') || ''
   const assignee = searchParams.get('assignee') || ''
@@ -37,7 +43,11 @@ export function FilterBar({
     router.replace(`${pathname}?${params.toString()}`)
   }
 
+  // One navigation ~300ms after typing stops instead of one per keystroke.
+  const updateKeyword = useDebouncedCallback((val: string) => updateFilter('q', val.trim()), 300)
+
   const clearAll = () => {
+    setKeyword('')
     router.replace(pathname)
   }
 
@@ -62,8 +72,14 @@ export function FilterBar({
           <Input
             type="text"
             placeholder="Filter by keyword..."
-            value={q}
-            onChange={e => updateFilter('q', e.target.value)}
+            value={keyword}
+            onChange={e => {
+              setKeyword(e.target.value)
+              updateKeyword(e.target.value)
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') updateKeyword.flush(keyword)
+            }}
             className="h-8 pl-8 text-xs"
           />
         </div>
