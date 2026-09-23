@@ -243,11 +243,14 @@ export default defineSchema({
     mentionedUserId: v.string(),
     mentionedByUserId: v.string(),
     read: v.boolean(),
+    /** How many activities were folded into this row (watcher notifications). */
+    count: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_user_read', ['mentionedUserId', 'read'])
     .index('by_user', ['mentionedUserId'])
-    .index('by_context', ['contextRefType', 'contextRefId']),
+    .index('by_context', ['contextRefType', 'contextRefId'])
+    .index('by_user_context', ['mentionedUserId', 'contextRefType', 'contextRefId']),
 
   watchers: defineTable({
     ticketId: v.id('tickets'),

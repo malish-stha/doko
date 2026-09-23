@@ -139,12 +139,29 @@ export async function notifyWatchers(
   const now = Date.now()
   for (const watcher of watchers) {
     if (skip.has(watcher.userId)) continue
+    // One unread row per (watcher, ticket): repeated activity bumps it instead of piling up.
+    const existing = await ctx.db
+      .query('mentions')
+      .withIndex('by_user_context', q =>
+        q.eq('mentionedUserId', watcher.userId).eq('contextRefType', 'ticket').eq('contextRefId', ticketId),
+      )
+      .filter(f => f.eq(f.field('read'), false))
+      .first()
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        mentionedByUserId: actorUserId,
+        createdAt: now,
+        count: (existing.count ?? 1) + 1,
+      })
+      continue
+    }
     await ctx.db.insert('mentions', {
       contextRefType: 'ticket',
       contextRefId: ticketId,
       mentionedUserId: watcher.userId,
       mentionedByUserId: actorUserId,
       read: false,
+      count: 1,
       createdAt: now,
     })
   }
