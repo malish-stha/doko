@@ -86,13 +86,13 @@ export function NotificationDropdown() {
             mentions.slice(0, 10).map(m => {
               const isUnread = !m.read
               const targetUrl =
-                m.contextDetail?.ticketKey
-                  ? `/board?ticket=${m.contextDetail.ticketKey}`
-                  : m.contextDetail?.key
-                  ? `/board?ticket=${m.contextDetail.key}`
-                  : m.contextDetail?.channelId
-                  ? `/chat`
-                  : '/board'
+                m.contextDetail?.kind === 'comment'
+                  ? `/tickets/${m.contextDetail.ticketKey}`
+                  : m.contextDetail?.kind === 'ticket'
+                  ? `/tickets/${m.contextDetail.key}`
+                  : m.contextDetail?.kind === 'message'
+                  ? `/chat/${m.contextDetail.channelId}`
+                  : '/inbox'
 
               return (
                 <div
@@ -128,12 +128,12 @@ export function NotificationDropdown() {
                         }}
                         className="block p-1.5 bg-muted/40 border border-border/40 hover:border-teal-500/40 transition-colors rounded-none mt-1"
                       >
-                        {m.contextDetail.ticketKey && (
+                        {m.contextDetail.kind === 'comment' && (
                           <div className="font-mono text-teal-400 font-bold text-[11px] truncate">
                             {m.contextDetail.ticketKey} — {m.contextDetail.ticketTitle}
                           </div>
                         )}
-                        {m.contextDetail.commentBody && (
+                        {m.contextDetail.kind === 'comment' && m.contextDetail.commentBody && (
                           <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
                             "{m.contextDetail.commentBody}"
                           </div>

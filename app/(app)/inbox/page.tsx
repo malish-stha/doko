@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { UserAvatar } from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BellIcon, CheckCheckIcon, InboxIcon } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
@@ -17,7 +18,8 @@ export default function InboxPage() {
   const [filter, setFilter] = useState<'unread' | 'all'>('unread')
   const readFilter = filter === 'unread' ? false : undefined
 
-  const mentions = useQuery(api.mentions.forMe, { read: readFilter }) ?? []
+  const rawMentions = useQuery(api.mentions.forMe, { read: readFilter })
+  const mentions = rawMentions ?? []
   const markRead = useMutation(api.mentions.markRead)
   const markAllRead = useMutation(api.mentions.markAllRead)
 
@@ -82,7 +84,19 @@ export default function InboxPage() {
         </button>
       </div>
 
-      {mentions.length === 0 ? (
+      {rawMentions === undefined ? (
+        <div className="space-y-2" aria-busy="true" aria-label="Loading notifications">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-start gap-4 p-4 border border-border/40 bg-card/40">
+              <Skeleton className="w-8 h-8 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-48" />
+                <Skeleton className="h-3 w-72" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : mentions.length === 0 ? (
         <div className="text-center py-12 space-y-3 bg-card/30 border border-border/40 p-8">
           <InboxIcon className="w-8 h-8 text-muted-foreground mx-auto" />
           <div className="text-sm font-medium">No notifications</div>
@@ -97,13 +111,13 @@ export default function InboxPage() {
           {mentions.map(m => {
             const isUnread = !m.read
             const targetUrl =
-              m.contextDetail?.ticketKey
-                ? `/board?ticket=${m.contextDetail.ticketKey}`
-                : m.contextDetail?.key
-                ? `/board?ticket=${m.contextDetail.key}`
-                : m.contextDetail?.channelId
-                ? `/chat`
-                : '/board'
+              m.contextDetail?.kind === 'comment'
+                ? `/tickets/${m.contextDetail.ticketKey}`
+                : m.contextDetail?.kind === 'ticket'
+                ? `/tickets/${m.contextDetail.key}`
+                : m.contextDetail?.kind === 'message'
+                ? `/chat/${m.contextDetail.channelId}`
+                : '/inbox'
 
             return (
               <div
@@ -143,22 +157,22 @@ export default function InboxPage() {
                       }}
                       className="block p-2 bg-background/60 border border-border/60 hover:border-teal-500/50 transition-colors text-xs font-mono"
                     >
-                      {m.contextDetail.ticketKey && (
+                      {m.contextDetail.kind === 'comment' && (
                         <div className="text-teal-400 font-bold mb-0.5">
                           {m.contextDetail.ticketKey} — {m.contextDetail.ticketTitle}
                         </div>
                       )}
-                      {m.contextDetail.key && (
+                      {m.contextDetail.kind === 'ticket' && (
                         <div className="text-teal-400 font-bold mb-0.5">
                           {m.contextDetail.key} — {m.contextDetail.title}
                         </div>
                       )}
-                      {m.contextDetail.commentBody && (
+                      {m.contextDetail.kind === 'comment' && m.contextDetail.commentBody && (
                         <div className="text-muted-foreground line-clamp-2 italic">
                           "{m.contextDetail.commentBody}"
                         </div>
                       )}
-                      {m.contextDetail.messageBody && (
+                      {m.contextDetail.kind === 'message' && (
                         <div className="text-muted-foreground line-clamp-2 italic">
                           "{m.contextDetail.messageBody}"
                         </div>

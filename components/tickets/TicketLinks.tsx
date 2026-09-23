@@ -160,7 +160,7 @@ export function TicketLinks({
                     </span>
                   )}
                   <Link
-                    href={`/board?ticket=${target.key}`}
+                    href={`/tickets/${target.key}`}
                     className="font-mono text-teal-400 hover:underline font-semibold"
                   >
                     {target.key}
