@@ -21,6 +21,7 @@ export default defineSchema({
   })
     .index('by_team', ['teamId'])
     .index('by_user', ['userId'])
+    .index('by_email', ['email'])
     .index('by_team_user', ['teamId', 'userId']),
 
   invites: defineTable({

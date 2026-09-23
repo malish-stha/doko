@@ -1,26 +1,28 @@
 'use client'
 
 import { useQuery } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 
-
+/**
+ * Redirects to onboarding when the signed-in user has no team. Must be
+ * rendered inside ConvexAuthGate so the query runs with a verified identity.
+ */
 export function TeamGuard({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const team = useQuery(api.teams.myTeam, userEmail ? { userEmail } : 'skip')
+  const team = useQuery(api.teams.myTeam, {})
   const router = useRouter()
   const pathname = usePathname()
 
+  const needsOnboarding = team === null && !pathname.startsWith('/onboarding')
+
   useEffect(() => {
-    if (team === null && !pathname.startsWith('/onboarding')) {
+    if (needsOnboarding) {
       router.replace('/onboarding')
     }
-  }, [team, pathname, router])
+  }, [needsOnboarding, router])
 
-  if (team === null && !pathname.startsWith('/onboarding')) {
+  if (needsOnboarding) {
     return null
   }
 

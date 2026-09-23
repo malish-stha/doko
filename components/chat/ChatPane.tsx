@@ -28,8 +28,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const channel = useQuery(api.channels.get, { channelId, userEmail })
+  const currentEmail = session?.user?.email?.trim().toLowerCase()
+  const channel = useQuery(api.channels.get, { channelId })
 
   const rawMessages = useQuery(api.messages.byChannel, { channelId })
   const messages = rawMessages ?? []
@@ -54,8 +54,6 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
       await send({
         channelId,
         body: draft.trim(),
-        authorName: session?.user?.name ?? session?.user?.email ?? undefined,
-        userEmail,
       })
       setDraft('')
     } finally {
@@ -89,7 +87,10 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
         ) : messages.length > 0 ? (
           <MessageGroup className="space-y-4">
             {messages.map(m => {
-              const isSelf = m.authorEmail === userEmail || m.authorId === userEmail
+              const isSelf =
+                Boolean(currentEmail) &&
+                (m.authorEmail?.toLowerCase() === currentEmail ||
+                  m.authorId.toLowerCase() === currentEmail)
 
               return (
                 <MessageContextMenu key={m._id} message={m}>

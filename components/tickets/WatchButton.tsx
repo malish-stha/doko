@@ -13,13 +13,11 @@ import { parseConvexError } from '@/lib/utils'
 
 export function WatchButton({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
-  const isWatching = useQuery(api.watchers.isWatching, { ticketId, userEmail }) ?? false
-  const watchers = useQuery(api.watchers.forTicket, { ticketId, userEmail }) ?? []
+  const isWatching = useQuery(api.watchers.isWatching, { ticketId }) ?? false
+  const watchers = useQuery(api.watchers.forTicket, { ticketId }) ?? []
   const subscribe = useMutation(api.watchers.subscribe)
   const unsubscribe = useMutation(api.watchers.unsubscribe)
 
@@ -29,10 +27,10 @@ export function WatchButton({
     setLoading(true)
     try {
       if (isWatching) {
-        await unsubscribe({ ticketId, userEmail })
+        await unsubscribe({ ticketId })
         toast.success('Unwatched ticket', 'You will no longer receive notifications for this ticket')
       } else {
-        await subscribe({ ticketId, userEmail })
+        await subscribe({ ticketId })
         toast.success('Watching ticket', 'You will receive notifications for activity on this ticket')
       }
     } catch (err: any) {

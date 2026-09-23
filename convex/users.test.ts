@@ -8,11 +8,7 @@ test('getProfile and updateProfile work correctly', async () => {
   const userA = t.withIdentity({ subject: 'user-a', email: 'alex@example.com', name: 'Alex Rivera' })
 
   // Initial upsert
-  await userA.mutation(api.users.upsert, {
-    timezone: 'Asia/Kathmandu',
-    email: 'alex@example.com',
-    name: 'Alex Rivera',
-  })
+  await userA.mutation(api.users.upsert, { timezone: 'Asia/Kathmandu' })
 
   // Get initial profile
   const initialProfile = await userA.query(api.users.getProfile, {})

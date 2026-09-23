@@ -8,7 +8,7 @@ import { touchTicket } from './tickets'
 
 
 export const byTicket = query({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
     const comments = await ctx.db
       .query('comments')
@@ -38,8 +38,8 @@ export const byTicket = query({
         authorName = 'Teammate'
       }
 
-      let authorEmail = u ? u.email : c.authorId.includes('@') ? c.authorId : ''
-      let authorUserId = u?.userId ?? c.authorId
+      const authorEmail = u ? u.email : c.authorId.includes('@') ? c.authorId : ''
+      const authorUserId = u?.userId ?? c.authorId
 
       return {
         ...c,
@@ -56,23 +56,14 @@ export const add = mutation({
   args: {
     ticketId: v.id('tickets'),
     body: v.string(),
-    authorName: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (!args.body.trim()) throw new Error('empty comment')
     const ticket = await ctx.db.get(args.ticketId)
     if (!ticket) throw new Error('ticket not found')
 
-    const { userId, user, identity } = await requireTeam(ctx, args.userEmail)
-    const authorId =
-      user?.userId ??
-      (userId !== 'anonymous' ? userId : undefined) ??
-      user?.name ??
-      args.authorName ??
-      identity?.email ??
-      args.userEmail ??
-      'Teammate'
+    const { userId } = await requireTeam(ctx)
+    const authorId = userId
 
     const now = Date.now()
     const id = await ctx.db.insert('comments', {
@@ -84,7 +75,7 @@ export const add = mutation({
 
     const mentionUserIds = extractMentionIds(args.body)
     for (const mentionedUserId of mentionUserIds) {
-      if (mentionedUserId === userId || mentionedUserId === authorId) continue
+      if (mentionedUserId === userId) continue
       await ctx.db.insert('mentions', {
         contextRefType: 'comment',
         contextRefId: id,
@@ -95,21 +86,17 @@ export const add = mutation({
       })
     }
 
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'ticket.commented',
-        refType: 'comment',
-        refId: id,
-        payload: {
-          ticketId: args.ticketId,
-          ticketKey: ticket.key,
-          bodyPreview: args.body.slice(0, 100),
-          author: authorId,
-        },
+    await appendActivityEvent(ctx, {
+      kind: 'ticket.commented',
+      refType: 'comment',
+      refId: id,
+      payload: {
+        ticketId: args.ticketId,
+        ticketKey: ticket.key,
+        bodyPreview: args.body.slice(0, 100),
+        author: authorId,
       },
-      args.userEmail,
-    )
+    })
 
 
     await notifyWatchers(ctx, args.ticketId, authorId, 'ticket.commented', {
@@ -121,5 +108,3 @@ export const add = mutation({
     return id
   },
 })
-
-

@@ -9,11 +9,9 @@ import { MailIcon, BriefcaseIcon } from 'lucide-react'
 export function MentionBadge({
   userId,
   label,
-  userEmail,
 }: {
   userId: string
   label: string
-  userEmail?: string
 }) {
   const user = useQuery(api.users.getByUserId, { userId })
 

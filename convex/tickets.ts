@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { mutation, query, internalQuery, MutationCtx } from './_generated/server'
 import { internal } from './_generated/api'
 import { appendActivityEvent } from './events'
-import { requireTeam, getMembership } from './teamHelper'
+import { requireTeam, isAdminRole } from './teamHelper'
 import { ensureWatcher, notifyWatchers } from './watchers'
 import { Id } from './_generated/dataModel'
 
@@ -156,10 +156,9 @@ export const getByKey = query({
 })
 
 export const listAssignableMembers = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return []
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
     const members = await ctx.db
       .query('teamMembers')
       .withIndex('by_team', q => q.eq('teamId', teamId))
@@ -269,7 +268,7 @@ export const create = mutation({
     storyPoints: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId, identity } = await requireTeam(ctx)
+    const { userId, teamId, email } = await requireTeam(ctx)
     const reporterId = userId
 
 
@@ -332,7 +331,7 @@ export const create = mutation({
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
         assigneeId: args.assigneeId,
-        assignedByEmail: identity?.email ?? userId,
+        assignedByEmail: email,
       })
     }
 
@@ -350,10 +349,9 @@ export const updateStatus = mutation({
       v.literal('review'),
       v.literal('done'),
     ),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const ticket = await ctx.db.get(args.id)
     if (!ticket) throw new Error('ticket not found')
     const from = ticket.status
@@ -373,33 +371,26 @@ export const assign = mutation({
   args: {
     id: v.id('tickets'),
     assigneeId: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
+    const { userId: callerUserId, email: callerEmail, teamId, role } = await requireTeam(ctx)
     const ticket = await ctx.db.get(args.id)
     if (!ticket) throw new Error('Ticket not found')
 
-    const callerUserId = user?.userId ?? userId
-    const callerEmail = (identity?.email ?? user?.email ?? args.userEmail)?.trim().toLowerCase()
-
-    if (teamId && ticket.teamId && ticket.teamId !== (teamId as string)) {
+    if (ticket.teamId && ticket.teamId !== (teamId as string)) {
       throw new Error('Unauthorized team access')
     }
 
-    const me = teamId && callerUserId ? await getMembership(ctx, teamId, callerUserId, callerEmail) : null
-    const isAdmin = me?.role === 'owner' || me?.role === 'admin'
+    const isAdmin = isAdminRole(role)
 
     const isCreator =
       ticket.reporterId === callerUserId ||
-      (callerEmail && ticket.reporterId.trim().toLowerCase() === callerEmail) ||
-      (user && ticket.reporterId === user.userId)
+      ticket.reporterId.trim().toLowerCase() === callerEmail
 
     const isSelfAssign =
       args.assigneeId !== undefined &&
       (args.assigneeId === callerUserId ||
-        (callerEmail && args.assigneeId.trim().toLowerCase() === callerEmail) ||
-        (user && args.assigneeId === user.userId))
+        args.assigneeId.trim().toLowerCase() === callerEmail)
 
     if (!isCreator && !isAdmin && !isSelfAssign) {
       throw new Error(
@@ -452,7 +443,6 @@ export const update = mutation({
       ),
     ),
     assigneeId: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
     labels: v.optional(v.array(v.string())),
     attachments: v.optional(v.array(v.string())),
     dueDate: v.optional(v.number()),
@@ -461,7 +451,8 @@ export const update = mutation({
     storyPoints: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
-    const { id, userEmail, sprintId, epicId, storyPoints, ...rest } = args
+    const { id, sprintId, epicId, storyPoints, ...rest } = args
+    const { userId: callerUserId, email: callerEmail, role } = await requireTeam(ctx)
     const ticket = await ctx.db.get(id)
     if (!ticket) throw new Error('Ticket not found')
 
@@ -486,19 +477,13 @@ export const update = mutation({
     }
 
     if (rest.assigneeId !== undefined && rest.assigneeId !== ticket.assigneeId) {
-      const { userId, user, teamId, identity } = await requireTeam(ctx, userEmail)
-      const callerUserId = user?.userId ?? userId
-      const callerEmail = (identity?.email ?? user?.email ?? userEmail)?.trim().toLowerCase()
-      const me = teamId && callerUserId ? await getMembership(ctx, teamId, callerUserId, callerEmail) : null
-      const isAdmin = me?.role === 'owner' || me?.role === 'admin'
+      const isAdmin = isAdminRole(role)
       const isCreator =
         ticket.reporterId === callerUserId ||
-        (callerEmail && ticket.reporterId.trim().toLowerCase() === callerEmail) ||
-        (user && ticket.reporterId === user.userId)
+        ticket.reporterId.trim().toLowerCase() === callerEmail
       const isSelfAssign =
         rest.assigneeId === callerUserId ||
-        (callerEmail && rest.assigneeId.trim().toLowerCase() === callerEmail) ||
-        (user && rest.assigneeId === user.userId)
+        rest.assigneeId.trim().toLowerCase() === callerEmail
 
       if (!isCreator && !isAdmin && !isSelfAssign) {
         throw new Error(
@@ -519,22 +504,15 @@ export const update = mutation({
     }
 
     await ctx.db.patch(id, patchObj)
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'ticket.updated',
-        refType: 'ticket',
-        refId: id,
-        payload: patchObj,
-      },
-      userEmail,
-    )
-    const { userId } = await requireTeam(ctx, userEmail)
-    await notifyWatchers(ctx, id, userId, 'ticket.updated', patchObj)
+    await appendActivityEvent(ctx, {
+      kind: 'ticket.updated',
+      refType: 'ticket',
+      refId: id,
+      payload: patchObj,
+    })
+    await notifyWatchers(ctx, id, callerUserId, 'ticket.updated', patchObj)
 
     if (rest.assigneeId && rest.assigneeId !== ticket.assigneeId) {
-      const { userId, user, identity } = await requireTeam(ctx, userEmail)
-      const callerEmail = (identity?.email ?? user?.email ?? userEmail)?.trim().toLowerCase()
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
         assigneeId: rest.assigneeId,
@@ -550,9 +528,9 @@ export const getUserTickets = query({
     targetEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId: callerUserId, teamId, identity } = await requireTeam(ctx)
-    const email = (args.targetEmail ?? identity?.email)?.trim().toLowerCase()
-    const targetId = args.targetUserId ?? callerUserId ?? email
+    const { userId: callerUserId, teamId, email: callerEmail } = await requireTeam(ctx)
+    const email = (args.targetEmail ?? callerEmail).trim().toLowerCase()
+    const targetId = args.targetUserId ?? callerUserId
 
     if (!targetId && !email) return { ongoing: [], completed: [], total: 0 }
 
@@ -594,10 +572,9 @@ export const search = query({
   args: {
     q: v.string(),
     excludeId: v.optional(v.id('tickets')),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const all = await ctx.db
       .query('tickets')
       .withIndex('by_project_status', q => q.eq('projectId', 'doko'))
@@ -626,24 +603,19 @@ export const bulkUpdateStatus = mutation({
       v.literal('review'),
       v.literal('done'),
     ),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t || t.status === args.status) continue
       await ctx.db.patch(id, { status: args.status, updatedAt: Date.now() })
-      await appendActivityEvent(
-        ctx,
-        {
-          kind: 'ticket.status_changed',
-          refType: 'ticket',
-          refId: id,
-          payload: { from: t.status, to: args.status },
-        },
-        args.userEmail,
-      )
+      await appendActivityEvent(ctx, {
+        kind: 'ticket.status_changed',
+        refType: 'ticket',
+        refId: id,
+        payload: { from: t.status, to: args.status },
+      })
     }
   },
 })
@@ -652,24 +624,19 @@ export const bulkUpdateAssignee = mutation({
   args: {
     ticketIds: v.array(v.id('tickets')),
     assigneeId: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t || t.assigneeId === args.assigneeId) continue
       await ctx.db.patch(id, { assigneeId: args.assigneeId || undefined, updatedAt: Date.now() })
-      await appendActivityEvent(
-        ctx,
-        {
-          kind: 'ticket.assigned',
-          refType: 'ticket',
-          refId: id,
-          payload: { assigneeId: args.assigneeId || null },
-        },
-        args.userEmail,
-      )
+      await appendActivityEvent(ctx, {
+        kind: 'ticket.assigned',
+        refType: 'ticket',
+        refId: id,
+        payload: { assigneeId: args.assigneeId || null },
+      })
     }
   },
 })
@@ -683,24 +650,19 @@ export const bulkUpdatePriority = mutation({
       v.literal('high'),
       v.literal('urgent'),
     ),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t || t.priority === args.priority) continue
       await ctx.db.patch(id, { priority: args.priority, updatedAt: Date.now() })
-      await appendActivityEvent(
-        ctx,
-        {
-          kind: 'ticket.updated',
-          refType: 'ticket',
-          refId: id,
-          payload: { priority: args.priority },
-        },
-        args.userEmail,
-      )
+      await appendActivityEvent(ctx, {
+        kind: 'ticket.updated',
+        refType: 'ticket',
+        refId: id,
+        payload: { priority: args.priority },
+      })
     }
   },
 })
@@ -708,24 +670,19 @@ export const bulkUpdatePriority = mutation({
 export const bulkDelete = mutation({
   args: {
     ticketIds: v.array(v.id('tickets')),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t) continue
       await ctx.db.delete(id)
-      await appendActivityEvent(
-        ctx,
-        {
-          kind: 'ticket.deleted',
-          refType: 'ticket',
-          refId: id,
-          payload: { key: t.key, title: t.title },
-        },
-        args.userEmail,
-      )
+      await appendActivityEvent(ctx, {
+        kind: 'ticket.deleted',
+        refType: 'ticket',
+        refId: id,
+        payload: { key: t.key, title: t.title },
+      })
     }
   },
 })

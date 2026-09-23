@@ -65,24 +65,16 @@ export const send = mutation({
   args: {
     channelId: v.id('channels'),
     body: v.string(),
-    authorName: v.optional(v.string()),
     threadRootId: v.optional(v.id('messages')),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (!args.body.trim()) throw new Error('empty message')
 
-    const { userId, user, identity } = await requireTeam(ctx, args.userEmail)
-    const authorId =
-      args.authorName ??
-      user?.name ??
-      identity?.name ??
-      identity?.email ??
-      userId
+    const { userId } = await requireTeam(ctx)
 
     const id = await ctx.db.insert('messages', {
       channelId: args.channelId,
-      authorId,
+      authorId: userId,
       body: args.body.trim(),
       threadRootId: args.threadRootId,
       createdAt: Date.now(),

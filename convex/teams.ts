@@ -1,18 +1,13 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { requireTeam, getMembership } from './teamHelper'
+import { optionalTeam, requireRole, requireUser } from './teamHelper'
 
 export const myTeam = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { userId, user, identity } = await requireTeam(ctx, args.userEmail)
-    if (!user?.teamId) return null
-
-    const email = identity?.email ?? args.userEmail ?? user?.email
-    const membership = await getMembership(ctx, user.teamId, userId, email)
-    if (!membership) return null
-
-    return await ctx.db.get(user.teamId)
+  args: {},
+  handler: async ctx => {
+    const team = await optionalTeam(ctx)
+    if (!team) return null
+    return await ctx.db.get(team.teamId)
   },
 })
 
@@ -20,24 +15,10 @@ export const create = mutation({
   args: {
     name: v.string(),
     workspaceDomain: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-    userName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId: reqUserId, user: reqUser, identity } = await requireTeam(ctx, args.userEmail)
+    const { userId, email, name: identityName, user } = await requireUser(ctx)
     if (!args.name.trim()) throw new Error('Team name required')
-
-    const rawEmail = identity?.email ?? args.userEmail ?? reqUser?.email ?? 'anonymous@doko.internal'
-    const email = rawEmail.trim().toLowerCase()
-    const userId = identity?.subject ?? email
-
-    let user = reqUser
-    if (!user) {
-      user = await ctx.db
-        .query('users')
-        .withIndex('by_userId', q => q.eq('userId', userId))
-        .first()
-    }
 
     const slug = args.name
       .toLowerCase()
@@ -65,13 +46,13 @@ export const create = mutation({
     })
 
     if (user) {
-      await ctx.db.patch(user._id, { teamId, email })
+      await ctx.db.patch(user._id, { teamId })
     } else {
       await ctx.db.insert('users', {
         userId,
         email,
-        name: args.userName ?? identity?.name ?? email,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        name: identityName ?? email,
+        timezone: 'UTC',
         teamId,
         createdAt: Date.now(),
       })
@@ -96,18 +77,7 @@ export const update = mutation({
     workspaceDomain: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
-    if (!teamId) throw new Error('No active team')
-
-    const membership = await ctx.db
-      .query('teamMembers')
-      .withIndex('by_user', q => q.eq('userId', userId))
-      .filter(f => f.eq(f.field('teamId'), teamId))
-      .first()
-
-    if (membership?.role !== 'owner' && membership?.role !== 'admin') {
-      throw new Error('Only owners/admins can update team settings')
-    }
+    const { teamId } = await requireRole(ctx, ['owner', 'admin'])
 
     const updates: Record<string, any> = {}
     if (args.name !== undefined) {
@@ -126,15 +96,7 @@ export const update = mutation({
 export const deleteTeam = mutation({
   args: {},
   handler: async ctx => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx)
-    if (!teamId) throw new Error('No active team')
-
-    const email = identity?.email ?? user?.email
-    const me = await getMembership(ctx, teamId, userId, email)
-
-    if (me?.role !== 'owner') {
-      throw new Error('Only team owner can delete the team')
-    }
+    const { teamId } = await requireRole(ctx, ['owner'])
 
     const members = await ctx.db
       .query('teamMembers')

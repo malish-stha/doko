@@ -2,19 +2,12 @@ import { v } from 'convex/values'
 import { internalAction, internalMutation, internalQuery, query } from './_generated/server'
 import { internal } from './_generated/api'
 import { Doc, Id } from './_generated/dataModel'
-import { requireTeam } from './teamHelper'
+import { requireUser } from './teamHelper'
 
 export const todayForMe = query({
   args: {},
   handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity()
-    const cleanEmail = identity?.email?.trim().toLowerCase()
-    const userId = identity?.subject ?? cleanEmail ?? 'dev-user'
-
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', userId))
-      .first()
+    const { userId, user } = await requireUser(ctx)
 
     const tz = user?.timezone ?? 'UTC'
     const localDate = new Date()

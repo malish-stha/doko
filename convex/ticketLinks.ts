@@ -19,10 +19,9 @@ export const create = mutation({
     sourceId: v.id('tickets'),
     targetId: v.id('tickets'),
     type: v.string(),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
 
     if (args.sourceId === args.targetId) {
       throw new Error('cannot link ticket to itself')
@@ -60,22 +59,18 @@ export const create = mutation({
     const sourceTicket = await ctx.db.get(args.sourceId)
     const targetTicket = await ctx.db.get(args.targetId)
 
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'ticket.linked',
-        refType: 'ticketLink',
-        refId: primaryId,
-        payload: {
-          sourceId: args.sourceId,
-          sourceKey: sourceTicket?.key,
-          targetId: args.targetId,
-          targetKey: targetTicket?.key,
-          type: args.type,
-        },
+    await appendActivityEvent(ctx, {
+      kind: 'ticket.linked',
+      refType: 'ticketLink',
+      refId: primaryId,
+      payload: {
+        sourceId: args.sourceId,
+        sourceKey: sourceTicket?.key,
+        targetId: args.targetId,
+        targetKey: targetTicket?.key,
+        type: args.type,
       },
-      args.userEmail,
-    )
+    })
 
 
     await notifyWatchers(ctx, args.sourceId, userId, 'ticket.linked', {
@@ -95,9 +90,9 @@ export const create = mutation({
 })
 
 export const forTicket = query({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const outgoing = await ctx.db
       .query('ticketLinks')
       .withIndex('by_source', q => q.eq('sourceId', args.ticketId))
@@ -118,10 +113,9 @@ export const forTicket = query({
 export const remove = mutation({
   args: {
     linkId: v.id('ticketLinks'),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const link = await ctx.db.get(args.linkId)
     if (!link) throw new Error('link not found')
 
@@ -135,20 +129,16 @@ export const remove = mutation({
     await ctx.db.delete(args.linkId)
     if (reverse) await ctx.db.delete(reverse._id)
 
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'ticket.unlinked',
-        refType: 'ticketLink',
-        refId: args.linkId,
-        payload: {
-          sourceId: link.sourceId,
-          targetId: link.targetId,
-          type: link.type,
-        },
+    await appendActivityEvent(ctx, {
+      kind: 'ticket.unlinked',
+      refType: 'ticketLink',
+      refId: args.linkId,
+      payload: {
+        sourceId: link.sourceId,
+        targetId: link.targetId,
+        type: link.type,
       },
-      args.userEmail,
-    )
+    })
 
 
     await notifyWatchers(ctx, link.sourceId, userId, 'ticket.unlinked', { type: link.type })
@@ -157,4 +147,3 @@ export const remove = mutation({
     await touchTicket(ctx, link.targetId)
   },
 })
-

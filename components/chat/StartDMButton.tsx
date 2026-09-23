@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -21,8 +20,6 @@ export function StartDMButton({
   size?: 'sm' | 'xs' | 'default' | 'icon'
   className?: string
 }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const openDM = useMutation(api.channels.openDM)
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -33,7 +30,7 @@ export function StartDMButton({
     if (!userId || loading) return
     setLoading(true)
     try {
-      const id = await openDM({ otherUserId: userId, userEmail })
+      const id = await openDM({ otherUserId: userId })
       router.push(`/chat/${id}`)
     } catch (err: any) {
       console.error('Failed to open DM:', err)

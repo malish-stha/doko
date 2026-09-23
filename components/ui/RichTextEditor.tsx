@@ -26,7 +26,6 @@ interface RichTextEditorProps {
   autoFocus?: boolean
   label?: string
   readOnly?: boolean
-  userEmail?: string
 }
 
 export function RichTextEditor({
@@ -38,7 +37,6 @@ export function RichTextEditor({
   className,
   autoFocus = false,
   readOnly = false,
-  userEmail,
 }: RichTextEditorProps) {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write')
   const [mentionState, setMentionState] = useState<{
@@ -255,7 +253,7 @@ export function RichTextEditor({
             />
             {mentionState?.active && (
               <MentionAutocomplete
-                userEmail={userEmail}
+               
                 filterQuery={mentionState.query}
                 onSelect={handleSelectTeammate}
               />

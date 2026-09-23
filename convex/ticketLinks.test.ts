@@ -6,6 +6,7 @@ import { api } from './_generated/api'
 test('ticketLinks symmetric creation and removal', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-a', name: 'User A' })
+  await asUser.mutation(api.teams.create, { name: 'Test Team' })
 
   const { id: ticketA } = await asUser.mutation(api.tickets.create, {
     projectId: 'doko',

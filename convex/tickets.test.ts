@@ -1,3 +1,4 @@
+import { joinTeam } from './testHelpers'
 import { convexTest } from 'convex-test'
 import { expect, test } from 'vitest'
 import schema from './schema'
@@ -6,6 +7,7 @@ import { api } from './_generated/api'
 test('ticket key generation is monotonic per type prefix', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-a', name: 'A' })
+  await asUser.mutation(api.teams.create, { name: 'Test Team' })
   const first = await asUser.mutation(api.tickets.create, {
     projectId: 'doko',
     type: 'bug',
@@ -29,6 +31,7 @@ test('ticket key generation is monotonic per type prefix', async () => {
 test('create ticket writes activityEvent to database', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-a', name: 'A' })
+  await asUser.mutation(api.teams.create, { name: 'Test Team' })
   const { key } = await asUser.mutation(api.tickets.create, {
     projectId: 'doko',
     type: 'feature',
@@ -41,6 +44,7 @@ test('create ticket writes activityEvent to database', async () => {
 test('updateStatus changes ticket status and updates record', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-a' })
+  await asUser.mutation(api.teams.create, { name: 'Test Team' })
   const { id } = await asUser.mutation(api.tickets.create, {
     projectId: 'doko',
     type: 'task',
@@ -55,6 +59,8 @@ test('list query filters by mine flag correctly — no cross-user leak', async (
   const t = convexTest(schema)
   const asA = t.withIdentity({ subject: 'user-a' })
   const asB = t.withIdentity({ subject: 'user-b' })
+  const teamId = await asA.mutation(api.teams.create, { name: 'Test Team' })
+  await joinTeam(t, teamId, { subject: 'user-b' })
 
   await asA.mutation(api.tickets.create, {
     projectId: 'doko',
@@ -80,6 +86,7 @@ test('list query filters by mine flag correctly — no cross-user leak', async (
 test('creator can assign ticket to another user', async () => {
   const t = convexTest(schema)
   const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
+  await asA.mutation(api.teams.create, { name: 'Test Team' })
   const { id, key } = await asA.mutation(api.tickets.create, {
     projectId: 'doko',
     type: 'task',
@@ -99,6 +106,8 @@ test('user can assign ticket to themselves', async () => {
   const t = convexTest(schema)
   const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
   const asB = t.withIdentity({ subject: 'user-b', email: 'user-b@example.com' })
+  const teamId = await asA.mutation(api.teams.create, { name: 'Test Team' })
+  await joinTeam(t, teamId, { subject: 'user-b', email: 'user-b@example.com' })
 
   const { id, key } = await asA.mutation(api.tickets.create, {
     projectId: 'doko',
@@ -120,6 +129,8 @@ test('non-creator cannot assign ticket to another third user', async () => {
   const t = convexTest(schema)
   const asA = t.withIdentity({ subject: 'user-a', email: 'user-a@example.com' })
   const asB = t.withIdentity({ subject: 'user-b', email: 'user-b@example.com' })
+  const teamId = await asA.mutation(api.teams.create, { name: 'Test Team' })
+  await joinTeam(t, teamId, { subject: 'user-b', email: 'user-b@example.com' })
 
   const { id } = await asA.mutation(api.tickets.create, {
     projectId: 'doko',

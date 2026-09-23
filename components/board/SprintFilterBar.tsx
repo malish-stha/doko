@@ -1,7 +1,6 @@
 'use client'
 
 import { useQuery } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import {
   Select,
@@ -21,9 +20,7 @@ export function SprintFilterBar({
   value: SprintFilterValue
   onChange: (val: SprintFilterValue) => void
 }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const sprints = useQuery(api.sprints.listForTeam, userEmail ? { userEmail } : {}) ?? []
+  const sprints = useQuery(api.sprints.listForTeam, {}) ?? []
   const active = sprints.find((s: Doc<'sprints'>) => s.status === 'active')
 
   return (

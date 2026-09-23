@@ -31,12 +31,11 @@ interface EditProfileModalProps {
     githubUrl?: string
     linkedinUrl?: string
   } | null
-  userEmail?: string
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditProfileModalProps) {
+export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalProps) {
   const [name, setName] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [department, setDepartment] = useState('')
@@ -73,7 +72,6 @@ export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditPr
     setErrorMsg('')
     try {
       await updateProfile({
-        userEmail,
         name: name.trim(),
         jobTitle: jobTitle.trim() || undefined,
         department: department.trim() || undefined,

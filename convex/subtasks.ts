@@ -7,9 +7,9 @@ import { touchTicket } from './tickets'
 
 
 export const byTicket = query({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const rows = await ctx.db
       .query('subtasks')
       .withIndex('by_ticket', q => q.eq('ticketId', args.ticketId))
@@ -22,10 +22,9 @@ export const add = mutation({
   args: {
     ticketId: v.id('tickets'),
     title: v.string(),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const title = args.title.trim()
     if (!title) throw new Error('empty title')
 
@@ -43,16 +42,12 @@ export const add = mutation({
       createdAt: Date.now(),
     })
 
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'subtask.added',
-        refType: 'subtask',
-        refId: id,
-        payload: { ticketId: args.ticketId, title },
-      },
-      args.userEmail,
-    )
+    await appendActivityEvent(ctx, {
+      kind: 'subtask.added',
+      refType: 'subtask',
+      refId: id,
+      payload: { ticketId: args.ticketId, title },
+    })
 
     await notifyWatchers(ctx, args.ticketId, userId, 'subtask.added', { title })
     await touchTicket(ctx, args.ticketId)
@@ -64,10 +59,9 @@ export const add = mutation({
 export const toggle = mutation({
   args: {
     subtaskId: v.id('subtasks'),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const st = await ctx.db.get(args.subtaskId)
     if (!st) throw new Error('subtask not found')
 
@@ -75,16 +69,12 @@ export const toggle = mutation({
     await ctx.db.patch(args.subtaskId, { done: nextDone })
 
     const kind = nextDone ? 'subtask.checked' : 'subtask.unchecked'
-    await appendActivityEvent(
-      ctx,
-      {
-        kind,
-        refType: 'subtask',
-        refId: args.subtaskId,
-        payload: { ticketId: st.ticketId, title: st.title },
-      },
-      args.userEmail,
-    )
+    await appendActivityEvent(ctx, {
+      kind,
+      refType: 'subtask',
+      refId: args.subtaskId,
+      payload: { ticketId: st.ticketId, title: st.title },
+    })
 
     await notifyWatchers(ctx, st.ticketId, userId, kind, { title: st.title })
     await touchTicket(ctx, st.ticketId)
@@ -96,10 +86,9 @@ export const rename = mutation({
   args: {
     subtaskId: v.id('subtasks'),
     title: v.string(),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const title = args.title.trim()
     if (!title) throw new Error('empty title')
 
@@ -114,25 +103,20 @@ export const rename = mutation({
 export const remove = mutation({
   args: {
     subtaskId: v.id('subtasks'),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const st = await ctx.db.get(args.subtaskId)
     if (!st) throw new Error('subtask not found')
 
     await ctx.db.delete(args.subtaskId)
 
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'subtask.removed',
-        refType: 'subtask',
-        refId: args.subtaskId,
-        payload: { ticketId: st.ticketId, title: st.title },
-      },
-      args.userEmail,
-    )
+    await appendActivityEvent(ctx, {
+      kind: 'subtask.removed',
+      refType: 'subtask',
+      refId: args.subtaskId,
+      payload: { ticketId: st.ticketId, title: st.title },
+    })
 
 
     await notifyWatchers(ctx, st.ticketId, userId, 'subtask.removed', { title: st.title })
@@ -145,10 +129,9 @@ export const reorder = mutation({
   args: {
     subtaskId: v.id('subtasks'),
     newOrder: v.number(),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const st = await ctx.db.get(args.subtaskId)
     if (!st) throw new Error('subtask not found')
 

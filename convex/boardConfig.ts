@@ -3,10 +3,9 @@ import { mutation, query } from './_generated/server'
 import { requireTeam } from './teamHelper'
 
 export const forMyTeam = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return null
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
     return await ctx.db
       .query('boardConfig')
       .withIndex('by_team', q => q.eq('teamId', teamId))
@@ -27,18 +26,16 @@ export const upsert = mutation({
     ),
     visibleColumns: v.optional(v.array(v.string())),
     columnLabels: v.optional(v.any()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId, userId, identity } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) throw new Error('No active team found')
+    const { teamId, userId } = await requireTeam(ctx)
 
     const existing = await ctx.db
       .query('boardConfig')
       .withIndex('by_team', q => q.eq('teamId', teamId))
       .first()
 
-    const updater = identity?.email ?? userId
+    const updater = userId
 
     const defaultColumns = ['backlog', 'todo', 'in_progress', 'review', 'done']
 

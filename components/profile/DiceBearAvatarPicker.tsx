@@ -67,7 +67,6 @@ export function DiceBearAvatarPicker({
     try {
       setSaving(true)
       await updateProfile({
-        userEmail: email,
         avatarUrl: activeAvatarUrl,
       })
       toast.success('Avatar updated!', 'Your new DiceBear Thumbs avatar has been saved.')
@@ -85,7 +84,6 @@ export function DiceBearAvatarPicker({
       setSaving(true)
       const defaultUrl = getDiceBearThumbsAvatar(defaultSeed)
       await updateProfile({
-        userEmail: email,
         avatarUrl: defaultUrl,
       })
       toast.success('Avatar reset', 'Reverted to default DiceBear Thumbs avatar.')

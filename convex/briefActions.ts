@@ -12,16 +12,19 @@ export const generateNow = action({
   handler: async (ctx): Promise<{ success: boolean; body?: string; error?: string }> => {
     try {
       const identity = await ctx.auth.getUserIdentity()
-      const cleanEmail = identity?.email?.trim().toLowerCase()
-      const userId = identity?.subject ?? cleanEmail ?? 'dev-user'
+      if (!identity) {
+        return { success: false, error: 'You must be signed in to generate a brief.' }
+      }
+      const userId = identity.subject
+      const identityEmail = identity.email?.trim().toLowerCase() ?? userId
 
       let user = await ctx.runQuery(internal.brief.readUser, { userId })
       if (!user) {
         const tz = 'UTC'
         await ctx.runMutation(internal.brief.ensureUser, {
           userId,
-          name: identity?.name ?? 'Dev User',
-          email: identity?.email ?? 'dev@doko.internal',
+          name: identity.name ?? identityEmail,
+          email: identityEmail,
           timezone: tz,
         })
         user = await ctx.runQuery(internal.brief.readUser, { userId })
@@ -55,8 +58,8 @@ export const generateNow = action({
       const userPrompt = buildUserPrompt({
         user: loadedUser ?? {
           userId,
-          email: identity?.email ?? 'dev@doko.internal',
-          name: identity?.name ?? 'Dev User',
+          email: identityEmail,
+          name: identity.name ?? identityEmail,
           timezone: tz,
           createdAt: Date.now(),
           _id: '' as any,

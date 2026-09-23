@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import {
   DndContext,
   DragEndEvent,
@@ -75,8 +74,6 @@ const DEFAULT_STATUSES = ['backlog', 'todo', 'in_progress', 'review', 'done'] as
 
 export function BoardClient() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const projectId = 'doko'
   const params = useSearchParams()
 
@@ -94,7 +91,7 @@ export function BoardClient() {
   const boardConfig = useQuery(api.boardConfig.forMyTeam, {})
   const activeSprint = useQuery(
     api.sprints.activeSprint,
-    userEmail ? { userEmail } : {},
+    {},
   )
 
   const listArgs: any = {

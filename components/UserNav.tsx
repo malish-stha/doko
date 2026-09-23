@@ -13,10 +13,7 @@ export function UserNav() {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const me = useQuery(
-    api.users.me,
-    session?.user?.email ? { email: session.user.email } : 'skip'
-  )
+  const me = useQuery(api.users.me, {})
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

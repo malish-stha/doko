@@ -1,13 +1,13 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { appendActivityEvent } from './events'
-import { requireTeam } from './teamHelper'
+import { Ctx, requireTeam } from './teamHelper'
+import { Id } from './_generated/dataModel'
 
 export const byTeam = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return []
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
     const chans = await ctx.db
       .query('channels')
       .withIndex('by_team', q => q.eq('teamId', teamId as string))
@@ -17,7 +17,7 @@ export const byTeam = query({
 })
 
 async function getDMName(
-  ctx: any,
+  ctx: Ctx,
   teamId: string,
   otherUserId?: string,
   fallbackName?: string
@@ -25,16 +25,16 @@ async function getDMName(
   if (!otherUserId) return fallbackName ?? 'Direct Message'
   const otherUser = await ctx.db
     .query('users')
-    .withIndex('by_userId', (q: any) => q.eq('userId', otherUserId))
+    .withIndex('by_userId', q => q.eq('userId', otherUserId))
     .first()
   if (otherUser?.name) return otherUser.name
 
   const members = await ctx.db
     .query('teamMembers')
-    .withIndex('by_team', (q: any) => q.eq('teamId', teamId as any))
+    .withIndex('by_team', q => q.eq('teamId', teamId as Id<'teams'>))
     .collect()
   const member = members.find(
-    (m: any) => m.userId === otherUserId || m.email === otherUserId
+    m => m.userId === otherUserId || m.email === otherUserId
   )
   if (member?.email) return member.email.split('@')[0]
 
@@ -42,32 +42,28 @@ async function getDMName(
 }
 
 export const get = query({
-  args: { channelId: v.id('channels'), userEmail: v.optional(v.string()) },
+  args: { channelId: v.id('channels') },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return null
+    const { userId, teamId } = await requireTeam(ctx)
     const chan = await ctx.db.get(args.channelId)
     if (!chan || chan.teamId !== teamId) return null
 
     if (chan.kind === 'dm') {
-      if (userId && !chan.memberIds.includes(userId)) {
+      if (!chan.memberIds.includes(userId)) {
         return null
       }
-      if (userId) {
-        const otherUserId = chan.memberIds.find(m => m !== userId)
-        const name = await getDMName(ctx, chan.teamId, otherUserId, chan.name)
-        return { ...chan, name }
-      }
+      const otherUserId = chan.memberIds.find(m => m !== userId)
+      const name = await getDMName(ctx, chan.teamId, otherUserId, chan.name)
+      return { ...chan, name }
     }
     return chan
   },
 })
 
 export const myDMs = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId || !userId) return []
+  args: {},
+  handler: async ctx => {
+    const { userId, teamId } = await requireTeam(ctx)
 
     const dms = await ctx.db
       .query('channels')
@@ -101,11 +97,9 @@ export const create = mutation({
   args: {
     name: v.string(),
     isPrivate: v.optional(v.boolean()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) throw new Error('No team')
+    const { userId, teamId } = await requireTeam(ctx)
     if (!args.name.trim()) throw new Error('empty channel name')
 
     const normalizedName = args.name
@@ -135,16 +129,14 @@ export const create = mutation({
 })
 
 export const openDM = mutation({
-  args: { otherUserId: v.string(), userEmail: v.optional(v.string()) },
+  args: { otherUserId: v.string() },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) throw new Error('No team')
-    if (!userId) throw new Error('Not authenticated')
+    const { userId, teamId } = await requireTeam(ctx)
     if (args.otherUserId === userId) throw new Error('cannot DM yourself')
 
     const members = await ctx.db
       .query('teamMembers')
-      .withIndex('by_team', q => q.eq('teamId', teamId as any))
+      .withIndex('by_team', q => q.eq('teamId', teamId))
       .collect()
 
     const otherMembership = members.find(
@@ -154,7 +146,7 @@ export const openDM = mutation({
     )
     if (!otherMembership) throw new Error('not a teammate')
 
-    const cleanOtherUserId = otherMembership.userId ?? args.otherUserId
+    const cleanOtherUserId = otherMembership.userId
     if (cleanOtherUserId === userId) throw new Error('cannot DM yourself')
 
     const sorted = [userId, cleanOtherUserId].sort()

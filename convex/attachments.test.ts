@@ -6,6 +6,7 @@ import { api } from './_generated/api'
 test('attachments record, query, and remove flow', async () => {
   const t = convexTest(schema)
   const userA = t.withIdentity({ subject: 'user-a', name: 'User A', email: 'usera@example.com' })
+  await userA.mutation(api.teams.create, { name: 'Test Team' })
 
   const { id: ticketId } = await userA.mutation(api.tickets.create, {
     projectId: 'doko',

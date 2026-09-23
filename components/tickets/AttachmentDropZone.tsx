@@ -11,12 +11,10 @@ import { parseConvexError } from '@/lib/utils'
 
 export function AttachmentDropZone({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
-  const attachments = useQuery(api.attachments.byTicket, { ticketId, userEmail }) ?? []
+  const attachments = useQuery(api.attachments.byTicket, { ticketId }) ?? []
   const generateUploadUrl = useMutation(api.attachments.generateUploadUrl)
   const record = useMutation(api.attachments.record)
   const removeAttachment = useMutation(api.attachments.remove)
@@ -35,7 +33,7 @@ export function AttachmentDropZone({
             continue
           }
 
-          const uploadUrl = await generateUploadUrl({ userEmail })
+          const uploadUrl = await generateUploadUrl({})
           const res = await fetch(uploadUrl, {
             method: 'POST',
             headers: { 'Content-Type': file.type || 'application/octet-stream' },
@@ -51,7 +49,6 @@ export function AttachmentDropZone({
             filename: file.name,
             mimeType: file.type || 'application/octet-stream',
             size: file.size,
-            userEmail,
           })
           toast.success('Attached file', file.name)
         }
@@ -61,14 +58,14 @@ export function AttachmentDropZone({
         setUploading(false)
       }
     },
-    [ticketId, generateUploadUrl, record, userEmail],
+    [ticketId, generateUploadUrl, record],
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
   const handleRemove = async (attachmentId: Id<'attachments'>, filename: string) => {
     try {
-      await removeAttachment({ attachmentId, userEmail })
+      await removeAttachment({ attachmentId })
       toast.success('Attachment deleted', filename)
     } catch (err: any) {
       toast.error('Failed to remove attachment', parseConvexError(err))

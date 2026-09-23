@@ -1,7 +1,6 @@
 'use client'
 
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -24,13 +23,11 @@ import { parseConvexError } from '@/lib/utils'
 import { UserAvatar } from '@/components/UserAvatar'
 
 export function ChannelSidebar() {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const rawChannels = useQuery(api.channels.byTeam, userEmail ? { userEmail } : 'skip')
-  const rawDms = useQuery(api.channels.myDMs, userEmail ? { userEmail } : 'skip')
+  const rawChannels = useQuery(api.channels.byTeam, {})
+  const rawDms = useQuery(api.channels.myDMs, {})
   const channels = rawChannels ?? []
   const dms = rawDms ?? []
-  const teammates = useQuery(api.teamMembers.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
+  const teammates = useQuery(api.teamMembers.listForTeam, {}) ?? []
   const openDM = useMutation(api.channels.openDM)
   const createChannel = useMutation(api.channels.create)
 
@@ -45,7 +42,7 @@ export function ChannelSidebar() {
   const handleCreateChannel = async () => {
     if (!channelName.trim()) return
     try {
-      const channelId = await createChannel({ name: channelName, userEmail })
+      const channelId = await createChannel({ name: channelName })
       toast.success('Channel created', `#${channelName.trim()} created successfully.`)
       setChannelName('')
       setCreatingChannel(false)
@@ -59,7 +56,7 @@ export function ChannelSidebar() {
   const handleStartDM = async (otherUserId: string) => {
     setDmError(null)
     try {
-      const id = await openDM({ otherUserId, userEmail })
+      const id = await openDM({ otherUserId })
       setPickDMOpen(false)
       router.push(`/chat/${id}`)
     } catch (err: any) {

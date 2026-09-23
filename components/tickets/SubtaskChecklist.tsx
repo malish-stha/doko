@@ -12,14 +12,12 @@ import { parseConvexError } from '@/lib/utils'
 
 export function SubtaskChecklist({
   ticketId,
-  userEmail,
   onCountChange,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
   onCountChange?: (doneCount: number, totalCount: number) => void
 }) {
-  const items = useQuery(api.subtasks.byTicket, { ticketId, userEmail }) ?? []
+  const items = useQuery(api.subtasks.byTicket, { ticketId }) ?? []
   const add = useMutation(api.subtasks.add)
   const toggle = useMutation(api.subtasks.toggle)
   const remove = useMutation(api.subtasks.remove)
@@ -36,7 +34,7 @@ export function SubtaskChecklist({
     if (!title) return
     setAdding(true)
     try {
-      await add({ ticketId, title, userEmail })
+      await add({ ticketId, title })
       setDraft('')
     } catch (err: any) {
       toast.error('Failed to add sub-task', parseConvexError(err))
@@ -47,7 +45,7 @@ export function SubtaskChecklist({
 
   const handleToggle = async (subtaskId: Id<'subtasks'>) => {
     try {
-      await toggle({ subtaskId, userEmail })
+      await toggle({ subtaskId })
     } catch (err: any) {
       toast.error('Failed to toggle sub-task', parseConvexError(err))
     }
@@ -55,7 +53,7 @@ export function SubtaskChecklist({
 
   const handleRemove = async (subtaskId: Id<'subtasks'>) => {
     try {
-      await remove({ subtaskId, userEmail })
+      await remove({ subtaskId })
     } catch (err: any) {
       toast.error('Failed to remove sub-task', parseConvexError(err))
     }

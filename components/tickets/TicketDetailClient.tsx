@@ -131,10 +131,9 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
   const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
 
   const ticket = useQuery(api.tickets.getByKey, { key: ticketKey })
-  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const update = useMutation(api.tickets.update)
   const assignMutation = useMutation(api.tickets.assign)
@@ -176,7 +175,6 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
       await assignMutation({
         id: ticket._id,
         assigneeId: targetAssigneeId || undefined,
-        userEmail,
       })
       toast.success('Assignee updated')
     } catch (err: any) {
@@ -283,7 +281,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
           </span>
           {ticket.epicId && <EpicPill epicId={ticket.epicId} />}
         </div>
-        <WatchButton ticketId={ticket._id} userEmail={userEmail} />
+        <WatchButton ticketId={ticket._id} />
       </div>
 
 
@@ -504,13 +502,13 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         <DescriptionEditor
           initialValue={ticket.description ?? ''}
           onSave={val => update({ id: ticket._id, description: val || undefined })}
-          userEmail={userEmail}
+         
         />
       </div>
 
-      <SubtaskChecklist ticketId={ticket._id} userEmail={userEmail} />
+      <SubtaskChecklist ticketId={ticket._id} />
 
-      <TicketLinks ticketId={ticket._id} userEmail={userEmail} />
+      <TicketLinks ticketId={ticket._id} />
 
       {ticket.type === 'epic' && (
         <div className="mb-8 pt-4 border-t border-border/40">
@@ -518,13 +516,13 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         </div>
       )}
 
-      <AttachmentDropZone ticketId={ticket._id} userEmail={userEmail} />
+      <AttachmentDropZone ticketId={ticket._id} />
 
       {/* Comment Thread */}
       <CommentThread ticketId={ticket._id} />
 
       {/* Activity Timeline */}
-      <ActivityTimeline ticketId={ticket._id} userEmail={userEmail} />
+      <ActivityTimeline ticketId={ticket._id} />
 
 
       <div className="text-xs text-muted-foreground/70 font-mono border-t pt-4 mt-8">

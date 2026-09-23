@@ -9,11 +9,9 @@ export const listForTeam = query({
     status: v.optional(
       v.union(v.literal('planning'), v.literal('active'), v.literal('completed')),
     ),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return []
+    const { teamId } = await requireTeam(ctx)
     if (args.status) {
       return await ctx.db
         .query('sprints')
@@ -31,12 +29,9 @@ export const listForTeam = query({
 })
 
 export const activeSprint = query({
-  args: {
-    userEmail: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return null
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
     return await ctx.db
       .query('sprints')
       .withIndex('by_team_status', q =>
@@ -50,11 +45,9 @@ export const create = mutation({
   args: {
     name: v.string(),
     goal: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) throw new Error('Unauthorized: Team required')
+    const { teamId } = await requireTeam(ctx)
 
     const id = await ctx.db.insert('sprints', {
       teamId,
@@ -79,10 +72,9 @@ export const start = mutation({
   args: {
     sprintId: v.id('sprints'),
     durationDays: v.optional(v.number()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
+    const { teamId } = await requireTeam(ctx)
     const sprint = await ctx.db.get(args.sprintId)
     if (!sprint || sprint.teamId !== teamId) throw new Error('Sprint not found')
     if (sprint.status !== 'planning') {
@@ -137,10 +129,9 @@ export const complete = mutation({
     rollover: v.optional(
       v.union(v.literal('backlog'), v.id('sprints')),
     ),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
+    const { teamId } = await requireTeam(ctx)
     const sprint = await ctx.db.get(args.sprintId)
     if (!sprint || sprint.teamId !== teamId) throw new Error('Sprint not found')
     if (sprint.status !== 'active') throw new Error('Sprint is not active')
@@ -185,10 +176,9 @@ export const moveTicket = mutation({
   args: {
     ticketId: v.id('tickets'),
     sprintId: v.union(v.id('sprints'), v.null()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
+    const { teamId } = await requireTeam(ctx)
     const ticket = await ctx.db.get(args.ticketId)
     if (!ticket) throw new Error('Ticket not found')
     if (ticket.type === 'epic') {
@@ -219,11 +209,9 @@ export const moveTicket = mutation({
 export const addToActiveSprint = mutation({
   args: {
     ticketId: v.id('tickets'),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) throw new Error('Unauthorized: Team required')
+    const { teamId } = await requireTeam(ctx)
 
     const active = await ctx.db
       .query('sprints')

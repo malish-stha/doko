@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useSession } from 'next-auth/react'
 import {
   DndContext,
   DragEndEvent,
@@ -49,17 +48,15 @@ export function BacklogSkeleton() {
 }
 
 export function BacklogClient() {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const projectId = 'doko'
 
   const upcomingSprints = useQuery(
     api.sprints.listForTeam,
-    userEmail ? { userEmail } : {},
+    {},
   )
   const activeSprint = useQuery(
     api.sprints.activeSprint,
-    userEmail ? { userEmail } : {},
+    {},
   )
   const rawTickets = useQuery(api.tickets.list, { projectId })
   const moveTicket = useMutation(api.sprints.moveTicket)
@@ -94,11 +91,11 @@ export function BacklogClient() {
 
     try {
       if (dropTarget === 'backlog') {
-        await moveTicket({ ticketId, sprintId: null, userEmail })
+        await moveTicket({ ticketId, sprintId: null })
         toast.success('Moved to Backlog', 'Ticket moved back to backlog.')
       } else if (dropTarget.startsWith('sprint:')) {
         const sprintId = dropTarget.slice('sprint:'.length) as Id<'sprints'>
-        await moveTicket({ ticketId, sprintId, userEmail })
+        await moveTicket({ ticketId, sprintId })
         toast.success('Moved to Sprint', 'Ticket added to sprint.')
       }
     } catch (err: any) {

@@ -5,26 +5,25 @@ import { appendActivityEvent } from './events'
 import { Id } from './_generated/dataModel'
 
 export const isWatching = query({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    const { userId, identity } = await requireTeam(ctx, args.userEmail)
+    const { userId, email } = await requireTeam(ctx)
     const watchers = await ctx.db
       .query('watchers')
       .withIndex('by_ticket', q => q.eq('ticketId', args.ticketId))
       .collect()
 
-    const email = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
     return watchers.some(
-      w => w.userId === userId || (email && w.userId.trim().toLowerCase() === email),
+      w => w.userId === userId || w.userId.trim().toLowerCase() === email,
     )
   },
 })
 
 
 export const forTicket = query({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const watchers = await ctx.db
       .query('watchers')
       .withIndex('by_ticket', q => q.eq('ticketId', args.ticketId))
@@ -47,9 +46,9 @@ export const forTicket = query({
 })
 
 export const subscribe = mutation({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const existing = await ctx.db
       .query('watchers')
       .withIndex('by_ticket_user', q => q.eq('ticketId', args.ticketId).eq('userId', userId))
@@ -62,25 +61,21 @@ export const subscribe = mutation({
       subscribedAt: Date.now(),
     })
 
-    await appendActivityEvent(
-      ctx,
-      {
-        kind: 'ticket.watched',
-        refType: 'ticket',
-        refId: args.ticketId,
-        payload: { ticketId: args.ticketId, watcherId: userId },
-      },
-      args.userEmail,
-    )
+    await appendActivityEvent(ctx, {
+      kind: 'ticket.watched',
+      refType: 'ticket',
+      refId: args.ticketId,
+      payload: { ticketId: args.ticketId, watcherId: userId },
+    })
 
     return id
   },
 })
 
 export const unsubscribe = mutation({
-  args: { ticketId: v.id('tickets'), userEmail: v.optional(v.string()) },
+  args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
     const existing = await ctx.db
       .query('watchers')
       .withIndex('by_ticket_user', q => q.eq('ticketId', args.ticketId).eq('userId', userId))
@@ -88,16 +83,12 @@ export const unsubscribe = mutation({
 
     if (existing) {
       await ctx.db.delete(existing._id)
-      await appendActivityEvent(
-        ctx,
-        {
-          kind: 'ticket.unwatched',
-          refType: 'ticket',
-          refId: args.ticketId,
-          payload: { ticketId: args.ticketId, watcherId: userId },
-        },
-        args.userEmail,
-      )
+      await appendActivityEvent(ctx, {
+        kind: 'ticket.unwatched',
+        refType: 'ticket',
+        refId: args.ticketId,
+        payload: { ticketId: args.ticketId, watcherId: userId },
+      })
     }
   },
 })

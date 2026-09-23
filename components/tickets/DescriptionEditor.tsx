@@ -12,11 +12,9 @@ import { MentionAutocomplete, TeammateOption } from '@/components/mentions/Menti
 export function DescriptionEditor({
   initialValue,
   onSave,
-  userEmail,
 }: {
   initialValue: string
   onSave: (val: string) => void
-  userEmail?: string
 }) {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write')
   const [value, setValue] = useState(initialValue ?? '')
@@ -212,7 +210,7 @@ export function DescriptionEditor({
           />
           {mentionState?.active && (
             <MentionAutocomplete
-              userEmail={userEmail}
+             
               filterQuery={mentionState.query}
               onSelect={handleSelectTeammate}
             />

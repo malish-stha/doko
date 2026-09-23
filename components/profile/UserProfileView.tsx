@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useQuery } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -83,12 +82,9 @@ interface UserProfileViewProps {
 }
 
 export function UserProfileView({ targetUserId }: UserProfileViewProps) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
 
   const profile = useQuery(api.users.getProfile, {
     targetUserId,
-    userEmail,
   })
 
   const ticketData = useQuery(
@@ -543,7 +539,7 @@ export function UserProfileView({ targetUserId }: UserProfileViewProps) {
         <>
           <EditProfileModal
             user={profile}
-            userEmail={userEmail}
+           
             open={editModalOpen}
             onOpenChange={setEditModalOpen}
           />

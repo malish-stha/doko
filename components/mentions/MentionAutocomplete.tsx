@@ -12,15 +12,13 @@ export type TeammateOption = {
 }
 
 export function MentionAutocomplete({
-  userEmail,
   filterQuery,
   onSelect,
 }: {
-  userEmail?: string
   filterQuery: string
   onSelect: (teammate: TeammateOption) => void
 }) {
-  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const needle = filterQuery.toLowerCase()
   const filtered = members.filter(

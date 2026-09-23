@@ -14,9 +14,8 @@ import { MentionBadge } from '@/components/mentions/MentionBadge'
 
 export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
   const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()
-  const comments = useQuery(api.comments.byTicket, userEmail ? { ticketId, userEmail } : { ticketId }) ?? []
+  const comments = useQuery(api.comments.byTicket, { ticketId }) ?? []
 
   return (
     <div className="mt-8 border-t pt-6">

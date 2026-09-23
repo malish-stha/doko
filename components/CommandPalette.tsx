@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery } from 'convex/react'
+import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { useHotkey } from '@/lib/hotkeys'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -49,9 +49,13 @@ export function CommandPalette() {
     }
   }, [open])
 
-  const ticketResults = useQuery(api.tickets.search, query ? { q: query } : 'skip') ?? []
-  const teamMembers = useQuery(api.teamMembers.listForTeam, {}) ?? []
-  const channels = useQuery(api.channels.byTeam, {}) ?? []
+  // The palette mounts in the root layout, so it also renders on public pages
+  // where no Convex identity exists. Skip team queries until authenticated.
+  const { isAuthenticated } = useConvexAuth()
+  const ticketResults =
+    useQuery(api.tickets.search, isAuthenticated && query ? { q: query } : 'skip') ?? []
+  const teamMembers = useQuery(api.teamMembers.listForTeam, isAuthenticated ? {} : 'skip') ?? []
+  const channels = useQuery(api.channels.byTeam, isAuthenticated ? {} : 'skip') ?? []
 
   const filteredMembers = query
     ? teamMembers.filter((m: any) => (m.name ?? m.email).toLowerCase().includes(query.toLowerCase()))

@@ -80,11 +80,10 @@ import { StartDMButton } from '@/components/chat/StartDMButton'
 
 export function TeamSettings() {
   const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const router = useRouter()
-  const team = useQuery(api.teams.myTeam, userEmail ? { userEmail } : 'skip')
-  const members = useQuery(api.teamMembers.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
-  const invites = useQuery(api.invites.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
+  const team = useQuery(api.teams.myTeam, {})
+  const members = useQuery(api.teamMembers.listForTeam, {}) ?? []
+  const invites = useQuery(api.invites.listForTeam, {}) ?? []
 
   const [inviteEmail, setInviteEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -130,7 +129,7 @@ export function TeamSettings() {
     setSending(true)
     setErrorMsg('')
     try {
-      await sendInvite({ email: inviteEmail.trim(), userEmail })
+      await sendInvite({ email: inviteEmail.trim() })
       toast.success('Invite sent', `Invitation email sent to ${inviteEmail.trim()}`)
       setInviteEmail('')
     } catch (err: any) {
@@ -150,8 +149,6 @@ export function TeamSettings() {
       await createTeam({
         name: newTeamName.trim(),
         workspaceDomain: newTeamDomain.trim() || undefined,
-        userEmail: session?.user?.email ?? undefined,
-        userName: session?.user?.name ?? undefined,
       })
       toast.success('Team created', `Workspace "${newTeamName.trim()}" created successfully.`)
       setNewTeamName('')
@@ -193,7 +190,7 @@ export function TeamSettings() {
           router.replace('/onboarding')
         }
       } else {
-        await leaveTeam({ userEmail })
+        await leaveTeam({})
         toast.success('Left team workspace')
         router.replace('/onboarding')
       }
@@ -205,7 +202,7 @@ export function TeamSettings() {
 
   const handleChangeRole = async (memberId: any, newRole: 'member' | 'admin') => {
     try {
-      await changeRole({ memberId, role: newRole, userEmail })
+      await changeRole({ memberId, role: newRole })
       toast.success('Member role updated', `User role updated to ${newRole}.`)
     } catch (err: any) {
       console.error(err)
@@ -215,7 +212,7 @@ export function TeamSettings() {
 
   const handleRemoveMember = async (memberId: any) => {
     try {
-      await removeMember({ memberId, userEmail })
+      await removeMember({ memberId })
       toast.success('Member removed', 'Team member has been removed.')
     } catch (err: any) {
       console.error(err)
@@ -225,7 +222,7 @@ export function TeamSettings() {
 
   const handleRevokeInvite = async (inviteId: any) => {
     try {
-      await revokeInvite({ inviteId, userEmail })
+      await revokeInvite({ inviteId })
       toast.success('Invite revoked', 'Pending invitation has been cancelled.')
     } catch (err: any) {
       console.error(err)

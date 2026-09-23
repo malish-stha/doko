@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
@@ -14,19 +13,17 @@ import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
 export default function InboxPage() {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
 
   const [filter, setFilter] = useState<'unread' | 'all'>('unread')
   const readFilter = filter === 'unread' ? false : undefined
 
-  const mentions = useQuery(api.mentions.forMe, { read: readFilter, userEmail }) ?? []
+  const mentions = useQuery(api.mentions.forMe, { read: readFilter }) ?? []
   const markRead = useMutation(api.mentions.markRead)
   const markAllRead = useMutation(api.mentions.markAllRead)
 
   const handleMarkRead = async (id: Id<'mentions'>) => {
     try {
-      await markRead({ mentionId: id, userEmail })
+      await markRead({ mentionId: id })
     } catch (err: any) {
       toast.error('Failed to mark notification as read', parseConvexError(err))
     }
@@ -34,7 +31,7 @@ export default function InboxPage() {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllRead({ userEmail })
+      await markAllRead({})
       toast.success('All notifications marked as read')
     } catch (err: any) {
       toast.error('Failed to mark all as read', parseConvexError(err))

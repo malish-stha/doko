@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
@@ -15,19 +14,17 @@ import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
 export function NotificationDropdown() {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
 
   const [open, setOpen] = useState(false)
-  const unreadCount = useQuery(api.mentions.unreadCount, userEmail ? { userEmail } : 'skip') ?? 0
-  const mentions = useQuery(api.mentions.forMe, open && userEmail ? { userEmail } : 'skip') ?? []
+  const unreadCount = useQuery(api.mentions.unreadCount, {}) ?? 0
+  const mentions = useQuery(api.mentions.forMe, open ? {} : 'skip') ?? []
 
   const markRead = useMutation(api.mentions.markRead)
   const markAllRead = useMutation(api.mentions.markAllRead)
 
   const handleMarkRead = async (id: Id<'mentions'>) => {
     try {
-      await markRead({ mentionId: id, userEmail })
+      await markRead({ mentionId: id })
     } catch (err: any) {
       toast.error('Failed to mark read', parseConvexError(err))
     }
@@ -35,7 +32,7 @@ export function NotificationDropdown() {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllRead({ userEmail })
+      await markAllRead({})
       toast.success('All notifications marked as read')
     } catch (err: any) {
       toast.error('Failed to mark all read', parseConvexError(err))

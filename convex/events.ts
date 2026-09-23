@@ -9,11 +9,11 @@ export type ActivityEventInput = {
   payload?: any
 }
 
-export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEventInput, callerEmail?: string) {
-  const { userId, teamId } = await requireTeam(ctx, callerEmail)
+export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEventInput) {
+  const { userId, teamId } = await requireTeam(ctx)
 
   await ctx.db.insert('activityEvents', {
-    teamId: teamId ?? 'unassigned',
+    teamId,
     userId,
     kind: event.kind,
     refType: event.refType,
@@ -29,14 +29,13 @@ export const forTicket = query({
     page: v.optional(v.number()),
     pageSize: v.optional(v.number()),
     limit: v.optional(v.number()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
+    const { teamId } = await requireTeam(ctx)
 
     let events = await ctx.db
       .query('activityEvents')
-      .withIndex('by_team_ts', q => q.eq('teamId', teamId ?? 'unassigned'))
+      .withIndex('by_team_ts', q => q.eq('teamId', teamId))
       .order('desc')
       .collect()
 
@@ -104,5 +103,3 @@ export const forTicket = query({
     }
   },
 })
-
-

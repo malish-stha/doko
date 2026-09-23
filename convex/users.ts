@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { mutation, query, internalQuery } from './_generated/server'
+import { findUser, requireUser } from './teamHelper'
 
 export const getByUserIdInternal = internalQuery({
   args: { userId: v.string() },
@@ -28,17 +29,9 @@ function makeThumbsAvatarUrl(seed: string): string {
 }
 
 export const me = query({
-  args: { email: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const email = identity?.email ?? args.email
-    if (!email) return null
-    const key = identity?.subject ?? email.trim().toLowerCase()
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', key))
-      .first()
-
+  args: {},
+  handler: async ctx => {
+    const { user } = await requireUser(ctx)
     if (!user) return null
     return {
       ...user,
@@ -47,33 +40,29 @@ export const me = query({
   },
 })
 
+/**
+ * Creates or refreshes the caller's `users` row from the verified identity.
+ * The row is keyed on the token subject; email and name come from the token,
+ * never from the client.
+ */
 export const upsert = mutation({
   args: {
     timezone: v.string(),
-    email: v.optional(v.string()),
-    name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const rawEmail = identity?.email ?? args.email
-    if (!rawEmail) return null
-    const email = rawEmail.trim().toLowerCase()
-    const userId = identity?.subject ?? email
-    const name = identity?.name ?? args.name ?? email
-
-    const existing = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', userId))
-      .first()
+    const { userId, email, name: identityName, user: existing } = await requireUser(ctx)
+    const name = identityName ?? existing?.name ?? email
 
     const defaultAvatarUrl = makeThumbsAvatarUrl(email || userId)
 
     if (existing) {
-      if (!existing.avatarUrl) {
-        await ctx.db.patch(existing._id, { timezone: args.timezone, email, name, avatarUrl: defaultAvatarUrl })
-      } else {
-        await ctx.db.patch(existing._id, { timezone: args.timezone, email, name })
-      }
+      await ctx.db.patch(existing._id, {
+        userId,
+        timezone: args.timezone,
+        email,
+        name,
+        ...(existing.avatarUrl ? {} : { avatarUrl: defaultAvatarUrl }),
+      })
       return existing._id
     }
 
@@ -91,44 +80,22 @@ export const upsert = mutation({
 export const getProfile = query({
   args: {
     targetUserId: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const currentEmail = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
+    const { userId, email, user: self } = await requireUser(ctx)
 
     let targetUser = null
     if (args.targetUserId) {
-      targetUser = await ctx.db
-        .query('users')
-        .withIndex('by_userId', q => q.eq('userId', args.targetUserId!))
-        .first()
-
-      if (!targetUser) {
-        const allUsers = await ctx.db.query('users').collect()
-        targetUser = allUsers.find(u => u.userId === args.targetUserId || u.email.trim().toLowerCase() === args.targetUserId!.trim().toLowerCase()) ?? null
-      }
-    }
-
-    if (!targetUser && currentEmail) {
-      const key = identity?.subject ?? currentEmail
-      targetUser = await ctx.db
-        .query('users')
-        .withIndex('by_userId', q => q.eq('userId', key))
-        .first()
-
-      if (!targetUser) {
-        const allUsers = await ctx.db.query('users').collect()
-        targetUser = allUsers.find(u => u.email.trim().toLowerCase() === currentEmail) ?? null
-      }
+      const target = args.targetUserId.trim()
+      targetUser = await findUser(ctx, target, target.toLowerCase())
+    } else {
+      targetUser = self
     }
 
     if (!targetUser) return null
 
-    const isSelf = Boolean(
-      (identity?.subject && targetUser.userId === identity.subject) ||
-        (currentEmail && targetUser.email.trim().toLowerCase() === currentEmail),
-    )
+    const isSelf =
+      targetUser.userId === userId || targetUser.email.trim().toLowerCase() === email
 
     let teamInfo = null
     if (targetUser.teamId) {
@@ -164,7 +131,6 @@ export const getProfile = query({
 
 export const updateProfile = mutation({
   args: {
-    userEmail: v.optional(v.string()),
     name: v.optional(v.string()),
     timezone: v.optional(v.string()),
     jobTitle: v.optional(v.string()),
@@ -177,27 +143,11 @@ export const updateProfile = mutation({
     linkedinUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const cleanEmail = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
-    if (!cleanEmail) throw new Error('Not authenticated')
-
-    const userId = identity?.subject ?? cleanEmail
-    let user = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', userId))
-      .first()
-
-    if (!user) {
-      const allUsers = await ctx.db.query('users').collect()
-      user = allUsers.find(u => u.email.trim().toLowerCase() === cleanEmail) ?? null
-    }
-
+    const { user } = await requireUser(ctx)
     if (!user) throw new Error('User record not found')
 
-    const { userEmail: _userEmail, ...patchData } = args
-
     const cleanPatch: Record<string, unknown> = {}
-    for (const [k, val] of Object.entries(patchData)) {
+    for (const [k, val] of Object.entries(args)) {
       if (val !== undefined) {
         cleanPatch[k] = val
       }

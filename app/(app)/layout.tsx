@@ -4,10 +4,12 @@ import { NotificationDropdown } from '@/components/NotificationDropdown'
 import { NavTabs } from '@/components/NavTabs'
 import { TeamGuard } from '@/components/TeamGuard'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { ConvexAuthGate } from '@/components/ConvexAuthGate'
 import Link from 'next/link'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
+    <ConvexAuthGate>
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-teal-500/30 selection:text-teal-200">
       <UserInit />
       <header className="border-b border-border/80 bg-card/80 backdrop-blur-md px-6 py-2.5 flex items-center justify-between shrink-0 select-none sticky top-0 z-40 shadow-xs">
@@ -34,6 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 min-h-0 flex flex-col">{children}</div>
       </TeamGuard>
     </div>
+    </ConvexAuthGate>
   )
 }
 

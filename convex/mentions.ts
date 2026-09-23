@@ -4,9 +4,9 @@ import { requireTeam } from './teamHelper'
 import { Id } from './_generated/dataModel'
 
 export const forMe = query({
-  args: { read: v.optional(v.boolean()), userEmail: v.optional(v.string()) },
+  args: { read: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+    const { userId } = await requireTeam(ctx)
 
     let queryBuilder = ctx.db
       .query('mentions')
@@ -71,9 +71,9 @@ export const forMe = query({
 })
 
 export const unreadCount = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+  args: {},
+  handler: async ctx => {
+    const { userId } = await requireTeam(ctx)
     const unread = await ctx.db
       .query('mentions')
       .withIndex('by_user_read', q => q.eq('mentionedUserId', userId).eq('read', false))
@@ -83,9 +83,9 @@ export const unreadCount = query({
 })
 
 export const markRead = mutation({
-  args: { mentionId: v.id('mentions'), userEmail: v.optional(v.string()) },
+  args: { mentionId: v.id('mentions') },
   handler: async (ctx, args) => {
-    await requireTeam(ctx, args.userEmail)
+    await requireTeam(ctx)
     const mention = await ctx.db.get(args.mentionId)
     if (!mention) throw new Error('mention not found')
     await ctx.db.patch(args.mentionId, { read: true })
@@ -93,9 +93,9 @@ export const markRead = mutation({
 })
 
 export const markAllRead = mutation({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx, args.userEmail)
+  args: {},
+  handler: async ctx => {
+    const { userId } = await requireTeam(ctx)
     const unread = await ctx.db
       .query('mentions')
       .withIndex('by_user_read', q => q.eq('mentionedUserId', userId).eq('read', false))

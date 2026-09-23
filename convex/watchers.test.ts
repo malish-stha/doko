@@ -1,3 +1,4 @@
+import { joinTeam } from './testHelpers'
 import { convexTest } from 'convex-test'
 import { expect, test } from 'vitest'
 import schema from './schema'
@@ -7,6 +8,8 @@ test('watchers subscribe, auto-subscribe reporter, and list watchers', async () 
   const t = convexTest(schema)
   const userA = t.withIdentity({ subject: 'user-a', name: 'User A', email: 'usera@example.com' })
   const userB = t.withIdentity({ subject: 'user-b', name: 'User B', email: 'userb@example.com' })
+  const teamId = await userA.mutation(api.teams.create, { name: 'Test Team' })
+  await joinTeam(t, teamId, { subject: 'user-b', email: 'userb@example.com', name: 'User B' })
 
   const { id: ticketId } = await userA.mutation(api.tickets.create, {
     projectId: 'doko',

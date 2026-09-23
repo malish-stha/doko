@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import {
   Dialog,
@@ -28,9 +27,7 @@ import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
 import type { Id } from '@/convex/_generated/dataModel'
 
 export function NewTicketDialog({ projectId }: { projectId: string }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<'bug' | 'feature' | 'task' | 'epic'>('task')

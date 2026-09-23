@@ -1,7 +1,6 @@
 'use client'
 
 import { useQuery } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { formatDistanceToNow } from 'date-fns'
@@ -9,9 +8,7 @@ import { HashIcon, UserIcon } from 'lucide-react'
 import { UserAvatar } from '@/components/UserAvatar'
 
 export function ChatHeader({ channelId }: { channelId: Id<'channels'> }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const channel = useQuery(api.channels.get, { channelId, userEmail })
+  const channel = useQuery(api.channels.get, { channelId })
 
   if (!channel) {
     return <div className="px-6 py-3.5 border-b border-border h-14 bg-card" />

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
 import {
@@ -34,9 +33,7 @@ export function CreateTicketFromMessageDialog({
   onOpenChange: (o: boolean) => void
   message: Doc<'messages'>
 }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const [type, setType] = useState<'bug' | 'feature' | 'task' | 'epic'>('bug')
   const [title, setTitle] = useState('')

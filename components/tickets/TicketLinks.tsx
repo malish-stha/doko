@@ -23,12 +23,10 @@ const LINK_TYPES = [
 
 export function TicketLinks({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
-  const linksData = useQuery(api.ticketLinks.forTicket, { ticketId, userEmail }) ?? []
+  const linksData = useQuery(api.ticketLinks.forTicket, { ticketId }) ?? []
   const createLink = useMutation(api.ticketLinks.create)
   const removeLink = useMutation(api.ticketLinks.remove)
 
@@ -39,7 +37,7 @@ export function TicketLinks({
   const searchResults =
     useQuery(
       api.tickets.search,
-      open ? { q: searchQuery, excludeId: ticketId, userEmail } : 'skip',
+      open ? { q: searchQuery, excludeId: ticketId } : 'skip',
     ) ?? []
 
   const handleCreate = async (targetId: Id<'tickets'>) => {
@@ -48,7 +46,6 @@ export function TicketLinks({
         sourceId: ticketId,
         targetId,
         type: linkType,
-        userEmail,
       })
       toast.success('Link created')
       setOpen(false)
@@ -60,7 +57,7 @@ export function TicketLinks({
 
   const handleRemove = async (linkId: Id<'ticketLinks'>) => {
     try {
-      await removeLink({ linkId, userEmail })
+      await removeLink({ linkId })
       toast.success('Link removed')
     } catch (err: any) {
       toast.error('Failed to remove link', parseConvexError(err))

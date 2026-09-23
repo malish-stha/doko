@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query, internalQuery } from './_generated/server'
 import { internal } from './_generated/api'
-import { requireTeam, getMembership } from './teamHelper'
+import { requireTeam, requireRole, requireUser, requireAuth, authError } from './teamHelper'
 import { appendActivityEvent } from './events'
 import * as jose from 'jose'
 
@@ -19,16 +19,9 @@ async function signInviteToken(payload: { teamId: string; email: string; exp: nu
 }
 
 export const send = mutation({
-  args: { email: v.string(), userEmail: v.optional(v.string()) },
+  args: { email: v.string() },
   handler: async (ctx, args) => {
-    const { userId, user, teamId, identity } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) throw new Error('No active team')
-
-    const membership = await getMembership(ctx, teamId, userId, user?.email ?? identity?.email)
-
-    if (membership?.role !== 'owner' && membership?.role !== 'admin') {
-      throw new Error('Only owners/admins can invite members')
-    }
+    const { userId, email: myEmail, teamId } = await requireRole(ctx, ['owner', 'admin'])
 
     const inviteEmail = args.email.trim().toLowerCase()
 
@@ -66,7 +59,6 @@ export const send = mutation({
       exp: Math.floor(expiresAt / 1000),
     })
 
-    const myEmail = identity?.email ?? user?.email ?? `${userId}@doko.internal`
     const id = await ctx.db.insert('invites', {
       teamId,
       teamName: team.name,
@@ -92,11 +84,9 @@ export const send = mutation({
 })
 
 export const pendingForMe = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { user, identity } = await requireTeam(ctx, args.userEmail)
-    const email = (identity?.email ?? user?.email ?? args.userEmail ?? '').trim().toLowerCase()
-    if (!email) return []
+  args: {},
+  handler: async ctx => {
+    const { email } = await requireAuth(ctx)
     return await ctx.db
       .query('invites')
       .withIndex('by_email_status', q => q.eq('email', email).eq('status', 'pending'))
@@ -105,11 +95,7 @@ export const pendingForMe = query({
 })
 
 export const accept = mutation({
-  args: {
-    inviteId: v.id('invites'),
-    userEmail: v.optional(v.string()),
-    userName: v.optional(v.string()),
-  },
+  args: { inviteId: v.id('invites') },
   handler: async (ctx, args) => {
     const invite = await ctx.db.get(args.inviteId)
     if (!invite) throw new Error('Invite not found')
@@ -119,10 +105,13 @@ export const accept = mutation({
       throw new Error('Invite has expired')
     }
 
-    const { userId: reqUserId, user: reqUser, identity } = await requireTeam(ctx, args.userEmail)
-    const rawEmail = identity?.email ?? args.userEmail ?? invite.email
-    const email = rawEmail.trim().toLowerCase()
-    const userId = identity?.subject ?? email
+    const { userId, email, name, user } = await requireUser(ctx)
+    if (invite.email !== email) {
+      throw authError(
+        'FORBIDDEN',
+        `This invite was sent to ${invite.email}. You are signed in as ${email}.`,
+      )
+    }
 
     await ctx.db.insert('teamMembers', {
       teamId: invite.teamId,
@@ -132,22 +121,14 @@ export const accept = mutation({
       joinedAt: Date.now(),
     })
 
-    let user = reqUser
-    if (!user) {
-      user = await ctx.db
-        .query('users')
-        .withIndex('by_userId', q => q.eq('userId', userId))
-        .first()
-    }
-
     if (user) {
       await ctx.db.patch(user._id, { teamId: invite.teamId, email })
     } else {
       await ctx.db.insert('users', {
         userId,
         email,
-        name: args.userName ?? identity?.name ?? email,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        name: name ?? email,
+        timezone: 'UTC',
         teamId: invite.teamId,
         createdAt: Date.now(),
       })
@@ -166,9 +147,9 @@ export const accept = mutation({
 })
 
 export const revoke = mutation({
-  args: { inviteId: v.id('invites'), userEmail: v.optional(v.string()) },
+  args: { inviteId: v.id('invites') },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
+    const { teamId } = await requireTeam(ctx)
     const invite = await ctx.db.get(args.inviteId)
     if (!invite || invite.teamId !== teamId) throw new Error('Invite not found')
     await ctx.db.patch(args.inviteId, { status: 'revoked' })
@@ -176,10 +157,9 @@ export const revoke = mutation({
 })
 
 export const listForTeam = query({
-  args: { userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx, args.userEmail)
-    if (!teamId) return []
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
     const allInvites = await ctx.db
       .query('invites')
       .withIndex('by_team', q => q.eq('teamId', teamId))
