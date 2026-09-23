@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
-import type { Id } from '@/convex/_generated/dataModel'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
 import { LinkIcon, PlusIcon, XIcon, SearchIcon } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -31,7 +31,7 @@ export function TicketLinks({
   const removeLink = useMutation(api.ticketLinks.remove)
 
   const [open, setOpen] = useState(false)
-  const [linkType, setLinkType] = useState('blocks')
+  const [linkType, setLinkType] = useState<Doc<'ticketLinks'>['type']>('blocks')
   const [searchQuery, setSearchQuery] = useState('')
 
   const searchResults =
