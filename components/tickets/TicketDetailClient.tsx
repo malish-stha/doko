@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
@@ -134,6 +135,11 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
 
   const ticket = useQuery(api.tickets.getByKey, { key: ticketKey })
   const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
+
+  // Fire-and-forget field saves still surface failures instead of unhandled rejections.
+  const save = (p: Promise<unknown>) => {
+    p.catch(err => toast.error('Could not save change', parseConvexError(err)))
+  }
 
   const update = useMutation(api.tickets.update)
   const assignMutation = useMutation(api.tickets.assign)
@@ -319,7 +325,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         onBlur={e => {
           const val = e.target.value.trim()
           if (val && val !== ticket.title) {
-            update({ id: ticket._id, title: val })
+            save(update({ id: ticket._id, title: val }))
           }
         }}
         className="text-2xl font-bold tracking-tight mb-6 border-0 focus-visible:ring-1 focus-visible:ring-teal-500/50 px-0 h-auto py-1"
@@ -415,7 +421,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
             </label>
             <EpicPicker
               value={ticket.epicId}
-              onChange={epicId => update({ id: ticket._id, epicId: (epicId as any) ?? null })}
+              onChange={epicId => save(update({ id: ticket._id, epicId: (epicId as Id<'tickets'> | null | undefined) ?? null }))}
             />
           </div>
           <div>
@@ -432,10 +438,10 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
                 const val = parseFloat(e.target.value)
                 if (Number.isFinite(val) && val >= 0) {
                   if (val !== ticket.storyPoints) {
-                    update({ id: ticket._id, storyPoints: val })
+                    save(update({ id: ticket._id, storyPoints: val }))
                   }
                 } else if (e.target.value === '') {
-                  update({ id: ticket._id, storyPoints: null })
+                  save(update({ id: ticket._id, storyPoints: null }))
                 }
               }}
               placeholder="Estimate (e.g. 3, 5, 8)..."
@@ -501,7 +507,7 @@ export function TicketDetailClient({ ticketKey }: { ticketKey: string }) {
         </label>
         <DescriptionEditor
           initialValue={ticket.description ?? ''}
-          onSave={val => update({ id: ticket._id, description: val || undefined })}
+          onSave={val => save(update({ id: ticket._id, description: val || null }))}
          
         />
       </div>

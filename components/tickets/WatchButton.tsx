@@ -16,7 +16,9 @@ export function WatchButton({
 }: {
   ticketId: Id<'tickets'>
 }) {
-  const isWatching = useQuery(api.watchers.isWatching, { ticketId }) ?? false
+  const watchState = useQuery(api.watchers.isWatching, { ticketId })
+  const isWatching = watchState ?? false
+  const isReady = watchState !== undefined
   const watchers = useQuery(api.watchers.forTicket, { ticketId }) ?? []
   const subscribe = useMutation(api.watchers.subscribe)
   const unsubscribe = useMutation(api.watchers.unsubscribe)
@@ -24,6 +26,7 @@ export function WatchButton({
   const [loading, setLoading] = useState(false)
 
   const handleToggle = async () => {
+    if (!isReady) return
     setLoading(true)
     try {
       if (isWatching) {

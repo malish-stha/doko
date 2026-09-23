@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -27,6 +27,10 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
   const [ptsValue, setPtsValue] = useState<string>(
     ticket.storyPoints != null ? String(ticket.storyPoints) : '',
   )
+  const [editingPts, setEditingPts] = useState(false)
+  useEffect(() => {
+    if (!editingPts) setPtsValue(ticket.storyPoints != null ? String(ticket.storyPoints) : '')
+  }, [ticket.storyPoints, editingPts])
 
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -114,7 +118,11 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
         max={100}
         value={ptsValue}
         onChange={e => setPtsValue(e.target.value)}
-        onBlur={handlePtsBlur}
+        onFocus={() => setEditingPts(true)}
+          onBlur={() => {
+            setEditingPts(false)
+            void handlePtsBlur()
+          }}
         placeholder="pts"
         className="w-16 h-7 text-xs font-mono text-center shrink-0 border-border/60"
       />
