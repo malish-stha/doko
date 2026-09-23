@@ -98,7 +98,8 @@ export function TeamSettings() {
   const { data: session } = useSession()
   const router = useRouter()
   const team = useQuery(api.teams.myTeam, {})
-  const members = useQuery(api.teamMembers.listForTeam, {}) ?? []
+  const membersRaw = useQuery(api.teamMembers.listForTeam, {})
+  const members = membersRaw ?? []
   const invites = useQuery(api.invites.listForTeam, {}) ?? []
 
   const [inviteEmail, setInviteEmail] = useState('')
@@ -139,7 +140,8 @@ export function TeamSettings() {
 
   const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()
   const me = members.find(m => m.email.trim().toLowerCase() === currentEmail)
-  const isOwner = me?.role === 'owner' || members.length <= 1
+  const membersLoaded = membersRaw !== undefined
+  const isOwner = membersLoaded && me?.role === 'owner'
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault()

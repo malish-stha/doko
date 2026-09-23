@@ -36,7 +36,8 @@ export function OnboardingClient() {
       router.replace('/home')
     } catch (err: any) {
       console.error('Failed to create team:', err)
-      toast.error('Failed to create team', err?.message ?? 'Could not create workspace.')
+      toast.error('Failed to create team', parseConvexError(err))
+    } finally {
       setCreating(false)
     }
   }
