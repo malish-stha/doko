@@ -11,6 +11,8 @@ import {
   PopoverContent,
 } from '@/components/ui/popover'
 import { SavedFiltersDropdown } from '@/components/filters/SavedFiltersDropdown'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
 import { SearchIcon, ColumnsIcon, XIcon } from 'lucide-react'
 
 export function FilterBar({
@@ -32,6 +34,7 @@ export function FilterBar({
   const status = searchParams.get('status') || ''
   const priority = searchParams.get('priority') || ''
   const assignee = searchParams.get('assignee') || ''
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const updateFilter = (key: string, val: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -107,6 +110,21 @@ export function FilterBar({
           <option value="medium">Medium</option>
           <option value="high">High</option>
           <option value="urgent">Urgent</option>
+        </select>
+
+        <select
+          value={assignee}
+          aria-label="Filter by assignee"
+          onChange={e => updateFilter('assignee', e.target.value)}
+          className="h-8 text-xs bg-card border border-border/80 rounded px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-teal-400"
+        >
+          <option value="">All Assignees</option>
+          <option value="unassigned">Unassigned</option>
+          {members.map(m => (
+            <option key={m.userId} value={m.userId}>
+              {m.name || m.email}
+            </option>
+          ))}
         </select>
 
         {hasActiveFilters && (

@@ -56,7 +56,12 @@ export function TicketRow({
         <input
           type="checkbox"
           checked={selected}
-          onChange={e => onSelectToggle(e as any)}
+          readOnly
+          aria-label={`Select ${ticket.key}`}
+          onClick={e => {
+            e.stopPropagation()
+            onSelectToggle(e)
+          }}
           className="rounded border-border text-teal-500 focus:ring-teal-400 h-4 w-4 cursor-pointer"
         />
       </td>
