@@ -177,6 +177,32 @@ export const forTicket = query({
   },
 })
 
+/**
+ * Ids of the team's tickets that are blocked by an unresolved ticket. One
+ * query for the whole board instead of one subscription per card.
+ */
+export const blockedInTeam = query({
+  args: {},
+  handler: async ctx => {
+    const { teamId } = await requireTeam(ctx)
+    const tickets = await ctx.db
+      .query('tickets')
+      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
+      .collect()
+    const open = new Map(tickets.filter(t => t.status !== 'done').map(t => [t._id, t]))
+    const blocked: Id<'tickets'>[] = []
+    for (const t of tickets) {
+      if (t.status === 'done') continue
+      const links = await ctx.db
+        .query('ticketLinks')
+        .withIndex('by_source', q => q.eq('sourceId', t._id))
+        .collect()
+      if (links.some(l => l.type === 'blocked_by' && open.has(l.targetId))) blocked.push(t._id)
+    }
+    return blocked
+  },
+})
+
 export const remove = mutation({
   args: { linkId: v.id('ticketLinks') },
   handler: async (ctx, args) => {

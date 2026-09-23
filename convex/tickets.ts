@@ -16,6 +16,7 @@ import { ensureWatcher, notifyWatchers } from './watchers'
 import { Doc, Id } from './_generated/dataModel'
 import { extractMentionIds } from '../lib/mentions'
 import { activeSprintFor, recomputePlannedPoints } from './sprintHelper'
+import { assertWithinWipLimit, boardConfigFor } from './boardConfig'
 
 const TICKET_STATUS = v.union(
   v.literal('backlog'),
@@ -120,6 +121,18 @@ async function assertSprintInTeam(ctx: Ctx, sprintId: Id<'sprints'>, teamId: Id<
   const sprint = await ctx.db.get(sprintId)
   if (!sprint || sprint.teamId !== teamId) throw authError('NOT_FOUND', 'Sprint not found.')
   return sprint
+}
+
+/** BOARD-03: refuse to move `incoming` tickets into a column that is at its WIP limit. */
+async function assertWipCapacity(ctx: Ctx, teamId: Id<'teams'>, status: Doc<'tickets'>['status'], incoming: number) {
+  if (incoming <= 0) return
+  const config = await boardConfigFor(ctx, teamId)
+  if (!config?.wipLimits?.[status]) return
+  const inColumn = await ctx.db
+    .query('tickets')
+    .withIndex('by_team_status', q => q.eq('teamId', teamId as string).eq('status', status))
+    .collect()
+  assertWithinWipLimit(config, status, inColumn.length + incoming - 1)
 }
 
 /** Mentions in a description notify teammates (never the author). */
@@ -464,6 +477,7 @@ export const updateStatus = mutation({
     const ticket = await assertTicketInTeam(ctx, args.id, teamId)
     if (ticket.status === args.status) return
     const from = ticket.status
+    await assertWipCapacity(ctx, teamId, args.status, 1)
     await ctx.db.patch(args.id, { status: args.status, updatedAt: Date.now() })
     await appendActivityEvent(ctx, {
       teamId,
@@ -715,8 +729,9 @@ export const bulkUpdateStatus = mutation({
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
     const tickets = await loadTeamTickets(ctx, args.ticketIds, teamId)
-    for (const t of tickets) {
-      if (t.status === args.status) continue
+    const moving = tickets.filter(t => t.status !== args.status)
+    await assertWipCapacity(ctx, teamId, args.status, moving.length)
+    for (const t of moving) {
       await ctx.db.patch(t._id, { status: args.status, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
         teamId,

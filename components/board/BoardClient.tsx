@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import {
   DndContext,
   DragEndEvent,
@@ -23,8 +23,10 @@ import { SwimLaneToggle, SwimLaneMode } from './SwimLaneToggle'
 import { BoardWithSwimlanes } from './BoardWithSwimlanes'
 import { BulkActionBar } from './BulkActionBar'
 import { MovePopover } from './MovePopover'
+import { BlockedTicketsContext } from './TicketCard'
 import { SavedFiltersDropdown } from '@/components/filters/SavedFiltersDropdown'
 import { useHotkey } from '@/lib/hotkeys'
+import { parseConvexError } from '@/lib/utils'
 
 import { toast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -71,9 +73,20 @@ export function BoardSkeleton() {
 }
 
 const DEFAULT_STATUSES = ['backlog', 'todo', 'in_progress', 'review', 'done'] as const
+type Status = Doc<'tickets'>['status']
+type Priority = Doc<'tickets'>['priority']
+const PRIORITIES: readonly Priority[] = ['low', 'medium', 'high', 'urgent']
+
+/** Sprint scope lives in the URL (?sprint=active|all|<id>) so saved views keep it. */
+function parseSprintParam(raw: string | null): SprintFilterValue {
+  if (!raw || raw === 'active') return 'active'
+  if (raw === 'all') return 'all'
+  return raw as Id<'sprints'>
+}
 
 export function BoardClient() {
   const router = useRouter()
+  const pathname = usePathname()
   const projectId = 'doko'
   const params = useSearchParams()
 
@@ -82,52 +95,83 @@ export function BoardClient() {
   const hipri = params.get('hipri') === '1'
   const dueThisWeek = params.get('dueThisWeek') === '1'
   const laneMode = (params.get('lanes') as SwimLaneMode) || 'none'
+  const sprintFilter = parseSprintParam(params.get('sprint'))
 
-  const [sprintFilter, setSprintFilter] = useState<SprintFilterValue>('active')
+  const setSprintFilter = useCallback(
+    (value: SprintFilterValue) => {
+      const next = new URLSearchParams(params.toString())
+      if (value === 'active') next.delete('sprint')
+      else next.set('sprint', value)
+      const qs = next.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname)
+    },
+    [params, pathname, router],
+  )
+
   const [focusedTicketId, setFocusedTicketId] = useState<Id<'tickets'> | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<Id<'tickets'>>>(new Set())
   const [movePopoverOpen, setMovePopoverOpen] = useState(false)
 
   const boardConfig = useQuery(api.boardConfig.forMyTeam, {})
-  const activeSprint = useQuery(
-    api.sprints.activeSprint,
-    {},
-  )
+  const activeSprint = useQuery(api.sprints.activeSprint, {})
+  const blockedList = useQuery(api.ticketLinks.blockedInTeam, {})
+  const blockedIds = useMemo(() => new Set<Id<'tickets'>>(blockedList ?? []), [blockedList])
 
-  const listArgs: any = {
-    projectId,
-    q,
-    mine: mine ? true : undefined,
-    hipri: hipri ? true : undefined,
-    dueThisWeek: dueThisWeek ? true : undefined,
-  }
-
-  if (sprintFilter === 'active') {
-    listArgs.mode = 'active'
-  } else if (sprintFilter === 'all') {
-    listArgs.mode = 'all'
-  } else {
-    listArgs.sprintId = sprintFilter
-  }
+  const listArgs = useMemo(() => {
+    const args: {
+      projectId: string
+      q?: string
+      mine?: boolean
+      hipri?: boolean
+      dueThisWeek?: boolean
+      mode?: 'active' | 'all' | 'sprint'
+      sprintId?: Id<'sprints'>
+    } = {
+      projectId,
+      q,
+      mine: mine ? true : undefined,
+      hipri: hipri ? true : undefined,
+      dueThisWeek: dueThisWeek ? true : undefined,
+    }
+    if (sprintFilter === 'active') args.mode = 'active'
+    else if (sprintFilter === 'all') args.mode = 'all'
+    else args.sprintId = sprintFilter
+    return args
+  }, [q, mine, hipri, dueThisWeek, sprintFilter])
 
   const rawTickets = useQuery(api.tickets.list, listArgs)
-  const tickets = rawTickets ?? []
+  const tickets = useMemo(() => rawTickets ?? [], [rawTickets])
 
   const updateStatus = useMutation(api.tickets.updateStatus)
   const updateTicket = useMutation(api.tickets.update)
 
-  const [optimisticOverrides, setOptimisticOverrides] = useState<
-    Record<Id<'tickets'>, Partial<Doc<'tickets'>>>
-  >({})
+  // Optimistic patches, keyed by ticket id. Cleared once the subscription
+  // reflects the change (or on failure), so the card never flickers back.
+  const [optimisticOverrides, setOptimisticOverrides] = useState<Record<Id<'tickets'>, Partial<Doc<'tickets'>>>>({})
+
+  useEffect(() => {
+    const ids = Object.keys(optimisticOverrides) as Id<'tickets'>[]
+    if (ids.length === 0) return
+    const settled = ids.filter(id => {
+      const override = optimisticOverrides[id]
+      const live = tickets.find(t => t._id === id)
+      if (!live) return true
+      return (Object.keys(override) as (keyof Doc<'tickets'>)[]).every(k => live[k] === override[k])
+    })
+    if (settled.length === 0) return
+    setOptimisticOverrides(prev => {
+      const next = { ...prev }
+      for (const id of settled) delete next[id]
+      return next
+    })
+  }, [tickets, optimisticOverrides])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
   )
 
-  const activeColumns = useMemo(() => {
+  const activeColumns = useMemo<string[]>(() => {
     if (boardConfig?.visibleColumns && boardConfig.visibleColumns.length > 0) {
       return boardConfig.visibleColumns
     }
@@ -175,9 +219,7 @@ export function BoardClient() {
     if (colIdx > 0) {
       const prevCol = activeColumns[colIdx - 1]
       const prevColTickets = displayed.filter(t => t.status === prevCol)
-      if (prevColTickets.length > 0) {
-        setFocusedTicketId(prevColTickets[0]._id)
-      }
+      if (prevColTickets.length > 0) setFocusedTicketId(prevColTickets[0]._id)
     }
   }, { description: 'Move focus to left column', scope: 'Board' })
 
@@ -189,9 +231,7 @@ export function BoardClient() {
     if (colIdx !== -1 && colIdx < activeColumns.length - 1) {
       const nextCol = activeColumns[colIdx + 1]
       const nextColTickets = displayed.filter(t => t.status === nextCol)
-      if (nextColTickets.length > 0) {
-        setFocusedTicketId(nextColTickets[0]._id)
-      }
+      if (nextColTickets.length > 0) setFocusedTicketId(nextColTickets[0]._id)
     }
   }, { description: 'Move focus to right column', scope: 'Board' })
 
@@ -199,11 +239,8 @@ export function BoardClient() {
     if (!focusedTicketId) return
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (next.has(focusedTicketId)) {
-        next.delete(focusedTicketId)
-      } else {
-        next.add(focusedTicketId)
-      }
+      if (next.has(focusedTicketId)) next.delete(focusedTicketId)
+      else next.add(focusedTicketId)
       return next
     })
   }, { description: 'Toggle select focused card', scope: 'Board' })
@@ -211,15 +248,11 @@ export function BoardClient() {
   useHotkey('Enter', () => {
     if (!focusedTicketId) return
     const focused = displayed.find(t => t._id === focusedTicketId)
-    if (focused) {
-      router.push(`/tickets/${focused.key}`)
-    }
+    if (focused) router.push(`/tickets/${focused.key}`)
   }, { description: 'Open focused ticket detail', scope: 'Board' })
 
   useHotkey('m', () => {
-    if (selectedIds.size > 0 || focusedTicketId) {
-      setMovePopoverOpen(true)
-    }
+    if (selectedIds.size > 0 || focusedTicketId) setMovePopoverOpen(true)
   }, { description: 'Open Move popover', scope: 'Board' })
 
   useHotkey('Escape', () => {
@@ -227,9 +260,7 @@ export function BoardClient() {
     setSelectedIds(new Set())
   }, { description: 'Clear focus and selection', scope: 'Board' })
 
-  const handleCardClick = (id: Id<'tickets'>) => {
-    setFocusedTicketId(id)
-  }
+  const handleCardClick = (id: Id<'tickets'>) => setFocusedTicketId(id)
 
   const handleCardSelectToggle = (id: Id<'tickets'>) => {
     setSelectedIds(prev => {
@@ -240,62 +271,79 @@ export function BoardClient() {
     })
   }
 
+  const wipLimits = boardConfig?.wipLimits as Partial<Record<Status, number | undefined>> | undefined
+
   const onDragEnd = async (e: DragEndEvent) => {
     if (!e.over || e.over.id === undefined) return
     const ticketId = e.active.id as Id<'tickets'>
     const targetOverId = String(e.over.id)
 
-    let newStatus: Doc<'tickets'>['status'] | undefined
+    let newStatus: Status | undefined
     let newLaneKey: string | undefined
 
     if (targetOverId.startsWith('lane::')) {
       const parts = targetOverId.split('::')
       newLaneKey = parts[1]
-      newStatus = parts[2] as Doc<'tickets'>['status']
+      newStatus = parts[2] as Status
     } else {
-      newStatus = targetOverId as Doc<'tickets'>['status']
+      newStatus = targetOverId as Status
     }
 
     const currentTicket = tickets.find(t => t._id === ticketId)
     if (!currentTicket || !newStatus) return
 
-    // Check WIP limit warning
-    const wipLimits = boardConfig?.wipLimits as Record<string, number | undefined> | undefined
+    // WIP limits are enforced server-side; block the drop up front so the card never moves.
     const limit = wipLimits?.[newStatus]
-    if (limit !== undefined && limit > 0) {
-      const targetCount = tickets.filter(t => t.status === newStatus && t._id !== ticketId).length + 1
-      if (targetCount > limit) {
-        toast.warning(
-          `${newStatus.replace('_', ' ').toUpperCase()} is over the WIP limit (${limit}). Consider resolving existing items first.`,
+    if (currentTicket.status !== newStatus && limit !== undefined && limit > 0) {
+      const inColumn = tickets.filter(t => t.status === newStatus && t._id !== ticketId).length
+      if (inColumn + 1 > limit) {
+        toast.error(
+          'Column is full',
+          `${newStatus.replace('_', ' ')} is at its WIP limit (${limit}). Move something out first.`,
         )
+        return
       }
     }
 
-    const patchPayload: Partial<Doc<'tickets'>> = { status: newStatus }
+    // Optimistic patch for the UI; the mutation payload uses null to clear fields.
+    const optimistic: Partial<Doc<'tickets'>> = { status: newStatus }
+    const patch: {
+      id: Id<'tickets'>
+      assigneeId?: string | null
+      epicId?: Id<'tickets'> | null
+      priority?: Priority
+    } = { id: ticketId }
 
     if (laneMode === 'assignee' && newLaneKey) {
-      patchPayload.assigneeId = newLaneKey === 'Unassigned' ? undefined : newLaneKey
+      const value = newLaneKey === 'Unassigned' ? null : newLaneKey
+      optimistic.assigneeId = value ?? undefined
+      if ((currentTicket.assigneeId ?? null) !== value) patch.assigneeId = value
     } else if (laneMode === 'epic' && newLaneKey) {
-      patchPayload.epicId = newLaneKey === 'No Epic' ? undefined : (newLaneKey as Id<'tickets'>)
-    } else if (laneMode === 'priority' && newLaneKey) {
-      patchPayload.priority = newLaneKey as any
+      const value = newLaneKey === 'No Epic' ? null : (newLaneKey as Id<'tickets'>)
+      optimistic.epicId = value ?? undefined
+      if ((currentTicket.epicId ?? null) !== value) patch.epicId = value
+    } else if (laneMode === 'priority' && newLaneKey && (PRIORITIES as readonly string[]).includes(newLaneKey)) {
+      optimistic.priority = newLaneKey as Priority
+      if (currentTicket.priority !== newLaneKey) patch.priority = newLaneKey as Priority
     }
 
-    setOptimisticOverrides(prev => ({ ...prev, [ticketId]: patchPayload }))
+    const statusChanged = currentTicket.status !== newStatus
+    const laneChanged = Object.keys(patch).length > 1
+    if (!statusChanged && !laneChanged) return
+
+    setOptimisticOverrides(prev => ({ ...prev, [ticketId]: optimistic }))
 
     try {
-      if (Object.keys(patchPayload).length > 1) {
-        await updateTicket({ id: ticketId, ...patchPayload })
-      } else {
-        await updateStatus({ id: ticketId, status: newStatus })
-      }
-    } catch (err: any) {
+      if (statusChanged) await updateStatus({ id: ticketId, status: newStatus })
+      if (laneChanged) await updateTicket(patch)
+    } catch (err) {
       console.error('Failed to move ticket:', err)
-      toast.error('Failed to update ticket', err?.message ?? 'Could not update ticket.')
-    } finally {
+      toast.error('Failed to update ticket', parseConvexError(err))
+      // Revert: drop the optimistic patch so the card snaps back to the server state.
       setOptimisticOverrides(prev => {
-        const { [ticketId]: _, ...rest } = prev
-        return rest
+        const next = { ...prev }
+        delete next[ticketId]
+        return next
       })
     }
   }
@@ -304,85 +352,72 @@ export function BoardClient() {
     return <BoardSkeleton />
   }
 
-  const targetIdsForMove = selectedIds.size > 0
-    ? Array.from(selectedIds)
-    : focusedTicketId
-    ? [focusedTicketId]
-    : []
+  const targetIdsForMove = selectedIds.size > 0 ? Array.from(selectedIds) : focusedTicketId ? [focusedTicketId] : []
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Board</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Project: doko</p>
-        </div>
-        <NewTicketDialog projectId={projectId} />
-      </div>
-
-      <div className="space-y-4 mb-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <BoardFilters />
-            <SavedFiltersDropdown scope="board" />
-            <SwimLaneToggle />
+    <BlockedTicketsContext.Provider value={blockedIds}>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Board</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Project: doko</p>
           </div>
-          <SprintFilterBar value={sprintFilter} onChange={setSprintFilter} />
+          <NewTicketDialog projectId={projectId} />
         </div>
 
-        {sprintFilter === 'active' && activeSprint && (
-          <SprintProgress sprint={activeSprint} tickets={displayed} />
-        )}
-      </div>
-
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={onDragEnd}
-      >
-        {laneMode !== 'none' ? (
-          <BoardWithSwimlanes
-            tickets={displayed}
-            laneMode={laneMode as 'assignee' | 'epic' | 'priority'}
-            columns={activeColumns}
-            columnLabels={boardConfig?.columnLabels}
-            focusedTicketId={focusedTicketId}
-            selectedIds={selectedIds}
-            onCardClick={handleCardClick}
-            onCardSelectToggle={handleCardSelectToggle}
-          />
-        ) : (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {activeColumns.map(status => {
-              const wipLimits = boardConfig?.wipLimits as Record<string, number | undefined> | undefined
-              const wipLimit = wipLimits?.[status]
-              const customLabel = boardConfig?.columnLabels?.[status]
-
-              return (
-                <KanbanColumn
-                  key={status}
-                  status={status as Doc<'tickets'>['status']}
-                  tickets={displayed.filter(t => t.status === status)}
-                  wipLimit={wipLimit}
-                  customLabel={customLabel}
-                  focusedTicketId={focusedTicketId}
-                  selectedIds={selectedIds}
-                  onCardClick={handleCardClick}
-                  onCardSelectToggle={handleCardSelectToggle}
-                />
-              )
-            })}
+        <div className="space-y-4 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <BoardFilters />
+              <SavedFiltersDropdown scope="board" />
+              <SwimLaneToggle />
+            </div>
+            <SprintFilterBar value={sprintFilter} onChange={setSprintFilter} />
           </div>
-        )}
-      </DndContext>
 
-      <BulkActionBar selectedIds={selectedIds} onClear={() => setSelectedIds(new Set())} />
+          {sprintFilter === 'active' && activeSprint && <SprintProgress sprint={activeSprint} tickets={displayed} />}
+        </div>
 
-      <MovePopover
-        open={movePopoverOpen}
-        onOpenChange={setMovePopoverOpen}
-        targetIds={targetIdsForMove}
-      />
-    </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          {laneMode !== 'none' ? (
+            <BoardWithSwimlanes
+              tickets={displayed}
+              laneMode={laneMode as 'assignee' | 'epic' | 'priority'}
+              columns={activeColumns}
+              columnLabels={boardConfig?.columnLabels}
+              focusedTicketId={focusedTicketId}
+              selectedIds={selectedIds}
+              onCardClick={handleCardClick}
+              onCardSelectToggle={handleCardSelectToggle}
+            />
+          ) : (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {activeColumns.map(status => {
+                const wipLimit = wipLimits?.[status as Status]
+                const customLabel = boardConfig?.columnLabels?.[status as Status]
+
+                return (
+                  <KanbanColumn
+                    key={status}
+                    status={status as Status}
+                    tickets={displayed.filter(t => t.status === status)}
+                    wipLimit={wipLimit}
+                    customLabel={customLabel}
+                    focusedTicketId={focusedTicketId}
+                    selectedIds={selectedIds}
+                    onCardClick={handleCardClick}
+                    onCardSelectToggle={handleCardSelectToggle}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </DndContext>
+
+        <BulkActionBar selectedIds={selectedIds} onClear={() => setSelectedIds(new Set())} />
+
+        <MovePopover open={movePopoverOpen} onOpenChange={setMovePopoverOpen} targetIds={targetIdsForMove} />
+      </div>
+    </BlockedTicketsContext.Provider>
   )
 }
