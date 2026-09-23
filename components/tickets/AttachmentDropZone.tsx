@@ -9,6 +9,8 @@ import { PaperclipIcon, UploadIcon, XIcon, DownloadIcon, ImageIcon, FileIcon } f
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
+const MAX_ATTACHMENT_MB = 25
+
 export function AttachmentDropZone({
   ticketId,
 }: {
@@ -28,8 +30,8 @@ export function AttachmentDropZone({
 
       try {
         for (const file of acceptedFiles) {
-          if (file.size > 20 * 1024 * 1024) {
-            toast.error('File too large', `${file.name} exceeds 20MB limit`)
+          if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+            toast.error('File too large', `${file.name} exceeds ${MAX_ATTACHMENT_MB}MB limit`)
             continue
           }
 
@@ -43,13 +45,17 @@ export function AttachmentDropZone({
           if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
           const { storageId } = await res.json()
 
-          await record({
+          const result = await record({
             ticketId,
             storageId,
             filename: file.name,
             mimeType: file.type || 'application/octet-stream',
             size: file.size,
           })
+          if (!result.ok) {
+            toast.error('File rejected', `${file.name}: ${result.error}`)
+            continue
+          }
           toast.success('Attached file', file.name)
         }
       } catch (err: any) {
@@ -97,7 +103,7 @@ export function AttachmentDropZone({
               ? 'Drop files here'
               : 'Drag & drop files here, or click to browse'}
           </span>
-          <span className="text-[10px] text-muted-foreground/70">Up to 20MB per file</span>
+          <span className="text-[10px] text-muted-foreground/70">Up to {MAX_ATTACHMENT_MB}MB per file · images, PDFs, office docs, text</span>
         </div>
       </div>
 
@@ -151,14 +157,16 @@ export function AttachmentDropZone({
                       <DownloadIcon className="w-3.5 h-3.5" />
                     </a>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(att._id, att.filename)}
-                    className="p-1 text-muted-foreground hover:text-red-400 transition-colors"
-                    title="Remove attachment"
-                  >
-                    <XIcon className="w-3.5 h-3.5" />
-                  </button>
+                  {att.canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(att._id, att.filename)}
+                      className="p-1 text-muted-foreground hover:text-red-400 transition-colors"
+                      title="Remove attachment"
+                    >
+                      <XIcon className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             )
