@@ -12,9 +12,9 @@ describe('Multi-Team Data Isolation', () => {
     const userA = t.withIdentity({ subject: 'user-a', email: 'usera@alpha.com' })
     const teamAlphaId = await userA.mutation(api.teams.create, { name: 'Team Alpha' })
 
-    // User A creates a ticket in Team Alpha
-    const ticketKey = await userA.mutation(api.tickets.create, {
-      projectId: 'alpha',
+    // User A creates a ticket in Team Alpha (same projectId as everyone else)
+    const { key } = await userA.mutation(api.tickets.create, {
+      projectId: 'doko',
       type: 'feature',
       title: 'Secret Alpha Feature',
       priority: 'high',
@@ -24,12 +24,22 @@ describe('Multi-Team Data Isolation', () => {
     const userB = t.withIdentity({ subject: 'user-b', email: 'userb@beta.com' })
     const teamBetaId = await userB.mutation(api.teams.create, { name: 'Team Beta' })
 
-    // User B queries tickets
-    const betaTickets = await userB.query(api.tickets.list, { projectId: 'alpha' })
-
-    // Assert User B sees ZERO tickets from Team Alpha
+    // Same projectId, same key space: Team Beta must still see nothing of Alpha's.
+    const betaTickets = await userB.query(api.tickets.list, { projectId: 'doko', mode: 'all' })
     expect(betaTickets).toHaveLength(0)
+    expect(await userB.query(api.tickets.getByKey, { key })).toBeNull()
+    expect(await userB.query(api.tickets.search, { q: 'secret' })).toHaveLength(0)
     expect(teamAlphaId).not.toBe(teamBetaId)
+
+    // A ticket row with no teamId (pre-migration data) is invisible to everyone, not visible to all.
+    await t.run(async ctx => {
+      await ctx.db.insert('tickets', {
+        projectId: 'doko', key: 'TASK-99', type: 'task', title: 'Orphan', status: 'backlog', priority: 'low',
+        reporterId: 'nobody', labels: [], createdAt: Date.now(), updatedAt: Date.now(),
+      })
+    })
+    expect((await userA.query(api.tickets.list, { projectId: 'doko', mode: 'all' })).map(x => x.title)).toEqual(['Secret Alpha Feature'])
+    expect((await userB.query(api.tickets.list, { projectId: 'doko', mode: 'all' }))).toHaveLength(0)
   })
 })
 
