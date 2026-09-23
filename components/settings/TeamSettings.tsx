@@ -75,6 +75,7 @@ import {
   XIcon,
   Trash2Icon,
   UserIcon,
+  CrownIcon,
 } from 'lucide-react'
 import { StartDMButton } from '@/components/chat/StartDMButton'
 
@@ -106,6 +107,7 @@ export function TeamSettings() {
   const leaveTeam = useMutation(api.teamMembers.leave)
   const deleteTeam = useMutation(api.teams.deleteTeam)
   const changeRole = useMutation(api.teamMembers.changeRole)
+  const transferOwnership = useMutation(api.teamMembers.transferOwnership)
   const createTeam = useMutation(api.teams.create)
   const updateTeam = useMutation(api.teams.update)
 
@@ -207,6 +209,17 @@ export function TeamSettings() {
     } catch (err: any) {
       console.error(err)
       toast.error('Failed to update role', err?.message ?? 'Could not update member role.')
+    }
+  }
+
+  const handleTransferOwnership = async (memberId: any, email: string) => {
+    if (!confirm(`Make ${email} the owner of this team? You will become an admin.`)) return
+    try {
+      await transferOwnership({ memberId })
+      toast.success('Ownership transferred', `${email} now owns this team.`)
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to transfer ownership', parseConvexError(err))
     }
   }
 
@@ -464,8 +477,18 @@ export function TeamSettings() {
                   <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-border text-foreground" />
                 )}
 
-                {member.role !== 'owner' && (
+                {member.role !== 'owner' && me?.role === 'owner' && (
                   <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleTransferOwnership(member._id, member.email)}
+                      className="text-[10px] font-mono uppercase border-border text-foreground hover:bg-muted active:scale-[0.97]"
+                      title="Transfer team ownership to this member"
+                    >
+                      <CrownIcon className="w-3 h-3 mr-1 text-amber-500" />
+                      Make owner
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
