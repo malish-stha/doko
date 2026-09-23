@@ -235,27 +235,27 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| UI-01 | M | `TicketsListClient.tsx` | Sort mixes types; lexical keys | Comparators | open | |
-| UI-02 | M | `TicketRow.tsx` | Shift-range select dead | `onClick` | open | |
-| UI-03 | M | `TicketsListClient.tsx` | No loading state | Skeleton | open | |
-| UI-04 | L | `FilterBar.tsx` | `assignee` param has no control | Add select | open | |
-| UI-05 | L | `TicketsListClient.tsx` | Select-all vs stale selection | Intersect | open | |
-| UI-06 | M | `TicketDetailClient.tsx` | Unawaited mutations | try/catch + toast | open | |
-| UI-07 | M | `DescriptionEditor.tsx`, `BacklogTicketRow.tsx` | State never re-syncs | Reset when clean | open | |
-| UI-08 | M | `MentionAutocomplete.tsx` | Mouse-only; no ARIA; covers text | Keyboard + ARIA + caret | open | |
-| UI-09 | L | `WatchButton.tsx` | Toggle before load | Disable | open | |
-| UI-10 | L | `SubtaskChecklist.tsx` | `onCountChange` never called | Call | open | |
-| UI-11 | H | `TeamSettings.tsx` | Delete button shown to non-owners while loading | Gate on loaded | open | |
+| UI-01 | M | `TicketsListClient.tsx` | Sort mixes types; lexical keys | Comparators | fixed | 526b6c0 |
+| UI-02 | M | `TicketRow.tsx` | Shift-range select dead | `onClick` | fixed | 526b6c0 |
+| UI-03 | M | `TicketsListClient.tsx` | No loading state | Skeleton | fixed | 526b6c0 |
+| UI-04 | L | `FilterBar.tsx` | `assignee` param has no control | Add select | fixed | 526b6c0 |
+| UI-05 | L | `TicketsListClient.tsx` | Select-all vs stale selection | Intersect | fixed | 526b6c0 |
+| UI-06 | M | `TicketDetailClient.tsx` | Unawaited mutations | try/catch + toast | fixed | 7cdfb2a |
+| UI-07 | M | `DescriptionEditor.tsx`, `BacklogTicketRow.tsx` | State never re-syncs | Reset when clean | fixed | f020d95 |
+| UI-08 | M | `MentionAutocomplete.tsx` | Mouse-only; no ARIA; covers text | Keyboard + ARIA + caret | fixed | 7f33851 |
+| UI-09 | L | `WatchButton.tsx` | Toggle before load | Disable | fixed | 7cdfb2a |
+| UI-10 | L | `SubtaskChecklist.tsx` | `onCountChange` never called | Call | fixed | 7cdfb2a |
+| UI-11 | H | `TeamSettings.tsx` | Delete button shown to non-owners while loading | Gate on loaded | fixed | 66a4d75 |
 | UI-12 | L | `app/settings/board/page.tsx` | Effect clobbers edits | Seed once | fixed | f34b25c |
-| UI-13 | L | `OnboardingClient.tsx` | `creating` never reset | Finally | open | |
-| UI-14 | M | `RichTextEditor.tsx` | Hardcoded dark colours | Tokens | open | |
-| UI-15 | L | privacy/terms pages | Forced dark bg | Tokens | open | |
-| UI-16 | L | `RichTextEditor.tsx` vs `DescriptionEditor.tsx` | Two markdown renderers | Standardise | open | |
-| UI-17 | L | `CommentThread.tsx`, `RichTextEditor.tsx` | Duplicate keys | Composite keys | open | |
-| UI-18 | M | `BacklogClient.tsx` | Loads whole project | Server filter | open | |
-| UI-19 | L | `EpicPill.tsx` | Whole project per pill | `getById` | open | |
-| UI-20 | L | `lib/utils.ts` | `parseConvexError` truncates / leaks prefix | Handle data objects | open | |
-| UI-21 | M | `lib/renderEvent.ts` | First field only; missing kinds; dead branches | List fields; add cases | open | |
+| UI-13 | L | `OnboardingClient.tsx` | `creating` never reset | Finally | fixed | 66a4d75 |
+| UI-14 | M | `RichTextEditor.tsx` | Hardcoded dark colours | Tokens | fixed | f020d95 |
+| UI-15 | L | privacy/terms pages | Forced dark bg | Tokens | fixed | 66a4d75 |
+| UI-16 | L | `RichTextEditor.tsx` vs `DescriptionEditor.tsx` | Two markdown renderers | Standardise | fixed | f020d95 |
+| UI-17 | L | `CommentThread.tsx`, `RichTextEditor.tsx` | Duplicate keys | Composite keys | fixed | f020d95 |
+| UI-18 | M | `BacklogClient.tsx` | Loads whole project | Server filter | fixed | df937d1 |
+| UI-19 | L | `EpicPill.tsx` | Whole project per pill | `getById` | fixed | df937d1 |
+| UI-20 | L | `lib/utils.ts` | `parseConvexError` truncates / leaks prefix | Handle data objects | fixed | 17a61d5 |
+| UI-21 | M | `lib/renderEvent.ts` | First field only; missing kinds; dead branches | List fields; add cases | fixed | 17a61d5 |
 
 ## INFRA
 
