@@ -177,30 +177,30 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| BOARD-01 | H | `convex/boardConfig.ts`, `app/settings/board` | Any member rewrites board; page unguarded | `requireRole`; move page | open | |
-| BOARD-02 | M | `convex/boardConfig.ts` | Columns/labels unvalidated | Literal unions | open | |
-| BOARD-03 | M | `boardConfig` + `BoardClient.tsx` | WIP limits advisory | Enforce server-side; block drop | open | |
-| BOARD-04 | L | `convex/boardConfig.ts` | `.first()` for one-row table | `.unique()` | open | |
-| BOARD-05 | M | `convex/savedFilters.ts` | Owner check on unstable id | Canonical ids | open | |
-| BOARD-06 | M | `convex/savedFilters.ts` | Personal filters not team-scoped | Filter | open | |
-| BOARD-07 | L | `convex/savedFilters.ts` | Empty name; no cap; no update | Validate; cap; `update` | open | |
+| BOARD-01 | H | `convex/boardConfig.ts`, `app/settings/board` | Any member rewrites board; page unguarded | `requireRole`; move page | fixed | f843ed9 |
+| BOARD-02 | M | `convex/boardConfig.ts` | Columns/labels unvalidated | Literal unions | fixed | f843ed9 |
+| BOARD-03 | M | `boardConfig` + `BoardClient.tsx` | WIP limits advisory | Enforce server-side; block drop | fixed | 0198f73 |
+| BOARD-04 | L | `convex/boardConfig.ts` | `.first()` for one-row table | `.unique()` | fixed | f843ed9 |
+| BOARD-05 | M | `convex/savedFilters.ts` | Owner check on unstable id | Canonical ids | fixed | 7cdad7c |
+| BOARD-06 | M | `convex/savedFilters.ts` | Personal filters not team-scoped | Filter | fixed | 8d0220d |
+| BOARD-07 | L | `convex/savedFilters.ts` | Empty name; no cap; no update | Validate; cap; `update` | fixed | 8d0220d |
 | BOARD-08 | M | `SavedFiltersDropdown.tsx` | All users share `'anonymous'` filters | AUTH-05 | fixed | 7cdad7c |
-| BOARD-09 | L | `SavedFiltersDropdown.tsx` | Order-sensitive active detection | Sorted compare | open | |
-| BOARD-10 | M | `BoardClient.tsx` | Sprint scope not in URL | Query string | open | |
-| BOARD-11 | M | `BoardClient.tsx` | Drop to Unassigned sends `undefined` | `null` | open | |
-| BOARD-12 | M | `BoardClient.tsx` | Optimistic override cleared early | Clear on data | open | |
-| BOARD-13 | M | `TicketCard.tsx` | Subscription per card | Board-level query | open | |
-| BOARD-14 | M | `BoardFilters.tsx`, `FilterBar.tsx` | Router push per keystroke | Debounce + replace | open | |
-| BOARD-15 | L | `BoardFilters.tsx` | Clear wipes `lanes` | Targeted delete | open | |
-| BOARD-16 | L | `BoardWithSwimlanes.tsx` | Unknown priority dropped | "Other" lane | open | |
+| BOARD-09 | L | `SavedFiltersDropdown.tsx` | Order-sensitive active detection | Sorted compare | fixed | 8d0220d |
+| BOARD-10 | M | `BoardClient.tsx` | Sprint scope not in URL | Query string | fixed | 0198f73 |
+| BOARD-11 | M | `BoardClient.tsx` | Drop to Unassigned sends `undefined` | `null` | fixed | 0198f73 |
+| BOARD-12 | M | `BoardClient.tsx` | Optimistic override cleared early | Clear on data | fixed | 0198f73 |
+| BOARD-13 | M | `TicketCard.tsx` | Subscription per card | Board-level query | fixed | 0198f73 |
+| BOARD-14 | M | `BoardFilters.tsx`, `FilterBar.tsx` | Router push per keystroke | Debounce + replace | fixed | ec1dba5 |
+| BOARD-15 | L | `BoardFilters.tsx` | Clear wipes `lanes` | Targeted delete | fixed | ec1dba5 |
+| BOARD-16 | L | `BoardWithSwimlanes.tsx` | Unknown priority dropped | "Other" lane | fixed | f34b25c |
 | BOARD-17 | M | palette, swimlanes, bulk bar | Team queries with `{}` | AUTH-04/05 | fixed | 7cdad7c |
-| BOARD-18 | M | `lib/hotkeys.tsx` | Escape spec never matches | Normalise spec | open | |
-| BOARD-19 | H | `lib/hotkeys.tsx` | Hotkeys fire on focused button/link/select | Extend typing context | open | |
-| BOARD-20 | L | `lib/hotkeys.tsx` | Ref written during render | Effect | open | |
-| BOARD-21 | L | `lib/hotkeys.tsx` | App-wide re-render per hotkey | Ref bindings | open | |
-| BOARD-22 | L | `BulkActionBar.tsx` | Selection not cleared | `onClear` | open | |
-| BOARD-23 | M | `TicketCard.tsx` | Drag listeners wrap links | Drag handle | open | |
-| BOARD-24 | L | `SprintProgress.tsx` | >100 % | Clamp | open | |
+| BOARD-18 | M | `lib/hotkeys.tsx` | Escape spec never matches | Normalise spec | fixed | be95b1b |
+| BOARD-19 | H | `lib/hotkeys.tsx` | Hotkeys fire on focused button/link/select | Extend typing context | fixed | be95b1b |
+| BOARD-20 | L | `lib/hotkeys.tsx` | Ref written during render | Effect | fixed | be95b1b |
+| BOARD-21 | L | `lib/hotkeys.tsx` | App-wide re-render per hotkey | Ref bindings | fixed | be95b1b |
+| BOARD-22 | L | `BulkActionBar.tsx` | Selection not cleared | `onClear` | fixed | f34b25c |
+| BOARD-23 | M | `TicketCard.tsx` | Drag listeners wrap links | Drag handle | fixed | 0198f73 |
+| BOARD-24 | L | `SprintProgress.tsx` | >100 % | Clamp | fixed | f34b25c |
 
 ## BRIEF
 
@@ -246,7 +246,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | UI-09 | L | `WatchButton.tsx` | Toggle before load | Disable | open | |
 | UI-10 | L | `SubtaskChecklist.tsx` | `onCountChange` never called | Call | open | |
 | UI-11 | H | `TeamSettings.tsx` | Delete button shown to non-owners while loading | Gate on loaded | open | |
-| UI-12 | L | `app/settings/board/page.tsx` | Effect clobbers edits | Seed once | open | |
+| UI-12 | L | `app/settings/board/page.tsx` | Effect clobbers edits | Seed once | fixed | f34b25c |
 | UI-13 | L | `OnboardingClient.tsx` | `creating` never reset | Finally | open | |
 | UI-14 | M | `RichTextEditor.tsx` | Hardcoded dark colours | Tokens | open | |
 | UI-15 | L | privacy/terms pages | Forced dark bg | Tokens | open | |
