@@ -226,3 +226,35 @@ describe('ticket rules', () => {
     expect(done.endDate).toBe(before.endDate)
   })
 })
+
+describe('cross-team access is denied: board, files, notifications, members', () => {
+  test('board config, saved views, attachments, mentions and rosters are team-private', async () => {
+    const { t, owner, outsider, ticketId } = await fixture()
+    await owner.mutation(api.boardConfig.upsert, { wipLimits: { todo: 3 } })
+    const viewId = await owner.mutation(api.savedFilters.create, { name: 'v', scope: 'board', queryString: 'a=1', isShared: true })
+
+    // Board config and shared views resolve per active team; the outsider sees their own (empty) team.
+    expect(await outsider.query(api.boardConfig.forMyTeam, {})).toBeNull()
+    expect(await outsider.query(api.savedFilters.myFilters, { scope: 'board' })).toHaveLength(0)
+    await expect(outsider.mutation(api.savedFilters.remove, { id: viewId })).resolves.toBeNull() // silently no-op
+    expect((await owner.query(api.savedFilters.myFilters, { scope: 'board' })).map(v => v._id)).toContain(viewId)
+    await expect(outsider.mutation(api.savedFilters.share, { id: viewId, isShared: false })).rejects.toThrow(/not found/i)
+
+    const storageId = await t.run(async ctx => await ctx.storage.store(new Blob(['x'])))
+    await expect(
+      outsider.mutation(api.attachments.record, { ticketId, storageId, filename: 'a.txt', mimeType: 'text/plain' }),
+    ).rejects.toThrow(/not found/i)
+    await expect(outsider.query(api.attachments.byTicket, { ticketId })).rejects.toThrow(/not found/i)
+
+    // A mention addressed to the owner cannot be marked read by anyone else.
+    await owner.mutation(api.comments.add, { ticketId, body: 'note @[member@a.example.com:Member A]' })
+    const memberMentions = await t.withIdentity(MEMBER).query(api.mentions.forMe, {})
+    expect(memberMentions).toHaveLength(1)
+    await expect(outsider.mutation(api.mentions.markRead, { mentionId: memberMentions[0]._id })).rejects.toThrow(/not found/i)
+
+    // Rosters and invites are per team.
+    const roster = await outsider.query(api.teamMembers.listForTeam, {})
+    expect(roster.map(m => m.email)).toEqual([OUTSIDER.email])
+    expect(await outsider.query(api.invites.listForTeam, {})).toHaveLength(0)
+  })
+})
