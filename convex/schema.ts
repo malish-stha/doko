@@ -20,7 +20,8 @@ export default defineSchema({
     joinedAt: v.number(),
   })
     .index('by_team', ['teamId'])
-    .index('by_user', ['userId']),
+    .index('by_user', ['userId'])
+    .index('by_team_user', ['teamId', 'userId']),
 
   invites: defineTable({
     teamId: v.id('teams'),
@@ -168,7 +169,9 @@ export default defineSchema({
     githubUrl: v.optional(v.string()),
     linkedinUrl: v.optional(v.string()),
     createdAt: v.number(),
-  }).index('by_userId', ['userId']),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_email', ['email']),
 
   briefs: defineTable({
     userId: v.string(),
