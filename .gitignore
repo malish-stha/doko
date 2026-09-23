@@ -51,3 +51,6 @@ PLAYBOOK.md
 ROLLOUT.md
 SECURITY-BACKLOG.md
 e2e/cache-leak.spec.ts
+
+# keep the documented template even though .env* is ignored
+!.env.example
