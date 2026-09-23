@@ -1,7 +1,8 @@
 import { describe, test, expect } from 'vitest'
 import { convexTest } from 'convex-test'
 import schema from './schema'
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
+import { joinTeam } from './testHelpers'
 
 describe('Multi-Team Data Isolation', () => {
   test('tickets from Team Alpha are completely invisible to Team Beta users', async () => {
@@ -87,5 +88,61 @@ describe('Multiple teams per user', () => {
 
     expect((await me.query(api.teams.myTeam, {}))?._id).toBe(teamId)
     expect(await me.query(api.teams.myTeams, {})).toHaveLength(1)
+  })
+})
+
+describe('deleteTeam', () => {
+  test('owner deletes a team: members lose access at once, data is purged in batches', async () => {
+    const t = convexTest(schema)
+    const OWNER = { subject: 'owner@example.com', email: 'owner@example.com', name: 'Owner' }
+    const MEMBER = { subject: 'member@example.com', email: 'member@example.com', name: 'Member' }
+    const owner = t.withIdentity(OWNER)
+    const member = t.withIdentity(MEMBER)
+
+    const keepId = await owner.mutation(api.teams.create, { name: 'Keep' })
+    const teamId = await owner.mutation(api.teams.create, { name: 'Doomed' })
+    await joinTeam(t, teamId, MEMBER)
+
+    const { id: ticketId } = await owner.mutation(api.tickets.create, { projectId: 'doko', type: 'task', title: 'T' })
+    await owner.mutation(api.comments.add, { ticketId, body: 'c' })
+    await owner.mutation(api.subtasks.add, { ticketId, title: 's' })
+    await member.mutation(api.watchers.subscribe, { ticketId })
+    const channelId = await owner.mutation(api.channels.create, { name: 'room' })
+    await owner.mutation(api.messages.send, { channelId, body: 'hi' })
+    await owner.mutation(api.sprints.create, { name: 'S1' })
+    await owner.mutation(api.savedFilters.create, { name: 'f', scope: 'board', queryString: 'a=b', isShared: true })
+    await owner.mutation(api.boardConfig.upsert, { visibleColumns: ['todo'] })
+
+    await expect(member.mutation(api.teams.deleteTeam, {})).rejects.toThrow(/requires one of/)
+    await owner.mutation(api.teams.deleteTeam, {})
+
+    // Access is gone immediately; the owner falls back to their other team.
+    expect(await member.query(api.teams.myTeam, {})).toBeNull()
+    expect((await owner.query(api.teams.myTeam, {}))?._id).toBe(keepId)
+
+    let result = { done: false }
+    for (let i = 0; i < 10 && !result.done; i++) {
+      result = await t.mutation(internal.teams.purgeTeamData, { teamId })
+    }
+    expect(result.done).toBe(true)
+
+    await t.run(async ctx => {
+      expect(await ctx.db.get(teamId)).toBeNull()
+      expect(await ctx.db.get(ticketId)).toBeNull()
+      expect(await ctx.db.get(channelId)).toBeNull()
+      const rows = async (table: 'comments' | 'subtasks' | 'watchers') =>
+        ctx.db.query(table).withIndex('by_ticket', q => q.eq('ticketId', ticketId)).collect()
+      expect(await rows('comments')).toHaveLength(0)
+      expect(await rows('subtasks')).toHaveLength(0)
+      expect(await rows('watchers')).toHaveLength(0)
+      expect(await ctx.db.query('messages').collect()).toHaveLength(0)
+      expect(await ctx.db.query('sprints').withIndex('by_team', q => q.eq('teamId', teamId)).collect()).toHaveLength(0)
+      expect(await ctx.db.query('savedFilters').collect()).toHaveLength(0)
+      expect(await ctx.db.query('boardConfig').collect()).toHaveLength(0)
+      expect(await ctx.db.query('teamMembers').withIndex('by_team', q => q.eq('teamId', teamId)).collect()).toHaveLength(0)
+      expect(
+        await ctx.db.query('activityEvents').withIndex('by_team_ts', q => q.eq('teamId', teamId as string)).collect(),
+      ).toHaveLength(0)
+    })
   })
 })

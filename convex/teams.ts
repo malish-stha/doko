@@ -1,9 +1,12 @@
 import { v } from 'convex/values'
-import { mutation, query, MutationCtx } from './_generated/server'
+import { mutation, query, internalMutation, MutationCtx } from './_generated/server'
+import { internal } from './_generated/api'
 import {
   authError,
+  findUser,
   getMembership,
   listMemberships,
+  normalizeEmail,
   optionalTeam,
   requireRole,
   requireUser,
@@ -178,6 +181,12 @@ export const update = mutation({
   },
 })
 
+/**
+ * Deletes a team. The synchronous part only touches the small, user-facing
+ * rows (memberships, invites, the team itself) so members lose access
+ * immediately; everything else is purged in bounded batches by
+ * purgeTeamData, which reschedules itself until the team's data is gone.
+ */
 export const deleteTeam = mutation({
   args: {},
   handler: async ctx => {
@@ -189,14 +198,14 @@ export const deleteTeam = mutation({
       .collect()
     for (const m of members) {
       await ctx.db.delete(m._id)
-    }
-
-    const channels = await ctx.db
-      .query('channels')
-      .withIndex('by_team', q => q.eq('teamId', teamId))
-      .collect()
-    for (const c of channels) {
-      await ctx.db.delete(c._id)
+      const email = normalizeEmail(m.email)
+      const user = await findUser(ctx, m.userId, email)
+      if (user && (!user.teamId || user.teamId === teamId)) {
+        const remaining = (await listMemberships(ctx, m.userId, email))
+          .filter(x => x.teamId !== teamId)
+          .sort((a, b) => a.joinedAt - b.joinedAt)
+        await ctx.db.patch(user._id, { teamId: remaining[0]?.teamId })
+      }
     }
 
     const invites = await ctx.db
@@ -207,13 +216,125 @@ export const deleteTeam = mutation({
       await ctx.db.delete(inv._id)
     }
 
-    const users = await ctx.db.query('users').collect()
-    for (const u of users) {
-      if (u.teamId === teamId) {
-        await ctx.db.patch(u._id, { teamId: undefined })
+    await ctx.db.delete(teamId)
+    await ctx.scheduler.runAfter(0, internal.teams.purgeTeamData, { teamId })
+  },
+})
+
+const PURGE_BATCH = 100
+
+/**
+ * Removes one batch of a deleted team's data per invocation and reschedules
+ * itself while anything remains. Safe to run repeatedly.
+ */
+export const purgeTeamData = internalMutation({
+  args: { teamId: v.id('teams') },
+  handler: async (ctx, { teamId }): Promise<{ done: boolean }> => {
+    const teamKey = teamId as string
+    let more = false
+
+    // Chat: messages (+ reactions) per channel, then the channel.
+    const channels = await ctx.db
+      .query('channels')
+      .withIndex('by_team', q => q.eq('teamId', teamKey))
+      .take(10)
+    for (const channel of channels) {
+      const messages = await ctx.db
+        .query('messages')
+        .withIndex('by_channel_created', q => q.eq('channelId', channel._id))
+        .take(PURGE_BATCH)
+      for (const message of messages) {
+        const reactions = await ctx.db
+          .query('reactions')
+          .withIndex('by_message', q => q.eq('messageId', message._id))
+          .collect()
+        for (const r of reactions) await ctx.db.delete(r._id)
+        await ctx.db.delete(message._id)
+      }
+      if (messages.length === PURGE_BATCH) {
+        more = true
+      } else {
+        await ctx.db.delete(channel._id)
       }
     }
+    if (channels.length === 10) more = true
 
-    await ctx.db.delete(teamId)
+    // Tickets and everything hanging off them.
+    const tickets = await ctx.db
+      .query('tickets')
+      .withIndex('by_team_status', q => q.eq('teamId', teamKey))
+      .take(PURGE_BATCH)
+    for (const ticket of tickets) {
+      const comments = await ctx.db
+        .query('comments')
+        .withIndex('by_ticket', q => q.eq('ticketId', ticket._id))
+        .collect()
+      for (const c of comments) await ctx.db.delete(c._id)
+      const subtasks = await ctx.db
+        .query('subtasks')
+        .withIndex('by_ticket', q => q.eq('ticketId', ticket._id))
+        .collect()
+      for (const s of subtasks) await ctx.db.delete(s._id)
+      const watchers = await ctx.db
+        .query('watchers')
+        .withIndex('by_ticket', q => q.eq('ticketId', ticket._id))
+        .collect()
+      for (const w of watchers) await ctx.db.delete(w._id)
+      const attachments = await ctx.db
+        .query('attachments')
+        .withIndex('by_ticket', q => q.eq('ticketId', ticket._id))
+        .collect()
+      for (const a of attachments) {
+        await ctx.db.delete(a._id)
+        try {
+          await ctx.storage.delete(a.storageId)
+        } catch {
+          // blob already gone
+        }
+      }
+      const outgoing = await ctx.db
+        .query('ticketLinks')
+        .withIndex('by_source', q => q.eq('sourceId', ticket._id))
+        .collect()
+      const incoming = await ctx.db
+        .query('ticketLinks')
+        .withIndex('by_target', q => q.eq('targetId', ticket._id))
+        .collect()
+      for (const l of [...outgoing, ...incoming]) await ctx.db.delete(l._id)
+      await ctx.db.delete(ticket._id)
+    }
+    if (tickets.length === PURGE_BATCH) more = true
+
+    const sprints = await ctx.db
+      .query('sprints')
+      .withIndex('by_team', q => q.eq('teamId', teamId))
+      .take(PURGE_BATCH)
+    for (const s of sprints) await ctx.db.delete(s._id)
+    if (sprints.length === PURGE_BATCH) more = true
+
+    const events = await ctx.db
+      .query('activityEvents')
+      .withIndex('by_team_ts', q => q.eq('teamId', teamKey))
+      .take(PURGE_BATCH)
+    for (const e of events) await ctx.db.delete(e._id)
+    if (events.length === PURGE_BATCH) more = true
+
+    const configs = await ctx.db
+      .query('boardConfig')
+      .withIndex('by_team', q => q.eq('teamId', teamId))
+      .collect()
+    for (const c of configs) await ctx.db.delete(c._id)
+
+    const filters = await ctx.db
+      .query('savedFilters')
+      .withIndex('by_team_scope_shared', q => q.eq('teamId', teamId))
+      .take(PURGE_BATCH)
+    for (const f of filters) await ctx.db.delete(f._id)
+    if (filters.length === PURGE_BATCH) more = true
+
+    if (more) {
+      await ctx.scheduler.runAfter(0, internal.teams.purgeTeamData, { teamId })
+    }
+    return { done: !more }
   },
 })

@@ -107,6 +107,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index('by_project_status', ['projectId', 'status'])
+    .index('by_team_status', ['teamId', 'status'])
     .index('by_assignee', ['assigneeId'])
     .index('by_reporter', ['reporterId'])
     .index('by_key', ['key'])
