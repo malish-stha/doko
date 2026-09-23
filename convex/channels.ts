@@ -118,6 +118,8 @@ export const create = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'channel.created',
       refType: 'channel',
       refId: id,
@@ -176,6 +178,8 @@ export const openDM = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'channel.created',
       refType: 'channel',
       refId: id,

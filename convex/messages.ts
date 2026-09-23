@@ -70,7 +70,7 @@ export const send = mutation({
   handler: async (ctx, args) => {
     if (!args.body.trim()) throw new Error('empty message')
 
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
 
     const id = await ctx.db.insert('messages', {
       channelId: args.channelId,
@@ -81,6 +81,8 @@ export const send = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'message.posted',
       refType: 'message',
       refId: id,

@@ -1,20 +1,31 @@
 import { v } from 'convex/values'
 import { MutationCtx, query } from './_generated/server'
+import { Id } from './_generated/dataModel'
 import { requireTeam } from './teamHelper'
 
 export type ActivityEventInput = {
+  /** Team the event belongs to. Required: there is no shared "unassigned" bucket. */
+  teamId: Id<'teams'> | string
+  /** Verified identity of the actor, taken from the calling mutation. */
+  userId: string
   kind: string
   refType: string
   refId: string
-  payload?: any
+  payload?: Record<string, unknown>
 }
 
+/**
+ * Appends an activity event. The caller passes the actor and team it has
+ * already resolved; this helper never re-derives identity, so events can be
+ * written from any context (including on behalf of a just-added member).
+ */
 export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEventInput) {
-  const { userId, teamId } = await requireTeam(ctx)
+  if (!event.teamId) throw new Error('appendActivityEvent: teamId is required')
+  if (!event.userId) throw new Error('appendActivityEvent: userId is required')
 
   await ctx.db.insert('activityEvents', {
-    teamId,
-    userId,
+    teamId: event.teamId as string,
+    userId: event.userId,
     kind: event.kind,
     refType: event.refType,
     refId: event.refId,

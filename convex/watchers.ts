@@ -48,7 +48,7 @@ export const forTicket = query({
 export const subscribe = mutation({
   args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const existing = await ctx.db
       .query('watchers')
       .withIndex('by_ticket_user', q => q.eq('ticketId', args.ticketId).eq('userId', userId))
@@ -62,6 +62,8 @@ export const subscribe = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.watched',
       refType: 'ticket',
       refId: args.ticketId,
@@ -75,7 +77,7 @@ export const subscribe = mutation({
 export const unsubscribe = mutation({
   args: { ticketId: v.id('tickets') },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const existing = await ctx.db
       .query('watchers')
       .withIndex('by_ticket_user', q => q.eq('ticketId', args.ticketId).eq('userId', userId))
@@ -84,6 +86,8 @@ export const unsubscribe = mutation({
     if (existing) {
       await ctx.db.delete(existing._id)
       await appendActivityEvent(ctx, {
+        teamId,
+        userId,
         kind: 'ticket.unwatched',
         refType: 'ticket',
         refId: args.ticketId,

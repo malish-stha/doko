@@ -62,7 +62,7 @@ export const add = mutation({
     const ticket = await ctx.db.get(args.ticketId)
     if (!ticket) throw new Error('ticket not found')
 
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const authorId = userId
 
     const now = Date.now()
@@ -87,6 +87,8 @@ export const add = mutation({
     }
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.commented',
       refType: 'comment',
       refId: id,

@@ -316,6 +316,8 @@ export const create = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.created',
       refType: 'ticket',
       refId: id,
@@ -351,12 +353,14 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const ticket = await ctx.db.get(args.id)
     if (!ticket) throw new Error('ticket not found')
     const from = ticket.status
     await ctx.db.patch(args.id, { status: args.status, updatedAt: Date.now() })
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.status_changed',
       refType: 'ticket',
       refId: args.id,
@@ -404,6 +408,8 @@ export const assign = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId: callerUserId,
       kind: 'ticket.assigned',
       refType: 'ticket',
       refId: args.id,
@@ -452,7 +458,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const { id, sprintId, epicId, storyPoints, ...rest } = args
-    const { userId: callerUserId, email: callerEmail, role } = await requireTeam(ctx)
+    const { userId: callerUserId, email: callerEmail, role, teamId } = await requireTeam(ctx)
     const ticket = await ctx.db.get(id)
     if (!ticket) throw new Error('Ticket not found')
 
@@ -505,6 +511,8 @@ export const update = mutation({
 
     await ctx.db.patch(id, patchObj)
     await appendActivityEvent(ctx, {
+      teamId,
+      userId: callerUserId,
       kind: 'ticket.updated',
       refType: 'ticket',
       refId: id,
@@ -605,12 +613,14 @@ export const bulkUpdateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t || t.status === args.status) continue
       await ctx.db.patch(id, { status: args.status, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
+        teamId,
+        userId,
         kind: 'ticket.status_changed',
         refType: 'ticket',
         refId: id,
@@ -626,12 +636,14 @@ export const bulkUpdateAssignee = mutation({
     assigneeId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t || t.assigneeId === args.assigneeId) continue
       await ctx.db.patch(id, { assigneeId: args.assigneeId || undefined, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
+        teamId,
+        userId,
         kind: 'ticket.assigned',
         refType: 'ticket',
         refId: id,
@@ -652,12 +664,14 @@ export const bulkUpdatePriority = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t || t.priority === args.priority) continue
       await ctx.db.patch(id, { priority: args.priority, updatedAt: Date.now() })
       await appendActivityEvent(ctx, {
+        teamId,
+        userId,
         kind: 'ticket.updated',
         refType: 'ticket',
         refId: id,
@@ -672,12 +686,14 @@ export const bulkDelete = mutation({
     ticketIds: v.array(v.id('tickets')),
   },
   handler: async (ctx, args) => {
-    await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     for (const id of args.ticketIds) {
       const t = await ctx.db.get(id)
       if (!t) continue
       await ctx.db.delete(id)
       await appendActivityEvent(ctx, {
+        teamId,
+        userId,
         kind: 'ticket.deleted',
         refType: 'ticket',
         refId: id,

@@ -21,7 +21,7 @@ export const create = mutation({
     type: v.string(),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
 
     if (args.sourceId === args.targetId) {
       throw new Error('cannot link ticket to itself')
@@ -60,6 +60,8 @@ export const create = mutation({
     const targetTicket = await ctx.db.get(args.targetId)
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.linked',
       refType: 'ticketLink',
       refId: primaryId,
@@ -115,7 +117,7 @@ export const remove = mutation({
     linkId: v.id('ticketLinks'),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const link = await ctx.db.get(args.linkId)
     if (!link) throw new Error('link not found')
 
@@ -130,6 +132,8 @@ export const remove = mutation({
     if (reverse) await ctx.db.delete(reverse._id)
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.unlinked',
       refType: 'ticketLink',
       refId: args.linkId,

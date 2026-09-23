@@ -47,7 +47,7 @@ export const create = mutation({
     goal: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
 
     const id = await ctx.db.insert('sprints', {
       teamId,
@@ -58,6 +58,8 @@ export const create = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'sprint.created',
       refType: 'sprint',
       refId: id,
@@ -74,7 +76,7 @@ export const start = mutation({
     durationDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const sprint = await ctx.db.get(args.sprintId)
     if (!sprint || sprint.teamId !== teamId) throw new Error('Sprint not found')
     if (sprint.status !== 'planning') {
@@ -115,6 +117,8 @@ export const start = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'sprint.started',
       refType: 'sprint',
       refId: args.sprintId,
@@ -131,7 +135,7 @@ export const complete = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const sprint = await ctx.db.get(args.sprintId)
     if (!sprint || sprint.teamId !== teamId) throw new Error('Sprint not found')
     if (sprint.status !== 'active') throw new Error('Sprint is not active')
@@ -161,6 +165,8 @@ export const complete = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'sprint.completed',
       refType: 'sprint',
       refId: args.sprintId,
@@ -178,7 +184,7 @@ export const moveTicket = mutation({
     sprintId: v.union(v.id('sprints'), v.null()),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const ticket = await ctx.db.get(args.ticketId)
     if (!ticket) throw new Error('Ticket not found')
     if (ticket.type === 'epic') {
@@ -198,6 +204,8 @@ export const moveTicket = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.moved_sprint',
       refType: 'ticket',
       refId: args.ticketId,
@@ -211,7 +219,7 @@ export const addToActiveSprint = mutation({
     ticketId: v.id('tickets'),
   },
   handler: async (ctx, args) => {
-    const { teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
 
     const active = await ctx.db
       .query('sprints')
@@ -236,6 +244,8 @@ export const addToActiveSprint = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.moved_sprint',
       refType: 'ticket',
       refId: args.ticketId,

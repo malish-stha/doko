@@ -24,7 +24,7 @@ export const add = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const title = args.title.trim()
     if (!title) throw new Error('empty title')
 
@@ -43,6 +43,8 @@ export const add = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'subtask.added',
       refType: 'subtask',
       refId: id,
@@ -61,7 +63,7 @@ export const toggle = mutation({
     subtaskId: v.id('subtasks'),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const st = await ctx.db.get(args.subtaskId)
     if (!st) throw new Error('subtask not found')
 
@@ -70,6 +72,8 @@ export const toggle = mutation({
 
     const kind = nextDone ? 'subtask.checked' : 'subtask.unchecked'
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind,
       refType: 'subtask',
       refId: args.subtaskId,
@@ -105,13 +109,15 @@ export const remove = mutation({
     subtaskId: v.id('subtasks'),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const st = await ctx.db.get(args.subtaskId)
     if (!st) throw new Error('subtask not found')
 
     await ctx.db.delete(args.subtaskId)
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'subtask.removed',
       refType: 'subtask',
       refId: args.subtaskId,

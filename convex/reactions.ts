@@ -16,7 +16,7 @@ export const byMessage = query({
 export const toggle = mutation({
   args: { messageId: v.id('messages'), emoji: v.string() },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
 
     const existing = await ctx.db
       .query('reactions')
@@ -40,6 +40,8 @@ export const toggle = mutation({
       })
 
       await appendActivityEvent(ctx, {
+        teamId,
+        userId,
         kind: 'reaction.added',
         refType: 'reaction',
         refId: id,

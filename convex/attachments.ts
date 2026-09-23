@@ -23,7 +23,7 @@ export const record = mutation({
     size: v.number(),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
 
     const id = await ctx.db.insert('attachments', {
       ticketId: args.ticketId,
@@ -36,6 +36,8 @@ export const record = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.attached',
       refType: 'attachment',
       refId: id,
@@ -75,7 +77,7 @@ export const remove = mutation({
     attachmentId: v.id('attachments'),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const att = await ctx.db.get(args.attachmentId)
     if (!att) throw new Error('attachment not found')
 
@@ -87,6 +89,8 @@ export const remove = mutation({
     }
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'ticket.attachment_removed',
       refType: 'attachment',
       refId: args.attachmentId,

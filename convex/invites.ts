@@ -87,6 +87,8 @@ export const send = mutation({
     })
 
     await appendActivityEvent(ctx, {
+      teamId,
+      userId,
       kind: 'invite.sent',
       refType: 'invite',
       refId: id,
@@ -194,6 +196,8 @@ async function acceptInvite(ctx: MutationCtx, invite: Doc<'invites'>, caller: Au
 
   await ctx.db.patch(invite._id, { status: 'accepted' })
   await appendActivityEvent(ctx, {
+    teamId: team._id,
+    userId: caller.userId,
     kind: 'invite.accepted',
     refType: 'invite',
     refId: invite._id,
