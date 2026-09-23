@@ -20,7 +20,9 @@ export default defineSchema({
     joinedAt: v.number(),
   })
     .index('by_team', ['teamId'])
-    .index('by_user', ['userId']),
+    .index('by_user', ['userId'])
+    .index('by_email', ['email'])
+    .index('by_team_user', ['teamId', 'userId']),
 
   invites: defineTable({
     teamId: v.id('teams'),
@@ -29,12 +31,24 @@ export default defineSchema({
     token: v.string(),
     invitedBy: v.string(),
     invitedByEmail: v.string(),
-    status: v.union(v.literal('pending'), v.literal('accepted'), v.literal('revoked')),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('accepted'),
+      v.literal('revoked'),
+      v.literal('expired'),
+    ),
+    /** Email delivery state, written by email.sendInvite. */
+    deliveryStatus: v.optional(
+      v.union(v.literal('queued'), v.literal('sent'), v.literal('failed')),
+    ),
+    lastError: v.optional(v.string()),
     expiresAt: v.number(),
     createdAt: v.number(),
   })
     .index('by_email_status', ['email', 'status'])
-    .index('by_team', ['teamId']),
+    .index('by_team', ['teamId'])
+    .index('by_token', ['token'])
+    .index('by_status_expires', ['status', 'expiresAt']),
 
   sprints: defineTable({
     teamId: v.id('teams'),
@@ -48,13 +62,14 @@ export default defineSchema({
       v.literal('completed'),
     ),
     plannedPoints: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_team_status', ['teamId', 'status'])
     .index('by_team', ['teamId']),
 
   tickets: defineTable({
-    teamId: v.optional(v.string()),
+    teamId: v.id('teams'),
     projectId: v.string(),
     key: v.string(),
     type: v.union(
@@ -93,6 +108,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index('by_project_status', ['projectId', 'status'])
+    .index('by_team_status', ['teamId', 'status'])
     .index('by_assignee', ['assigneeId'])
     .index('by_reporter', ['reporterId'])
     .index('by_key', ['key'])
@@ -108,23 +124,28 @@ export default defineSchema({
     ticketId: v.id('tickets'),
     authorId: v.string(),
     body: v.string(),
+    editedAt: v.optional(v.number()),
     createdAt: v.number(),
   }).index('by_ticket', ['ticketId']),
 
   activityEvents: defineTable({
-    teamId: v.string(),
+    teamId: v.id('teams'),
     userId: v.string(),
     kind: v.string(),
     refType: v.string(),
     refId: v.string(),
+    /** Ticket this event belongs to, when any (comments, subtasks, links, watches...). */
+    ticketId: v.optional(v.id('tickets')),
     payload: v.any(),
     ts: v.number(),
   })
     .index('by_team_ts', ['teamId', 'ts'])
-    .index('by_user_ts', ['userId', 'ts']),
+    .index('by_user_ts', ['userId', 'ts'])
+    .index('by_ref', ['refType', 'refId'])
+    .index('by_ticket_ts', ['ticketId', 'ts']),
 
   channels: defineTable({
-    teamId: v.string(),
+    teamId: v.id('teams'),
     name: v.string(),
     isPrivate: v.boolean(),
     kind: v.optional(v.union(v.literal('public'), v.literal('private'), v.literal('dm'))),
@@ -141,6 +162,7 @@ export default defineSchema({
     authorId: v.string(),
     body: v.string(),
     threadRootId: v.optional(v.id('messages')),
+    editedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_channel_created', ['channelId', 'createdAt'])
@@ -151,7 +173,9 @@ export default defineSchema({
     userId: v.string(),
     emoji: v.string(),
     createdAt: v.number(),
-  }).index('by_message', ['messageId']),
+  })
+    .index('by_message', ['messageId'])
+    .index('by_message_user_emoji', ['messageId', 'userId', 'emoji']),
 
   users: defineTable({
     userId: v.string(),
@@ -168,7 +192,9 @@ export default defineSchema({
     githubUrl: v.optional(v.string()),
     linkedinUrl: v.optional(v.string()),
     createdAt: v.number(),
-  }).index('by_userId', ['userId']),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_email', ['email']),
 
   briefs: defineTable({
     userId: v.string(),
@@ -217,10 +243,14 @@ export default defineSchema({
     mentionedUserId: v.string(),
     mentionedByUserId: v.string(),
     read: v.boolean(),
+    /** How many activities were folded into this row (watcher notifications). */
+    count: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_user_read', ['mentionedUserId', 'read'])
-    .index('by_user', ['mentionedUserId']),
+    .index('by_user', ['mentionedUserId'])
+    .index('by_context', ['contextRefType', 'contextRefId'])
+    .index('by_user_context', ['mentionedUserId', 'contextRefType', 'contextRefId']),
 
   watchers: defineTable({
     ticketId: v.id('tickets'),
@@ -239,7 +269,9 @@ export default defineSchema({
     size: v.number(),
     uploadedBy: v.string(),
     uploadedAt: v.number(),
-  }).index('by_ticket', ['ticketId']),
+  })
+    .index('by_ticket', ['ticketId'])
+    .index('by_storage', ['storageId']),
 
   boardConfig: defineTable({
     teamId: v.id('teams'),
@@ -250,8 +282,24 @@ export default defineSchema({
       review: v.optional(v.number()),
       done: v.optional(v.number()),
     }),
-    visibleColumns: v.array(v.string()),
-    columnLabels: v.optional(v.any()),
+    visibleColumns: v.array(
+      v.union(
+        v.literal('backlog'),
+        v.literal('todo'),
+        v.literal('in_progress'),
+        v.literal('review'),
+        v.literal('done'),
+      ),
+    ),
+    columnLabels: v.optional(
+      v.object({
+        backlog: v.optional(v.string()),
+        todo: v.optional(v.string()),
+        in_progress: v.optional(v.string()),
+        review: v.optional(v.string()),
+        done: v.optional(v.string()),
+      }),
+    ),
     updatedAt: v.number(),
     updatedBy: v.string(),
   }).index('by_team', ['teamId']),

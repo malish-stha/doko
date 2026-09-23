@@ -9,11 +9,11 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-teal-500/30 selection:text-teal-200 antialiased flex flex-col justify-between relative">
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-teal-500/30 selection:text-teal-200 antialiased flex flex-col justify-between relative">
       <div className="max-w-4xl mx-auto px-6 py-12 w-full flex-1">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition-colors mb-8 group"
+          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors mb-8 group"
         >
           <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-150" />
           Back to home
@@ -25,17 +25,17 @@ export default function TermsPage() {
             Terms & Agreement
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
             Terms of Service
           </h1>
 
-          <p className="text-sm font-mono text-slate-400">
+          <p className="text-sm font-mono text-muted-foreground">
             Last updated: July 28, 2026
           </p>
 
-          <div className="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed space-y-6 pt-4 font-light">
+          <div className="prose dark:prose-invert max-w-none text-foreground/80 text-sm leading-relaxed space-y-6 pt-4 font-light">
             <section className="space-y-2 border-b border-white/10 pb-6">
-              <h2 className="text-lg font-semibold text-white font-mono uppercase tracking-wider">
+              <h2 className="text-lg font-semibold text-foreground font-mono uppercase tracking-wider">
                 1. Acceptance of Terms
               </h2>
               <p>
@@ -44,7 +44,7 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-2 border-b border-white/10 pb-6">
-              <h2 className="text-lg font-semibold text-white font-mono uppercase tracking-wider">
+              <h2 className="text-lg font-semibold text-foreground font-mono uppercase tracking-wider">
                 2. Acceptable Use
               </h2>
               <p>
@@ -53,7 +53,7 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-lg font-semibold text-white font-mono uppercase tracking-wider">
+              <h2 className="text-lg font-semibold text-foreground font-mono uppercase tracking-wider">
                 3. Service Availability
               </h2>
               <p>

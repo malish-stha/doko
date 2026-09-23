@@ -52,9 +52,11 @@ const EASE_OUT = [0.23, 1, 0.32, 1] as const
 
 interface SignInClientProps {
   onSignInAction?: () => Promise<void>
+  /** Validated relative path to land on after Google sign-in. */
+  redirectTo?: string
 }
 
-export function SignInClient({ onSignInAction }: SignInClientProps) {
+export function SignInClient({ onSignInAction, redirectTo = '/home' }: SignInClientProps) {
   const reduce = useReducedMotion()
   const [activeStepIndex, setActiveStepIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
@@ -68,7 +70,7 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
       if (onSignInAction) {
         await onSignInAction()
       } else {
-        await signIn('google', { callbackUrl: '/board' })
+        await signIn('google', { callbackUrl: redirectTo })
       }
     } catch {
       setIsLoading(false)
@@ -119,7 +121,7 @@ export function SignInClient({ onSignInAction }: SignInClientProps) {
           </h1>
 
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed font-light">
-            Click through the 3 steps below to see how Doko compiles your team's updates before you log in.
+            Click through the 3 steps below to see how Doko compiles your team&apos;s updates before you log in.
           </p>
 
           {/* Interactive Step Selection Pills */}

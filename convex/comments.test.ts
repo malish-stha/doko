@@ -6,6 +6,7 @@ import { api } from './_generated/api'
 test('addComment succeeds and writes comment record', async () => {
   const t = convexTest(schema)
   const asUser = t.withIdentity({ subject: 'user-a', name: 'User A' })
+  await asUser.mutation(api.teams.create, { name: 'Test Team' })
   const { id: ticketId } = await asUser.mutation(api.tickets.create, {
     projectId: 'doko',
     type: 'task',

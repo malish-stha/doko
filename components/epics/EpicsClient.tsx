@@ -29,7 +29,7 @@ export function EpicsSkeleton() {
 }
 
 export function EpicsClient() {
-  const epics = useQuery(api.tickets.listEpics)
+  const epics = useQuery(api.tickets.listEpics, {})
   const allTickets = useQuery(api.tickets.list, { projectId: 'doko' }) ?? []
 
   if (epics === undefined) {
@@ -52,7 +52,7 @@ export function EpicsClient() {
         <div className="p-12 border border-dashed border-border/60 text-center rounded-none bg-card/20 space-y-3">
           <p className="text-sm font-medium">No epics created yet</p>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Epics allow you to group related tickets and track feature progress. Click "New ticket" and select type "Epic".
+            Epics allow you to group related tickets and track feature progress. Click &quot;New ticket&quot; and select type &quot;Epic&quot;.
           </p>
         </div>
       ) : (

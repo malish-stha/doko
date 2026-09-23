@@ -20,7 +20,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/toast'
-import type { Id } from '@/convex/_generated/dataModel'
+import { parseConvexError } from '@/lib/utils'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
+
+type Status = Doc<'tickets'>['status']
+type Priority = Doc<'tickets'>['priority']
 
 export function BulkActionBar({
   selectedIds,
@@ -37,73 +41,67 @@ export function BulkActionBar({
   const teamMembers = useQuery(api.teamMembers.listForTeam, {}) ?? []
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
+  // Controlled selects, reset after each action so a stale value is never shown.
+  const [statusValue, setStatusValue] = useState<string>('')
+  const [assigneeValue, setAssigneeValue] = useState<string>('')
+  const [priorityValue, setPriorityValue] = useState<string>('')
 
   const ids = Array.from(selectedIds)
   if (ids.length === 0) return null
 
-  const handleStatusChange = async (val: string | null) => {
-    if (!val) return
+  const run = async (label: string, action: () => Promise<unknown>) => {
     setIsBusy(true)
     try {
-      await bulkUpdateStatus({ ticketIds: ids, status: val as any })
-      toast.success(`Updated status for ${ids.length} tickets`)
-    } catch (err: any) {
-      toast.error('Failed to update status', err?.message)
+      await action()
+      toast.success(`${label} for ${ids.length} ticket${ids.length === 1 ? '' : 's'}`)
+      onClear()
+    } catch (err) {
+      toast.error(`Failed to ${label.toLowerCase()}`, parseConvexError(err))
     } finally {
       setIsBusy(false)
+      setStatusValue('')
+      setAssigneeValue('')
+      setPriorityValue('')
     }
   }
 
-  const handlePriorityChange = async (val: string | null) => {
+  const handleStatusChange = (val: string | null) => {
     if (!val) return
-    setIsBusy(true)
-    try {
-      await bulkUpdatePriority({ ticketIds: ids, priority: val as any })
-      toast.success(`Updated priority for ${ids.length} tickets`)
-    } catch (err: any) {
-      toast.error('Failed to update priority', err?.message)
-    } finally {
-      setIsBusy(false)
-    }
+    setStatusValue(val)
+    void run('Updated status', () => bulkUpdateStatus({ ticketIds: ids, status: val as Status }))
   }
 
-  const handleAssigneeChange = async (val: string | null) => {
+  const handlePriorityChange = (val: string | null) => {
     if (!val) return
-    setIsBusy(true)
-    try {
-      const assigneeId = val === 'unassigned' ? undefined : val
-      await bulkUpdateAssignee({ ticketIds: ids, assigneeId })
-      toast.success(`Updated assignee for ${ids.length} tickets`)
-    } catch (err: any) {
-      toast.error('Failed to update assignee', err?.message)
-    } finally {
-      setIsBusy(false)
-    }
+    setPriorityValue(val)
+    void run('Updated priority', () => bulkUpdatePriority({ ticketIds: ids, priority: val as Priority }))
+  }
+
+  const handleAssigneeChange = (val: string | null) => {
+    if (!val) return
+    setAssigneeValue(val)
+    const assigneeId = val === 'unassigned' ? null : val
+    void run('Updated assignee', () => bulkUpdateAssignee({ ticketIds: ids, assigneeId }))
   }
 
   const handleDelete = async () => {
-    setIsBusy(true)
-    try {
-      await bulkDelete({ ticketIds: ids })
-      toast.success(`Deleted ${ids.length} tickets`)
-      onClear()
-    } catch (err: any) {
-      toast.error('Failed to delete tickets', err?.message)
-    } finally {
-      setIsBusy(false)
-      setConfirmDeleteOpen(false)
-    }
+    setConfirmDeleteOpen(false)
+    await run('Deleted', () => bulkDelete({ ticketIds: ids }))
   }
 
   return (
     <>
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-card/95 backdrop-blur-md border border-border shadow-xl rounded-lg animate-in fade-in slide-in-from-bottom-4 duration-200">
+      <div
+        role="toolbar"
+        aria-label="Bulk actions"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-card/95 backdrop-blur-md border border-border shadow-xl rounded-lg animate-in fade-in slide-in-from-bottom-4 duration-200"
+      >
         <div className="text-xs font-semibold px-2 py-1 bg-teal-500/10 text-teal-400 border border-teal-500/20 rounded">
           {ids.length} selected
         </div>
 
-        <Select onValueChange={handleStatusChange} disabled={isBusy}>
-          <SelectTrigger className="h-8 w-32 text-xs">
+        <Select value={statusValue} onValueChange={handleStatusChange} disabled={isBusy}>
+          <SelectTrigger className="h-8 w-32 text-xs" aria-label="Move selected tickets to status">
             <SelectValue placeholder="Move to..." />
           </SelectTrigger>
           <SelectContent>
@@ -115,8 +113,8 @@ export function BulkActionBar({
           </SelectContent>
         </Select>
 
-        <Select onValueChange={handleAssigneeChange} disabled={isBusy}>
-          <SelectTrigger className="h-8 w-36 text-xs">
+        <Select value={assigneeValue} onValueChange={handleAssigneeChange} disabled={isBusy}>
+          <SelectTrigger className="h-8 w-36 text-xs" aria-label="Assign selected tickets">
             <SelectValue placeholder="Assign to..." />
           </SelectTrigger>
           <SelectContent>
@@ -129,8 +127,8 @@ export function BulkActionBar({
           </SelectContent>
         </Select>
 
-        <Select onValueChange={handlePriorityChange} disabled={isBusy}>
-          <SelectTrigger className="h-8 w-28 text-xs">
+        <Select value={priorityValue} onValueChange={handlePriorityChange} disabled={isBusy}>
+          <SelectTrigger className="h-8 w-28 text-xs" aria-label="Set priority for selected tickets">
             <SelectValue placeholder="Priority..." />
           </SelectTrigger>
           <SelectContent>
@@ -169,7 +167,8 @@ export function BulkActionBar({
           <DialogHeader>
             <DialogTitle>Delete Tickets</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {ids.length} selected tickets? This action cannot be undone.
+              Are you sure you want to delete {ids.length} selected ticket{ids.length === 1 ? '' : 's'}? Comments,
+              subtasks and attachments go with them. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2 justify-end">

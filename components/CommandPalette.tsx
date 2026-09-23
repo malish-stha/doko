@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation, useConvexAuth } from 'convex/react'
+import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 import { api } from '@/convex/_generated/api'
 import { useHotkey } from '@/lib/hotkeys'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -33,32 +35,52 @@ export function CommandPalette() {
   const [recentTickets, setRecentTickets] = useState<{ key: string; title: string }[]>([])
   const router = useRouter()
 
-  useHotkey('mod+k', () => setOpen(true), {
+  useHotkey('mod+k', openPalette, {
     description: 'Open Command Palette',
     scope: 'Global Navigation',
   })
 
-  useEffect(() => {
+  // Recent tickets are read from localStorage when the palette opens (event-driven, not in an effect).
+  function readRecent(): { key: string; title: string }[] {
     try {
       const stored = localStorage.getItem('doko_recent_tickets')
-      if (stored) {
-        setRecentTickets(JSON.parse(stored).slice(0, 5))
-      }
+      return stored ? JSON.parse(stored).slice(0, 5) : []
     } catch {
-      // ignore
+      return []
     }
-  }, [open])
+  }
+  function openPalette() {
+    setRecentTickets(readRecent())
+    setOpen(true)
+  }
 
-  const ticketResults = useQuery(api.tickets.search, query ? { q: query } : 'skip') ?? []
-  const teamMembers = useQuery(api.teamMembers.listForTeam, {}) ?? []
-  const channels = useQuery(api.channels.byTeam, {}) ?? []
+  // The palette mounts in the root layout, so it also renders on public pages
+  // where no Convex identity exists. Skip team queries until authenticated.
+  const { isAuthenticated } = useConvexAuth()
+  const teams = useQuery(api.teams.myTeams, isAuthenticated ? {} : 'skip')
+  const hasTeam = Boolean(teams && teams.length > 0)
+
+  const ticketResults =
+    useQuery(api.tickets.search, isAuthenticated && hasTeam && query ? { q: query } : 'skip') ?? []
+  const teamMembers = useQuery(api.teamMembers.listForTeam, isAuthenticated && hasTeam ? {} : 'skip') ?? []
+  const channels = useQuery(api.channels.byTeam, isAuthenticated && hasTeam ? {} : 'skip') ?? []
+  const openDM = useMutation(api.channels.openDM)
+
+  const openDMWith = async (otherUserId: string) => {
+    try {
+      const channelId = await openDM({ otherUserId })
+      router.push(`/chat/${channelId}`)
+    } catch (err) {
+      toast.error('Could not open conversation', parseConvexError(err))
+    }
+  }
 
   const filteredMembers = query
-    ? teamMembers.filter((m: any) => (m.name ?? m.email).toLowerCase().includes(query.toLowerCase()))
+    ? teamMembers.filter(m => (m.name ?? m.email).toLowerCase().includes(query.toLowerCase()))
     : []
 
   const filteredChannels = query
-    ? channels.filter((c: any) => c.name.toLowerCase().includes(query.toLowerCase()))
+    ? channels.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
     : []
 
   const handleSelect = (action: () => void) => {
@@ -68,7 +90,7 @@ export function CommandPalette() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={o => (o ? openPalette() : setOpen(false))}>
       <DialogContent className="max-w-xl p-0 border border-border shadow-2xl rounded-lg overflow-hidden bg-card">
         <Command className="w-full flex flex-col max-h-[70vh]">
           <div className="flex items-center border-b border-border px-3 py-2">
@@ -106,7 +128,7 @@ export function CommandPalette() {
 
             {ticketResults.length > 0 && (
               <CommandGroup heading="Tickets" className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">
-                {ticketResults.map((t: any) => (
+                {ticketResults.map(t => (
                   <CommandItem
                     key={t._id}
                     onSelect={() => handleSelect(() => router.push(`/tickets/${t.key}`))}
@@ -122,10 +144,10 @@ export function CommandPalette() {
 
             {filteredMembers.length > 0 && (
               <CommandGroup heading="Team Members" className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">
-                {filteredMembers.map((m: any) => (
+                {filteredMembers.map(m => (
                   <CommandItem
                     key={m.userId}
-                    onSelect={() => handleSelect(() => router.push(`/chat?dm=${m.userId}`))}
+                    onSelect={() => handleSelect(() => openDMWith(m.userId))}
                     className="flex items-center gap-2 px-2.5 py-2 rounded text-foreground hover:bg-muted/50 cursor-pointer text-xs"
                   >
                     <UserIcon className="w-4 h-4 text-purple-400 shrink-0" />
@@ -138,10 +160,10 @@ export function CommandPalette() {
 
             {filteredChannels.length > 0 && (
               <CommandGroup heading="Channels" className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">
-                {filteredChannels.map((c: any) => (
+                {filteredChannels.map(c => (
                   <CommandItem
                     key={c._id}
-                    onSelect={() => handleSelect(() => router.push(`/chat?channel=${c._id}`))}
+                    onSelect={() => handleSelect(() => router.push(`/chat/${c._id}`))}
                     className="flex items-center gap-2 px-2.5 py-2 rounded text-foreground hover:bg-muted/50 cursor-pointer text-xs"
                   >
                     <MessageSquareIcon className="w-4 h-4 text-blue-400 shrink-0" />

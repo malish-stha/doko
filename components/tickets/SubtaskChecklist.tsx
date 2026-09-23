@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
@@ -12,14 +12,12 @@ import { parseConvexError } from '@/lib/utils'
 
 export function SubtaskChecklist({
   ticketId,
-  userEmail,
   onCountChange,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
   onCountChange?: (doneCount: number, totalCount: number) => void
 }) {
-  const items = useQuery(api.subtasks.byTicket, { ticketId, userEmail }) ?? []
+  const items = useQuery(api.subtasks.byTicket, { ticketId }) ?? []
   const add = useMutation(api.subtasks.add)
   const toggle = useMutation(api.subtasks.toggle)
   const remove = useMutation(api.subtasks.remove)
@@ -29,6 +27,9 @@ export function SubtaskChecklist({
 
   const doneCount = items.filter(i => i.done).length
   const totalCount = items.length
+  useEffect(() => {
+    onCountChange?.(doneCount, totalCount)
+  }, [doneCount, totalCount, onCountChange])
   const progressPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
 
   const handleAdd = async () => {
@@ -36,9 +37,9 @@ export function SubtaskChecklist({
     if (!title) return
     setAdding(true)
     try {
-      await add({ ticketId, title, userEmail })
+      await add({ ticketId, title })
       setDraft('')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to add sub-task', parseConvexError(err))
     } finally {
       setAdding(false)
@@ -47,16 +48,16 @@ export function SubtaskChecklist({
 
   const handleToggle = async (subtaskId: Id<'subtasks'>) => {
     try {
-      await toggle({ subtaskId, userEmail })
-    } catch (err: any) {
+      await toggle({ subtaskId })
+    } catch (err) {
       toast.error('Failed to toggle sub-task', parseConvexError(err))
     }
   }
 
   const handleRemove = async (subtaskId: Id<'subtasks'>) => {
     try {
-      await remove({ subtaskId, userEmail })
-    } catch (err: any) {
+      await remove({ subtaskId })
+    } catch (err) {
       toast.error('Failed to remove sub-task', parseConvexError(err))
     }
   }

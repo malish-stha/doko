@@ -26,6 +26,7 @@ import { GlobalHotkeys } from "@/components/hotkeys/GlobalHotkeys";
 import { CommandPalette } from "@/components/CommandPalette";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: "Doko",
   description: "Everything your team carries, in one place.",
 };

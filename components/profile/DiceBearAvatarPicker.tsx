@@ -1,5 +1,6 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import React, { useState } from 'react'
 import {
   getDiceBearThumbsAvatar,
@@ -26,7 +27,6 @@ interface DiceBearAvatarPickerProps {
 export function DiceBearAvatarPicker({
   open,
   onOpenChange,
-  currentAvatarUrl,
   userEmail,
   userName,
 }: DiceBearAvatarPickerProps) {
@@ -67,13 +67,12 @@ export function DiceBearAvatarPicker({
     try {
       setSaving(true)
       await updateProfile({
-        userEmail: email,
         avatarUrl: activeAvatarUrl,
       })
       toast.success('Avatar updated!', 'Your new DiceBear Thumbs avatar has been saved.')
       onOpenChange(false)
-    } catch (err: any) {
-      toast.error('Failed to update avatar', err?.message ?? 'An error occurred.')
+    } catch (err) {
+      toast.error('Failed to update avatar', parseConvexError(err))
     } finally {
       setSaving(false)
     }
@@ -85,13 +84,12 @@ export function DiceBearAvatarPicker({
       setSaving(true)
       const defaultUrl = getDiceBearThumbsAvatar(defaultSeed)
       await updateProfile({
-        userEmail: email,
         avatarUrl: defaultUrl,
       })
       toast.success('Avatar reset', 'Reverted to default DiceBear Thumbs avatar.')
       onOpenChange(false)
-    } catch (err: any) {
-      toast.error('Failed to reset avatar', err?.message)
+    } catch (err) {
+      toast.error('Failed to reset avatar', parseConvexError(err))
     } finally {
       setSaving(false)
     }
@@ -117,6 +115,7 @@ export function DiceBearAvatarPicker({
             <div className="relative group shrink-0">
               <div className="w-28 h-28 rounded-none bg-teal-500/10 border-2 border-teal-500/50 flex items-center justify-center overflow-hidden shadow-lg">
                 {activeAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote user content, already sized
                   <img
                     src={activeAvatarUrl}
                     alt="DiceBear Thumbs Avatar Preview"

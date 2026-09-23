@@ -27,6 +27,10 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
   const [ptsValue, setPtsValue] = useState<string>(
     ticket.storyPoints != null ? String(ticket.storyPoints) : '',
   )
+  const [editingPts, setEditingPts] = useState(false)
+  const serverPts = ticket.storyPoints != null ? String(ticket.storyPoints) : ''
+  // While not editing, always show the server value; local state only matters mid-edit.
+  const shownPts = editingPts ? ptsValue : serverPts
 
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -37,7 +41,7 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
       if (ticket.storyPoints !== undefined) {
         try {
           await updateTicket({ id: ticket._id, storyPoints: null })
-        } catch (err: any) {
+        } catch (err) {
           toast.error('Failed to update story points', parseConvexError(err))
         }
       }
@@ -48,7 +52,7 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
     if (Number.isFinite(val) && val >= 0 && val !== ticket.storyPoints) {
       try {
         await updateTicket({ id: ticket._id, storyPoints: val })
-      } catch (err: any) {
+      } catch (err) {
         toast.error('Failed to update story points', parseConvexError(err))
       }
     }
@@ -112,9 +116,16 @@ export function BacklogTicketRow({ ticket }: { ticket: Doc<'tickets'> }) {
         step="0.5"
         min={0}
         max={100}
-        value={ptsValue}
+        value={shownPts}
         onChange={e => setPtsValue(e.target.value)}
-        onBlur={handlePtsBlur}
+        onFocus={() => {
+            setPtsValue(serverPts)
+            setEditingPts(true)
+          }}
+          onBlur={() => {
+            setEditingPts(false)
+            void handlePtsBlur()
+          }}
         placeholder="pts"
         className="w-16 h-7 text-xs font-mono text-center shrink-0 border-border/60"
       />

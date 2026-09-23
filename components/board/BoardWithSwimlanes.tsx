@@ -6,7 +6,6 @@ import { useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { TicketCard } from './TicketCard'
-import { SwimLaneMode } from './SwimLaneToggle'
 
 const STATUS_LABELS: Record<string, string> = {
   backlog: 'Backlog',
@@ -155,7 +154,9 @@ export function BoardWithSwimlanes({
       laneGroups[p] = { label: p.toUpperCase(), tickets: [] }
     }
     for (const t of tickets) {
-      if (laneGroups[t.priority]) laneGroups[t.priority].tickets.push(t)
+      const key = laneGroups[t.priority] ? t.priority : 'other'
+      if (!laneGroups[key]) laneGroups[key] = { label: 'OTHER', tickets: [] }
+      laneGroups[key].tickets.push(t)
     }
   }
 

@@ -1,8 +1,8 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
@@ -10,9 +10,6 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 
 export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const authorName = session?.user?.name ?? session?.user?.email ?? undefined
 
   const [body, setBody] = useState('')
   const [pending, setPending] = useState(false)
@@ -25,14 +22,12 @@ export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
       await add({
         ticketId,
         body: body.trim(),
-        userEmail,
-        authorName,
       })
       toast.success('Comment posted')
       setBody('')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to post comment:', err)
-      toast.error('Failed to post comment', err?.message ?? 'Could not add comment.')
+      toast.error('Failed to post comment', parseConvexError(err))
     } finally {
       setPending(false)
     }
@@ -41,7 +36,7 @@ export function CommentForm({ ticketId }: { ticketId: Id<'tickets'> }) {
   return (
     <div className="space-y-3">
       <RichTextEditor
-        userEmail={userEmail}
+       
         placeholder="Add a formatted comment (supports **bold**, *italic*, `code`, lists, @mentions)..."
         value={body}
         onChange={setBody}

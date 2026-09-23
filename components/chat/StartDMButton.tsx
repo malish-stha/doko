@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { MessageSquareIcon, Loader2Icon } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function StartDMButton({
   userId,
@@ -17,12 +18,10 @@ export function StartDMButton({
 }: {
   userId: string
   label?: string
-  variant?: 'ghost' | 'outline' | 'default' | 'link'
-  size?: 'sm' | 'xs' | 'default' | 'icon'
+  variant?: React.ComponentProps<typeof Button>['variant']
+  size?: React.ComponentProps<typeof Button>['size']
   className?: string
 }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const openDM = useMutation(api.channels.openDM)
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -33,10 +32,11 @@ export function StartDMButton({
     if (!userId || loading) return
     setLoading(true)
     try {
-      const id = await openDM({ otherUserId: userId, userEmail })
+      const id = await openDM({ otherUserId: userId })
       router.push(`/chat/${id}`)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to open DM:', err)
+      toast.error('Could not start conversation', parseConvexError(err))
     } finally {
       setLoading(false)
     }
@@ -45,8 +45,8 @@ export function StartDMButton({
   return (
     <Button
       type="button"
-      size={size as any}
-      variant={variant as any}
+      size={size}
+      variant={variant}
       onClick={handleClick}
       disabled={loading}
       className={`text-xs text-teal-400 hover:text-teal-300 font-mono ${className}`}

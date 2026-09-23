@@ -13,29 +13,30 @@ import { parseConvexError } from '@/lib/utils'
 
 export function WatchButton({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
-  const isWatching = useQuery(api.watchers.isWatching, { ticketId, userEmail }) ?? false
-  const watchers = useQuery(api.watchers.forTicket, { ticketId, userEmail }) ?? []
+  const watchState = useQuery(api.watchers.isWatching, { ticketId })
+  const isWatching = watchState ?? false
+  const isReady = watchState !== undefined
+  const watchers = useQuery(api.watchers.forTicket, { ticketId }) ?? []
   const subscribe = useMutation(api.watchers.subscribe)
   const unsubscribe = useMutation(api.watchers.unsubscribe)
 
   const [loading, setLoading] = useState(false)
 
   const handleToggle = async () => {
+    if (!isReady) return
     setLoading(true)
     try {
       if (isWatching) {
-        await unsubscribe({ ticketId, userEmail })
+        await unsubscribe({ ticketId })
         toast.success('Unwatched ticket', 'You will no longer receive notifications for this ticket')
       } else {
-        await subscribe({ ticketId, userEmail })
+        await subscribe({ ticketId })
         toast.success('Watching ticket', 'You will receive notifications for activity on this ticket')
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to update watcher status', parseConvexError(err))
     } finally {
       setLoading(false)

@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useDebouncedCallback } from '@/lib/useDebouncedCallback'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -9,6 +11,8 @@ import {
   PopoverContent,
 } from '@/components/ui/popover'
 import { SavedFiltersDropdown } from '@/components/filters/SavedFiltersDropdown'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
 import { SearchIcon, ColumnsIcon, XIcon } from 'lucide-react'
 
 export function FilterBar({
@@ -23,9 +27,16 @@ export function FilterBar({
   const searchParams = useSearchParams()
 
   const q = searchParams.get('q') || ''
+  const [keyword, setKeyword] = useState(q)
+  const [syncedQ, setSyncedQ] = useState(q)
+  if (syncedQ !== q) {
+    setSyncedQ(q)
+    setKeyword(q)
+  }
   const status = searchParams.get('status') || ''
   const priority = searchParams.get('priority') || ''
   const assignee = searchParams.get('assignee') || ''
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const updateFilter = (key: string, val: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -37,7 +48,11 @@ export function FilterBar({
     router.replace(`${pathname}?${params.toString()}`)
   }
 
+  // One navigation ~300ms after typing stops instead of one per keystroke.
+  const updateKeyword = useDebouncedCallback((val: string) => updateFilter('q', val.trim()), 300)
+
   const clearAll = () => {
+    setKeyword('')
     router.replace(pathname)
   }
 
@@ -62,8 +77,14 @@ export function FilterBar({
           <Input
             type="text"
             placeholder="Filter by keyword..."
-            value={q}
-            onChange={e => updateFilter('q', e.target.value)}
+            value={keyword}
+            onChange={e => {
+              setKeyword(e.target.value)
+              updateKeyword(e.target.value)
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') updateKeyword.flush(keyword)
+            }}
             className="h-8 pl-8 text-xs"
           />
         </div>
@@ -91,6 +112,21 @@ export function FilterBar({
           <option value="medium">Medium</option>
           <option value="high">High</option>
           <option value="urgent">Urgent</option>
+        </select>
+
+        <select
+          value={assignee}
+          aria-label="Filter by assignee"
+          onChange={e => updateFilter('assignee', e.target.value)}
+          className="h-8 text-xs bg-card border border-border/80 rounded px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-teal-400"
+        >
+          <option value="">All Assignees</option>
+          <option value="unassigned">Unassigned</option>
+          {members.map(m => (
+            <option key={m.userId} value={m.userId}>
+              {m.name || m.email}
+            </option>
+          ))}
         </select>
 
         {hasActiveFilters && (

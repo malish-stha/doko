@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
@@ -10,34 +9,33 @@ import { formatDistanceToNow } from 'date-fns'
 import { BellIcon, CheckCheckIcon, InboxIcon, ArrowRightIcon } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { UserAvatar } from './UserAvatar'
-import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
 export function NotificationDropdown() {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
 
   const [open, setOpen] = useState(false)
-  const unreadCount = useQuery(api.mentions.unreadCount, userEmail ? { userEmail } : 'skip') ?? 0
-  const mentions = useQuery(api.mentions.forMe, open && userEmail ? { userEmail } : 'skip') ?? []
+  const teams = useQuery(api.teams.myTeams, {})
+  const hasTeam = Boolean(teams && teams.length > 0)
+  const unreadCount = useQuery(api.mentions.unreadCount, hasTeam ? {} : 'skip') ?? 0
+  const mentions = useQuery(api.mentions.forMe, hasTeam && open ? {} : 'skip') ?? []
 
   const markRead = useMutation(api.mentions.markRead)
   const markAllRead = useMutation(api.mentions.markAllRead)
 
   const handleMarkRead = async (id: Id<'mentions'>) => {
     try {
-      await markRead({ mentionId: id, userEmail })
-    } catch (err: any) {
+      await markRead({ mentionId: id })
+    } catch (err) {
       toast.error('Failed to mark read', parseConvexError(err))
     }
   }
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllRead({ userEmail })
+      await markAllRead({})
       toast.success('All notifications marked as read')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to mark all read', parseConvexError(err))
     }
   }
@@ -89,13 +87,13 @@ export function NotificationDropdown() {
             mentions.slice(0, 10).map(m => {
               const isUnread = !m.read
               const targetUrl =
-                m.contextDetail?.ticketKey
-                  ? `/board?ticket=${m.contextDetail.ticketKey}`
-                  : m.contextDetail?.key
-                  ? `/board?ticket=${m.contextDetail.key}`
-                  : m.contextDetail?.channelId
-                  ? `/chat`
-                  : '/board'
+                m.contextDetail?.kind === 'comment'
+                  ? `/tickets/${m.contextDetail.ticketKey}`
+                  : m.contextDetail?.kind === 'ticket'
+                  ? `/tickets/${m.contextDetail.key}`
+                  : m.contextDetail?.kind === 'message'
+                  ? `/chat/${m.contextDetail.channelId}`
+                  : '/inbox'
 
               return (
                 <div
@@ -131,14 +129,14 @@ export function NotificationDropdown() {
                         }}
                         className="block p-1.5 bg-muted/40 border border-border/40 hover:border-teal-500/40 transition-colors rounded-none mt-1"
                       >
-                        {m.contextDetail.ticketKey && (
+                        {m.contextDetail.kind === 'comment' && (
                           <div className="font-mono text-teal-400 font-bold text-[11px] truncate">
                             {m.contextDetail.ticketKey} — {m.contextDetail.ticketTitle}
                           </div>
                         )}
-                        {m.contextDetail.commentBody && (
+                        {m.contextDetail.kind === 'comment' && m.contextDetail.commentBody && (
                           <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                            "{m.contextDetail.commentBody}"
+                            &quot;{m.contextDetail.commentBody}&quot;
                           </div>
                         )}
                       </Link>

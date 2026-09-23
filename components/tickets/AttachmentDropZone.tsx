@@ -5,18 +5,18 @@ import { useMutation, useQuery } from 'convex/react'
 import { useDropzone } from 'react-dropzone'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
-import { PaperclipIcon, UploadIcon, XIcon, DownloadIcon, ImageIcon, FileIcon } from 'lucide-react'
+import { PaperclipIcon, UploadIcon, XIcon, DownloadIcon, FileIcon } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
 
+const MAX_ATTACHMENT_MB = 25
+
 export function AttachmentDropZone({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
-  const attachments = useQuery(api.attachments.byTicket, { ticketId, userEmail }) ?? []
+  const attachments = useQuery(api.attachments.byTicket, { ticketId }) ?? []
   const generateUploadUrl = useMutation(api.attachments.generateUploadUrl)
   const record = useMutation(api.attachments.record)
   const removeAttachment = useMutation(api.attachments.remove)
@@ -30,12 +30,12 @@ export function AttachmentDropZone({
 
       try {
         for (const file of acceptedFiles) {
-          if (file.size > 20 * 1024 * 1024) {
-            toast.error('File too large', `${file.name} exceeds 20MB limit`)
+          if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+            toast.error('File too large', `${file.name} exceeds ${MAX_ATTACHMENT_MB}MB limit`)
             continue
           }
 
-          const uploadUrl = await generateUploadUrl({ userEmail })
+          const uploadUrl = await generateUploadUrl({})
           const res = await fetch(uploadUrl, {
             method: 'POST',
             headers: { 'Content-Type': file.type || 'application/octet-stream' },
@@ -45,32 +45,35 @@ export function AttachmentDropZone({
           if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
           const { storageId } = await res.json()
 
-          await record({
+          const result = await record({
             ticketId,
             storageId,
             filename: file.name,
             mimeType: file.type || 'application/octet-stream',
             size: file.size,
-            userEmail,
           })
+          if (!result.ok) {
+            toast.error('File rejected', `${file.name}: ${result.error}`)
+            continue
+          }
           toast.success('Attached file', file.name)
         }
-      } catch (err: any) {
+      } catch (err) {
         toast.error('Upload error', parseConvexError(err))
       } finally {
         setUploading(false)
       }
     },
-    [ticketId, generateUploadUrl, record, userEmail],
+    [ticketId, generateUploadUrl, record],
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
   const handleRemove = async (attachmentId: Id<'attachments'>, filename: string) => {
     try {
-      await removeAttachment({ attachmentId, userEmail })
+      await removeAttachment({ attachmentId })
       toast.success('Attachment deleted', filename)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to remove attachment', parseConvexError(err))
     }
   }
@@ -100,7 +103,7 @@ export function AttachmentDropZone({
               ? 'Drop files here'
               : 'Drag & drop files here, or click to browse'}
           </span>
-          <span className="text-[10px] text-muted-foreground/70">Up to 20MB per file</span>
+          <span className="text-[10px] text-muted-foreground/70">Up to {MAX_ATTACHMENT_MB}MB per file · images, PDFs, office docs, text</span>
         </div>
       </div>
 
@@ -116,6 +119,7 @@ export function AttachmentDropZone({
                 className="group relative flex items-center gap-3 p-2 bg-muted/20 border border-border/40 rounded-none hover:border-border transition-colors text-xs"
               >
                 {isImage && att.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote user content, already sized
                   <img
                     src={att.url}
                     alt={att.filename}
@@ -154,14 +158,16 @@ export function AttachmentDropZone({
                       <DownloadIcon className="w-3.5 h-3.5" />
                     </a>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(att._id, att.filename)}
-                    className="p-1 text-muted-foreground hover:text-red-400 transition-colors"
-                    title="Remove attachment"
-                  >
-                    <XIcon className="w-3.5 h-3.5" />
-                  </button>
+                  {att.canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(att._id, att.filename)}
+                      className="p-1 text-muted-foreground hover:text-red-400 transition-colors"
+                      title="Remove attachment"
+                    >
+                      <XIcon className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             )

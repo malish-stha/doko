@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,12 +11,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SparklesIcon, UsersIcon, CheckIcon, Loader2Icon, PlusIcon } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function OnboardingClient() {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const team = useQuery(api.teams.myTeam, userEmail ? { userEmail } : 'skip')
-  const invites = useQuery(api.invites.pendingForMe, userEmail ? { userEmail } : 'skip') ?? []
+  const team = useQuery(api.teams.myTeam, {})
+  const invites = useQuery(api.invites.pendingForMe, {}) ?? []
   const router = useRouter()
 
   const [creating, setCreating] = useState(false)
@@ -33,30 +32,25 @@ export function OnboardingClient() {
       await createTeam({
         name,
         workspaceDomain: domain || undefined,
-        userEmail: session?.user?.email ?? undefined,
-        userName: session?.user?.name ?? undefined,
       })
       toast.success('Welcome to Doko!', `Team "${name.trim()}" set up successfully.`)
       router.replace('/home')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create team:', err)
-      toast.error('Failed to create team', err?.message ?? 'Could not create workspace.')
+      toast.error('Failed to create team', parseConvexError(err))
+    } finally {
       setCreating(false)
     }
   }
 
-  const handleAcceptInvite = async (inv: any) => {
+  const handleAcceptInvite = async (inv: { _id: Id<'invites'>; teamName: string }) => {
     try {
-      await acceptInvite({
-        inviteId: inv._id,
-        userEmail: session?.user?.email ?? undefined,
-        userName: session?.user?.name ?? undefined,
-      })
-      toast.success('Joined team!', `You have joined ${inv.teamName}.`)
+      const result = await acceptInvite({ inviteId: inv._id })
+      toast.success('Joined team!', `You have joined ${result.teamName}. It is now your active team.`)
       router.replace('/home')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to accept invite:', err)
-      toast.error('Failed to accept invite', err?.message ?? 'Could not join team.')
+      toast.error('Failed to accept invite', parseConvexError(err))
     }
   }
 

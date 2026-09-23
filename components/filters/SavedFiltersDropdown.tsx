@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 import { BookmarkIcon, CheckIcon, Trash2Icon, Share2Icon, PlusIcon } from 'lucide-react'
 
 export function SavedFiltersDropdown({ scope }: { scope: 'board' | 'list' }) {
@@ -27,6 +29,16 @@ export function SavedFiltersDropdown({ scope }: { scope: 'board' | 'list' }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const queryString = searchParams.toString()
+
+  // Order-insensitive comparison: "a=1&b=2" and "b=2&a=1" are the same view.
+  const canonical = (qs: string) => {
+    const p = new URLSearchParams(qs.startsWith('?') ? qs.slice(1) : qs)
+    return Array.from(p.entries())
+      .sort(([a, av], [b, bv]) => a.localeCompare(b) || av.localeCompare(bv))
+      .map(([k, v]) => `${k}=${v}`)
+      .join('&')
+  }
+  const currentCanonical = canonical(queryString)
 
   const savedFilters = useQuery(api.savedFilters.myFilters, { scope }) ?? []
   const createFilter = useMutation(api.savedFilters.create)
@@ -61,30 +73,30 @@ export function SavedFiltersDropdown({ scope }: { scope: 'board' | 'list' }) {
       setSaveModalOpen(false)
       setFilterName('')
       setIsShared(false)
-    } catch (err: any) {
-      toast.error('Failed to save view', err?.message)
+    } catch (err) {
+      toast.error('Failed to save view', parseConvexError(err))
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDelete = async (e: React.MouseEvent, id: any) => {
+  const handleDelete = async (e: React.MouseEvent, id: Id<'savedFilters'>) => {
     e.stopPropagation()
     try {
       await removeFilter({ id })
       toast.success('Saved view removed')
-    } catch (err: any) {
-      toast.error('Failed to remove view', err?.message)
+    } catch (err) {
+      toast.error('Failed to remove view', parseConvexError(err))
     }
   }
 
-  const handleToggleShare = async (e: React.MouseEvent, id: any, currentShare: boolean) => {
+  const handleToggleShare = async (e: React.MouseEvent, id: Id<'savedFilters'>, currentShare: boolean) => {
     e.stopPropagation()
     try {
       await shareFilter({ id, isShared: !currentShare })
       toast.success(currentShare ? 'Unshared view' : 'Shared view with team')
-    } catch (err: any) {
-      toast.error('Failed to update share setting', err?.message)
+    } catch (err) {
+      toast.error('Failed to update share setting', parseConvexError(err))
     }
   }
 
@@ -121,7 +133,7 @@ export function SavedFiltersDropdown({ scope }: { scope: 'board' | 'list' }) {
               </p>
             ) : (
               savedFilters.map(f => {
-                const isActive = queryString === f.queryString
+                const isActive = currentCanonical === canonical(f.queryString)
                 return (
                   <div
                     key={f._id}

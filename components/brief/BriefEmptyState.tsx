@@ -1,5 +1,6 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import { useState } from 'react'
 import { useAction } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -21,9 +22,9 @@ export function BriefEmptyState() {
         return
       }
       toast.success('Morning Brief generated', 'Today\'s brief has been created from team activity.')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to generate brief:', err)
-      toast.error('Failed to generate brief', err?.message ?? 'Could not generate Morning Brief.')
+      toast.error('Failed to generate brief', parseConvexError(err))
     } finally {
       setGenerating(false)
     }
@@ -38,7 +39,7 @@ export function BriefEmptyState() {
       </div>
 
       <p className="text-lg text-foreground/90 leading-relaxed max-w-xl font-sans">
-        Your AI Morning Brief automatically generates every morning at 8:00 AM. Click below to generate today's Morning Brief immediately from team activity!
+        Your AI Morning Brief automatically generates every morning at 8:00 AM. Click below to generate today&apos;s Morning Brief immediately from team activity!
       </p>
 
       <div className="flex flex-wrap items-center gap-4 pt-1">

@@ -20,15 +20,13 @@ function getDotColor(kind: string): string {
 
 export function ActivityTimeline({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
 
-  const data = useQuery(api.events.forTicket, { ticketId, page, pageSize, userEmail })
+  const data = useQuery(api.events.forTicket, { ticketId, page, pageSize })
 
   const events = data?.events ?? []
   const totalCount = data?.totalCount ?? 0

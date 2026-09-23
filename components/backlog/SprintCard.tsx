@@ -48,7 +48,7 @@ export function SprintCard({
     try {
       await startSprint({ sprintId: sprint._id, durationDays: 14 })
       toast.success('Sprint started', `Sprint "${sprint.name}" is now active.`)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Cannot start sprint', parseConvexError(err))
     } finally {
       setLoading(false)
@@ -64,7 +64,7 @@ export function SprintCard({
       })
       toast.success('Sprint completed', `Sprint "${sprint.name}" finished!`)
       setCompleting(false)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Cannot complete sprint', parseConvexError(err))
     } finally {
       setLoading(false)
@@ -144,7 +144,7 @@ export function SprintCard({
       <Dialog open={completing} onOpenChange={setCompleting}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Complete Sprint "{sprint.name}"?</DialogTitle>
+            <DialogTitle>Complete Sprint &quot;{sprint.name}&quot;?</DialogTitle>
             <DialogDescription>
               Any incomplete tickets will automatically be moved back to the backlog.
             </DialogDescription>

@@ -1,27 +1,35 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
+import { useEffect, useRef } from 'react'
+import { useConvexAuth, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 
+/**
+ * Ensures the caller has a `users` row. Runs once per authenticated session;
+ * identity (email, name) comes from the verified token, the client only
+ * contributes its timezone.
+ */
 export function UserInit() {
-  const { data: session } = useSession()
+  const { isAuthenticated } = useConvexAuth()
   const upsert = useMutation(api.users.upsert)
+  const ran = useRef(false)
 
   useEffect(() => {
-    try {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-      const email = session?.user?.email ?? undefined
-      const name = session?.user?.name ?? undefined
+    if (!isAuthenticated || ran.current) return
+    ran.current = true
 
-      upsert({ timezone, email, name }).catch(err => {
-        console.error('Failed to upsert user info:', err)
-      })
+    let timezone = 'UTC'
+    try {
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
     } catch (e) {
-      console.error('Timezone/user detection error:', e)
+      console.error('Timezone detection error:', e)
     }
-  }, [upsert, session])
+
+    upsert({ timezone }).catch(err => {
+      ran.current = false
+      console.error('Failed to upsert user info:', err)
+    })
+  }, [isAuthenticated, upsert])
 
   return null
 }

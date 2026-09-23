@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -75,16 +76,38 @@ import {
   XIcon,
   Trash2Icon,
   UserIcon,
+  CrownIcon,
 } from 'lucide-react'
 import { StartDMButton } from '@/components/chat/StartDMButton'
 
+function InviteDeliveryBadge({ status }: { status?: 'queued' | 'sent' | 'failed' }) {
+  const label = status === 'sent' ? 'Email sent' : status === 'failed' ? 'Email failed' : 'Email queued'
+  const tone =
+    status === 'sent'
+      ? 'text-teal-600 dark:text-teal-400 border-teal-500/40 bg-teal-500/10'
+      : status === 'failed'
+        ? 'text-red-500 border-red-500/40 bg-red-500/10'
+        : 'text-muted-foreground border-border bg-muted/40'
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 border text-[10px] font-mono uppercase ${tone}`}>
+      {label}
+    </span>
+  )
+}
+
 export function TeamSettings() {
   const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
   const router = useRouter()
-  const team = useQuery(api.teams.myTeam, userEmail ? { userEmail } : 'skip')
-  const members = useQuery(api.teamMembers.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
-  const invites = useQuery(api.invites.listForTeam, userEmail ? { userEmail } : 'skip') ?? []
+  const team = useQuery(api.teams.myTeam, {})
+  const membersRaw = useQuery(api.teamMembers.listForTeam, {})
+  const members = membersRaw ?? []
+  const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()
+  const membersLoaded = membersRaw !== undefined
+  const me = members.find(m => m.email.trim().toLowerCase() === currentEmail)
+  const isOwner = membersLoaded && me?.role === 'owner'
+  const isAdminOrOwner = membersLoaded && (me?.role === 'owner' || me?.role === 'admin')
+
+  const invites = useQuery(api.invites.listForTeam, isAdminOrOwner ? {} : 'skip') ?? []
 
   const [inviteEmail, setInviteEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -103,26 +126,25 @@ export function TeamSettings() {
 
   const sendInvite = useMutation(api.invites.send)
   const revokeInvite = useMutation(api.invites.revoke)
+  const resendInvite = useMutation(api.invites.resend)
   const removeMember = useMutation(api.teamMembers.remove)
   const leaveTeam = useMutation(api.teamMembers.leave)
   const deleteTeam = useMutation(api.teams.deleteTeam)
   const changeRole = useMutation(api.teamMembers.changeRole)
+  const transferOwnership = useMutation(api.teamMembers.transferOwnership)
   const createTeam = useMutation(api.teams.create)
   const updateTeam = useMutation(api.teams.update)
 
-  useEffect(() => {
-    if (team) {
-      setEditName(team.name)
-      setEditDomain(team.workspaceDomain ?? '')
-    }
-  }, [team])
+  // The edit form is seeded when editing starts, not synced on every team update.
+  const startEditingTeam = () => {
+    if (!team) return
+    setEditName(team.name)
+    setEditDomain(team.workspaceDomain ?? '')
+    setEditingTeam(true)
+  }
 
   if (team === undefined) return <TeamSettingsSkeleton />
   if (!team) return <div className="p-8 text-xs font-mono text-muted-foreground">No active team found.</div>
-
-  const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()
-  const me = members.find(m => m.email.trim().toLowerCase() === currentEmail)
-  const isOwner = me?.role === 'owner' || members.length <= 1
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,10 +152,10 @@ export function TeamSettings() {
     setSending(true)
     setErrorMsg('')
     try {
-      await sendInvite({ email: inviteEmail.trim(), userEmail })
-      toast.success('Invite sent', `Invitation email sent to ${inviteEmail.trim()}`)
+      await sendInvite({ email: inviteEmail.trim() })
+      toast.success('Invite queued', `We are emailing ${inviteEmail.trim()}. Delivery status appears under Pending Invites.`)
       setInviteEmail('')
-    } catch (err: any) {
+    } catch (err) {
       const msg = parseConvexError(err)
       setErrorMsg(msg)
       toast.error('Failed to send invite', msg)
@@ -150,16 +172,14 @@ export function TeamSettings() {
       await createTeam({
         name: newTeamName.trim(),
         workspaceDomain: newTeamDomain.trim() || undefined,
-        userEmail: session?.user?.email ?? undefined,
-        userName: session?.user?.name ?? undefined,
       })
       toast.success('Team created', `Workspace "${newTeamName.trim()}" created successfully.`)
       setNewTeamName('')
       setNewTeamDomain('')
       setShowCreateModal(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      toast.error('Failed to create team', err?.message ?? 'An error occurred while creating the team.')
+      toast.error('Failed to create team', parseConvexError(err))
     } finally {
       setCreatingTeam(false)
     }
@@ -176,9 +196,9 @@ export function TeamSettings() {
       })
       toast.success('Team settings updated', 'Team name and domain preferences have been saved.')
       setEditingTeam(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      toast.error('Failed to save settings', err?.message ?? 'Could not update team settings.')
+      toast.error('Failed to save settings', parseConvexError(err))
     } finally {
       setSavingTeam(false)
     }
@@ -193,43 +213,64 @@ export function TeamSettings() {
           router.replace('/onboarding')
         }
       } else {
-        await leaveTeam({ userEmail })
+        await leaveTeam({})
         toast.success('Left team workspace')
         router.replace('/onboarding')
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      toast.error('Action failed', err?.message ?? 'Could not complete the action.')
+      toast.error('Action failed', parseConvexError(err))
     }
   }
 
-  const handleChangeRole = async (memberId: any, newRole: 'member' | 'admin') => {
+  const handleChangeRole = async (memberId: Id<'teamMembers'>, newRole: 'member' | 'admin') => {
     try {
-      await changeRole({ memberId, role: newRole, userEmail })
+      await changeRole({ memberId, role: newRole })
       toast.success('Member role updated', `User role updated to ${newRole}.`)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      toast.error('Failed to update role', err?.message ?? 'Could not update member role.')
+      toast.error('Failed to update role', parseConvexError(err))
     }
   }
 
-  const handleRemoveMember = async (memberId: any) => {
+  const handleTransferOwnership = async (memberId: Id<'teamMembers'>, email: string) => {
+    if (!confirm(`Make ${email} the owner of this team? You will become an admin.`)) return
     try {
-      await removeMember({ memberId, userEmail })
+      await transferOwnership({ memberId })
+      toast.success('Ownership transferred', `${email} now owns this team.`)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to transfer ownership', parseConvexError(err))
+    }
+  }
+
+  const handleRemoveMember = async (memberId: Id<'teamMembers'>) => {
+    try {
+      await removeMember({ memberId })
       toast.success('Member removed', 'Team member has been removed.')
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      toast.error('Failed to remove member', err?.message ?? 'Could not remove member.')
+      toast.error('Failed to remove member', parseConvexError(err))
     }
   }
 
-  const handleRevokeInvite = async (inviteId: any) => {
+  const handleResendInvite = async (inviteId: Id<'invites'>, email: string) => {
     try {
-      await revokeInvite({ inviteId, userEmail })
-      toast.success('Invite revoked', 'Pending invitation has been cancelled.')
-    } catch (err: any) {
+      await resendInvite({ inviteId })
+      toast.success('Invite re-queued', `A fresh invite link is being emailed to ${email}.`)
+    } catch (err) {
       console.error(err)
-      toast.error('Failed to revoke invite', err?.message ?? 'Could not revoke invite.')
+      toast.error('Failed to resend invite', parseConvexError(err))
+    }
+  }
+
+  const handleRevokeInvite = async (inviteId: Id<'invites'>) => {
+    try {
+      await revokeInvite({ inviteId })
+      toast.success('Invite revoked', 'Pending invitation has been cancelled.')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to revoke invite', parseConvexError(err))
     }
   }
 
@@ -282,7 +323,7 @@ export function TeamSettings() {
                 <h1 className="text-2xl font-semibold tracking-tight text-foreground">{team.name} Settings</h1>
                 <button
                   type="button"
-                  onClick={() => setEditingTeam(true)}
+                  onClick={startEditingTeam}
                   className="text-muted-foreground hover:text-teal-400 p-1 transition-colors"
                   title="Edit team name or domain restriction"
                 >
@@ -369,7 +410,8 @@ export function TeamSettings() {
         </Card>
       )}
 
-      {/* Invite Member Section */}
+      {/* Invite Member Section (Owners & Admins only) */}
+      {isAdminOrOwner && (
       <Card className="border border-border bg-card backdrop-blur-md">
         <CardHeader>
           <CardTitle className="text-sm font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
@@ -391,7 +433,7 @@ export function TeamSettings() {
           <form onSubmit={handleSendInvite} className="flex gap-3 items-end">
             <div className="flex-1 space-y-1.5">
               <Label htmlFor="invite-email" className="text-xs font-medium">
-                Teammate's Email
+                Teammate&apos;s Email
               </Label>
               <Input
                 id="invite-email"
@@ -423,6 +465,7 @@ export function TeamSettings() {
           {errorMsg && <p className="text-xs font-mono text-red-400 mt-2">{errorMsg}</p>}
         </CardContent>
       </Card>
+      )}
 
       {/* Team Members List */}
       <Card className="border border-border bg-card backdrop-blur-md">
@@ -467,8 +510,18 @@ export function TeamSettings() {
                   <StartDMButton userId={member.userId} label="Message" size="xs" variant="outline" className="border-border text-foreground" />
                 )}
 
-                {member.role !== 'owner' && (
+                {member.role !== 'owner' && me?.role === 'owner' && (
                   <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleTransferOwnership(member._id, member.email)}
+                      className="text-[10px] font-mono uppercase border-border text-foreground hover:bg-muted active:scale-[0.97]"
+                      title="Transfer team ownership to this member"
+                    >
+                      <CrownIcon className="w-3 h-3 mr-1 text-amber-500" />
+                      Make owner
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -511,22 +564,40 @@ export function TeamSettings() {
                 key={inv._id}
                 className="flex items-center justify-between p-3 border border-border bg-background/60"
               >
-                <div>
-                  <div className="font-mono text-xs font-semibold text-foreground">{inv.email}</div>
-                  <div className="text-[10px] font-mono text-muted-foreground">
-                    Status: {inv.status} · Expires: {new Date(inv.expiresAt).toLocaleDateString()}
+                <div className="min-w-0">
+                  <div className="font-mono text-xs font-semibold text-foreground truncate">{inv.email}</div>
+                  <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span>{inv.status === 'expired' ? 'Expired' : `Expires ${new Date(inv.expiresAt).toLocaleDateString()}`}</span>
+                    <span aria-hidden>·</span>
+                    <InviteDeliveryBadge status={inv.deliveryStatus} />
                   </div>
+                  {inv.deliveryStatus === 'failed' && inv.lastError && (
+                    <div className="text-[10px] font-mono text-red-400 mt-1 break-words">{inv.lastError}</div>
+                  )}
                 </div>
-                {inv.status === 'pending' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRevokeInvite(inv._id)}
-                    className="text-[10px] font-mono uppercase text-red-400 border-red-500/20 hover:bg-red-500/10 active:scale-[0.97]"
-                  >
-                    Revoke
-                  </Button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {(inv.deliveryStatus === 'failed' || inv.status === 'expired') && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResendInvite(inv._id, inv.email)}
+                      className="text-[10px] font-mono uppercase border-border active:scale-[0.97]"
+                    >
+                      <SendIcon className="w-3 h-3 mr-1" />
+                      Resend
+                    </Button>
+                  )}
+                  {inv.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRevokeInvite(inv._id)}
+                      className="text-[10px] font-mono uppercase text-red-400 border-red-500/20 hover:bg-red-500/10 active:scale-[0.97]"
+                    >
+                      Revoke
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>

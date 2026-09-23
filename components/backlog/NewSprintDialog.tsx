@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import {
   Dialog,
@@ -24,7 +23,6 @@ export function NewSprintDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { data: session } = useSession()
   const createSprint = useMutation(api.sprints.create)
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
@@ -39,13 +37,12 @@ export function NewSprintDialog({
       await createSprint({
         name: name.trim(),
         goal: goal.trim() || undefined,
-        userEmail: session?.user?.email ?? undefined,
       })
       toast.success('Sprint created', `Sprint "${name.trim()}" created successfully.`)
       setName('')
       setGoal('')
       onOpenChange(false)
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to create sprint', parseConvexError(err))
     } finally {
       setSubmitting(false)

@@ -3,11 +3,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
-import type { Id } from '@/convex/_generated/dataModel'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
 import Link from 'next/link'
 import { LinkIcon, PlusIcon, XIcon, SearchIcon } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/components/ui/toast'
@@ -23,23 +22,21 @@ const LINK_TYPES = [
 
 export function TicketLinks({
   ticketId,
-  userEmail,
 }: {
   ticketId: Id<'tickets'>
-  userEmail?: string
 }) {
-  const linksData = useQuery(api.ticketLinks.forTicket, { ticketId, userEmail }) ?? []
+  const linksData = useQuery(api.ticketLinks.forTicket, { ticketId }) ?? []
   const createLink = useMutation(api.ticketLinks.create)
   const removeLink = useMutation(api.ticketLinks.remove)
 
   const [open, setOpen] = useState(false)
-  const [linkType, setLinkType] = useState('blocks')
+  const [linkType, setLinkType] = useState<Doc<'ticketLinks'>['type']>('blocks')
   const [searchQuery, setSearchQuery] = useState('')
 
   const searchResults =
     useQuery(
       api.tickets.search,
-      open ? { q: searchQuery, excludeId: ticketId, userEmail } : 'skip',
+      open ? { q: searchQuery, excludeId: ticketId } : 'skip',
     ) ?? []
 
   const handleCreate = async (targetId: Id<'tickets'>) => {
@@ -48,21 +45,20 @@ export function TicketLinks({
         sourceId: ticketId,
         targetId,
         type: linkType,
-        userEmail,
       })
       toast.success('Link created')
       setOpen(false)
       setSearchQuery('')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to create link', parseConvexError(err))
     }
   }
 
   const handleRemove = async (linkId: Id<'ticketLinks'>) => {
     try {
-      await removeLink({ linkId, userEmail })
+      await removeLink({ linkId })
       toast.success('Link removed')
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Failed to remove link', parseConvexError(err))
     }
   }
@@ -163,7 +159,7 @@ export function TicketLinks({
                     </span>
                   )}
                   <Link
-                    href={`/board?ticket=${target.key}`}
+                    href={`/tickets/${target.key}`}
                     className="font-mono text-teal-400 hover:underline font-semibold"
                   >
                     {target.key}

@@ -1,11 +1,15 @@
+import { Suspense } from 'react'
 import { BriefContainer } from '@/components/brief/BriefContainer'
-import { ProviderComparison } from '@/components/dev/ProviderComparison'
+import { JoinedToast } from '@/components/invite/JoinedToast'
 import Link from 'next/link'
 import { LayoutGridIcon, MessageSquareIcon } from 'lucide-react'
 
 export default function HomePage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
+      <Suspense fallback={null}>
+        <JoinedToast />
+      </Suspense>
       <BriefContainer />
 
       <div className="mt-12 pt-8 border-t border-border/50 flex items-center justify-between">
@@ -29,8 +33,6 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-
-      <ProviderComparison />
     </main>
   )
 }

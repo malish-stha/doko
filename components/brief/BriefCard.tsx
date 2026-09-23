@@ -1,5 +1,6 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import { useState } from 'react'
 import { useAction } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -21,9 +22,9 @@ export function BriefCard({ brief }: { brief: Doc<'briefs'> }) {
         return
       }
       toast.success('Morning Brief regenerated', 'Brief has been updated with the latest team activity.')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to regenerate brief:', err)
-      toast.error('Failed to regenerate brief', err?.message ?? 'Could not regenerate Morning Brief.')
+      toast.error('Failed to regenerate brief', parseConvexError(err))
     } finally {
       setGenerating(false)
     }

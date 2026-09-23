@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import {
@@ -31,12 +31,11 @@ interface EditProfileModalProps {
     githubUrl?: string
     linkedinUrl?: string
   } | null
-  userEmail?: string
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditProfileModalProps) {
+export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalProps) {
   const [name, setName] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [department, setDepartment] = useState('')
@@ -52,8 +51,11 @@ export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditPr
 
   const updateProfile = useMutation(api.users.updateProfile)
 
-  useEffect(() => {
-    if (user) {
+  // Seed the fields each time the modal opens (adjusted during render, not in an effect).
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open && user) {
       setName(user.name ?? '')
       setJobTitle(user.jobTitle ?? '')
       setDepartment(user.department ?? '')
@@ -63,8 +65,9 @@ export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditPr
       setTimezone(user.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
       setGithubUrl(user.githubUrl ?? '')
       setLinkedinUrl(user.linkedinUrl ?? '')
+      setErrorMsg('')
     }
-  }, [user, open])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,20 +76,19 @@ export function EditProfileModal({ user, userEmail, open, onOpenChange }: EditPr
     setErrorMsg('')
     try {
       await updateProfile({
-        userEmail,
         name: name.trim(),
-        jobTitle: jobTitle.trim() || undefined,
-        department: department.trim() || undefined,
-        bio: bio.trim() || undefined,
-        phone: phone.trim() || undefined,
-        location: location.trim() || undefined,
+        jobTitle: jobTitle.trim() || null,
+        department: department.trim() || null,
+        bio: bio.trim() || null,
+        phone: phone.trim() || null,
+        location: location.trim() || null,
         timezone: timezone.trim() || undefined,
-        githubUrl: githubUrl.trim() || undefined,
-        linkedinUrl: linkedinUrl.trim() || undefined,
+        githubUrl: githubUrl.trim() || null,
+        linkedinUrl: linkedinUrl.trim() || null,
       })
       toast.success('Profile updated', 'Your profile details have been saved successfully.')
       onOpenChange(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       const msg = parseConvexError(err)
       setErrorMsg(msg)

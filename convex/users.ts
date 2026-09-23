@@ -1,5 +1,9 @@
 import { v } from 'convex/values'
-import { mutation, query, internalQuery } from './_generated/server'
+import { mutation, query, internalQuery, QueryCtx } from './_generated/server'
+import { Doc } from './_generated/dataModel'
+import { authError, findUser, listMemberships, normalizeEmail, requireUser } from './teamHelper'
+import { validateAvatarUrl, validateGithubUrl, validateLinkedinUrl } from './urlValidation'
+import { isValidTimezone } from '../lib/time'
 
 export const getByUserIdInternal = internalQuery({
   args: { userId: v.string() },
@@ -11,34 +15,44 @@ export const getByUserIdInternal = internalQuery({
   },
 })
 
-export const getByUserId = query({
-  args: { userId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', args.userId))
-      .first()
-  },
-})
-
-
 function makeThumbsAvatarUrl(seed: string): string {
   const cleanSeed = encodeURIComponent(seed.trim().toLowerCase() || 'doko-user')
   return `https://api.dicebear.com/9.x/thumbs/svg?seed=${cleanSeed}`
 }
 
-export const me = query({
-  args: { email: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const email = identity?.email ?? args.email
-    if (!email) return null
-    const key = identity?.subject ?? email.trim().toLowerCase()
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', key))
-      .first()
+/** True when `a` and `b` share at least one team. */
+async function shareATeam(ctx: QueryCtx, a: { userId: string; email: string }, b: Doc<'users'>) {
+  const mine = await listMemberships(ctx, a.userId, a.email)
+  if (mine.length === 0) return false
+  const theirs = await listMemberships(ctx, b.userId, normalizeEmail(b.email))
+  const theirTeams = new Set(theirs.map(m => m.teamId))
+  return mine.some(m => theirTeams.has(m.teamId))
+}
 
+/** Fields safe to show to teammates. Contact details stay private to the owner. */
+function publicProfile(user: Doc<'users'>) {
+  return {
+    _id: user._id,
+    _creationTime: user._creationTime,
+    userId: user.userId,
+    email: user.email,
+    name: user.name,
+    timezone: user.timezone,
+    teamId: user.teamId,
+    jobTitle: user.jobTitle,
+    department: user.department,
+    bio: user.bio,
+    avatarUrl: user.avatarUrl || makeThumbsAvatarUrl(user.email || user.userId),
+    githubUrl: user.githubUrl,
+    linkedinUrl: user.linkedinUrl,
+    createdAt: user.createdAt,
+  }
+}
+
+export const me = query({
+  args: {},
+  handler: async ctx => {
+    const { user } = await requireUser(ctx)
     if (!user) return null
     return {
       ...user,
@@ -47,33 +61,31 @@ export const me = query({
   },
 })
 
+/**
+ * Creates or refreshes the caller's `users` row from the verified identity.
+ * The row is keyed on the token subject; email and name come from the token,
+ * never from the client.
+ */
 export const upsert = mutation({
   args: {
     timezone: v.string(),
-    email: v.optional(v.string()),
-    name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const rawEmail = identity?.email ?? args.email
-    if (!rawEmail) return null
-    const email = rawEmail.trim().toLowerCase()
-    const userId = identity?.subject ?? email
-    const name = identity?.name ?? args.name ?? email
-
-    const existing = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', userId))
-      .first()
+    const { userId, email, name: identityName, user: existing } = await requireUser(ctx)
+    const name = identityName ?? existing?.name ?? email
+    // A bad zone would later crash the morning-brief cron for this user.
+    const timezone = isValidTimezone(args.timezone) ? args.timezone : existing?.timezone ?? 'UTC'
 
     const defaultAvatarUrl = makeThumbsAvatarUrl(email || userId)
 
     if (existing) {
-      if (!existing.avatarUrl) {
-        await ctx.db.patch(existing._id, { timezone: args.timezone, email, name, avatarUrl: defaultAvatarUrl })
-      } else {
-        await ctx.db.patch(existing._id, { timezone: args.timezone, email, name })
-      }
+      await ctx.db.patch(existing._id, {
+        userId,
+        timezone,
+        email,
+        name,
+        ...(existing.avatarUrl ? {} : { avatarUrl: defaultAvatarUrl }),
+      })
       return existing._id
     }
 
@@ -81,66 +93,70 @@ export const upsert = mutation({
       userId,
       email,
       name,
-      timezone: args.timezone,
+      timezone,
       avatarUrl: defaultAvatarUrl,
       createdAt: Date.now(),
     })
   },
 })
 
+/**
+ * Minimal teammate card for mentions and avatars. Only resolves users who
+ * share a team with the caller.
+ */
+export const getTeammate = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const caller = await requireUser(ctx)
+    const target = await findUser(ctx, args.userId.trim(), normalizeEmail(args.userId))
+    if (!target) return null
+    const isSelf = target.userId === caller.userId || normalizeEmail(target.email) === caller.email
+    if (!isSelf && !(await shareATeam(ctx, caller, target))) return null
+    const pub = publicProfile(target)
+    return {
+      userId: pub.userId,
+      name: pub.name,
+      email: pub.email,
+      avatarUrl: pub.avatarUrl,
+      jobTitle: pub.jobTitle,
+    }
+  },
+})
+
 export const getProfile = query({
   args: {
     targetUserId: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const currentEmail = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
+    const caller = await requireUser(ctx)
 
-    let targetUser = null
+    let targetUser: Doc<'users'> | null
     if (args.targetUserId) {
-      targetUser = await ctx.db
-        .query('users')
-        .withIndex('by_userId', q => q.eq('userId', args.targetUserId!))
-        .first()
-
-      if (!targetUser) {
-        const allUsers = await ctx.db.query('users').collect()
-        targetUser = allUsers.find(u => u.userId === args.targetUserId || u.email.trim().toLowerCase() === args.targetUserId!.trim().toLowerCase()) ?? null
-      }
+      const target = args.targetUserId.trim()
+      targetUser = await findUser(ctx, target, normalizeEmail(target))
+    } else {
+      targetUser = caller.user
     }
-
-    if (!targetUser && currentEmail) {
-      const key = identity?.subject ?? currentEmail
-      targetUser = await ctx.db
-        .query('users')
-        .withIndex('by_userId', q => q.eq('userId', key))
-        .first()
-
-      if (!targetUser) {
-        const allUsers = await ctx.db.query('users').collect()
-        targetUser = allUsers.find(u => u.email.trim().toLowerCase() === currentEmail) ?? null
-      }
-    }
-
     if (!targetUser) return null
 
-    const isSelf = Boolean(
-      (identity?.subject && targetUser.userId === identity.subject) ||
-        (currentEmail && targetUser.email.trim().toLowerCase() === currentEmail),
-    )
+    const isSelf =
+      targetUser.userId === caller.userId || normalizeEmail(targetUser.email) === caller.email
+    if (!isSelf && !(await shareATeam(ctx, caller, targetUser))) {
+      // Not a teammate: behave exactly like an unknown user.
+      return null
+    }
 
     let teamInfo = null
     if (targetUser.teamId) {
       const team = await ctx.db.get(targetUser.teamId)
       const membership = await ctx.db
         .query('teamMembers')
-        .withIndex('by_team', q => q.eq('teamId', targetUser.teamId!))
+        .withIndex('by_team', q => q.eq('teamId', targetUser!.teamId!))
         .collect()
       const member = membership.find(
         m =>
           m.userId === targetUser!.userId ||
-          m.email.trim().toLowerCase() === targetUser!.email.trim().toLowerCase(),
+          normalizeEmail(m.email) === normalizeEmail(targetUser!.email),
       )
       if (team) {
         teamInfo = {
@@ -154,56 +170,71 @@ export const getProfile = query({
     }
 
     return {
-      ...targetUser,
-      avatarUrl: targetUser.avatarUrl || makeThumbsAvatarUrl(targetUser.email || targetUser.userId),
+      ...publicProfile(targetUser),
+      // Contact details are only returned to the profile's owner.
+      phone: isSelf ? targetUser.phone : undefined,
+      location: isSelf ? targetUser.location : undefined,
       isSelf,
       teamInfo,
     }
   },
 })
 
+/** Optional text field: a string sets it, null clears it, undefined leaves it alone. */
+const clearable = v.optional(v.union(v.string(), v.null()))
+
 export const updateProfile = mutation({
   args: {
-    userEmail: v.optional(v.string()),
     name: v.optional(v.string()),
     timezone: v.optional(v.string()),
-    jobTitle: v.optional(v.string()),
-    department: v.optional(v.string()),
-    bio: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    location: v.optional(v.string()),
-    avatarUrl: v.optional(v.string()),
-    githubUrl: v.optional(v.string()),
-    linkedinUrl: v.optional(v.string()),
+    jobTitle: clearable,
+    department: clearable,
+    bio: clearable,
+    phone: clearable,
+    location: clearable,
+    avatarUrl: clearable,
+    githubUrl: clearable,
+    linkedinUrl: clearable,
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    const cleanEmail = (identity?.email ?? args.userEmail)?.trim().toLowerCase()
-    if (!cleanEmail) throw new Error('Not authenticated')
+    const { user } = await requireUser(ctx)
+    if (!user) throw authError('NOT_FOUND', 'User record not found')
 
-    const userId = identity?.subject ?? cleanEmail
-    let user = await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', userId))
-      .first()
+    const patch: Partial<Doc<'users'>> = {}
 
-    if (!user) {
-      const allUsers = await ctx.db.query('users').collect()
-      user = allUsers.find(u => u.email.trim().toLowerCase() === cleanEmail) ?? null
+    if (args.name !== undefined) {
+      const name = args.name.trim()
+      if (!name) throw authError('FORBIDDEN', 'Name cannot be empty.')
+      patch.name = name.slice(0, 120)
+    }
+    if (args.timezone !== undefined) {
+      if (!isValidTimezone(args.timezone)) throw authError('FORBIDDEN', `Unknown timezone: ${args.timezone}`)
+      patch.timezone = args.timezone
     }
 
-    if (!user) throw new Error('User record not found')
+    const text = (key: 'jobTitle' | 'department' | 'bio' | 'phone' | 'location', max: number) => {
+      const val = args[key]
+      if (val === undefined) return
+      patch[key] = val === null ? undefined : val.trim().slice(0, max) || undefined
+    }
+    text('jobTitle', 120)
+    text('department', 120)
+    text('bio', 2000)
+    text('phone', 40)
+    text('location', 120)
 
-    const { userEmail: _userEmail, ...patchData } = args
-
-    const cleanPatch: Record<string, unknown> = {}
-    for (const [k, val] of Object.entries(patchData)) {
-      if (val !== undefined) {
-        cleanPatch[k] = val
-      }
+    if (args.avatarUrl !== undefined) {
+      patch.avatarUrl = args.avatarUrl === null || !args.avatarUrl.trim() ? undefined : validateAvatarUrl(args.avatarUrl)
+    }
+    if (args.githubUrl !== undefined) {
+      patch.githubUrl = args.githubUrl === null || !args.githubUrl.trim() ? undefined : validateGithubUrl(args.githubUrl)
+    }
+    if (args.linkedinUrl !== undefined) {
+      patch.linkedinUrl =
+        args.linkedinUrl === null || !args.linkedinUrl.trim() ? undefined : validateLinkedinUrl(args.linkedinUrl)
     }
 
-    await ctx.db.patch(user._id, cleanPatch)
+    await ctx.db.patch(user._id, patch)
     return user._id
   },
 })

@@ -1,8 +1,8 @@
 'use client'
 
+import { parseConvexError } from '@/lib/utils'
 import { useState, useRef } from 'react'
 import { useQuery, useMutation } from 'convex/react'
-import { useSession } from 'next-auth/react'
 import { api } from '@/convex/_generated/api'
 import {
   Dialog,
@@ -28,9 +28,7 @@ import { ImageIcon, UploadIcon, XIcon } from 'lucide-react'
 import type { Id } from '@/convex/_generated/dataModel'
 
 export function NewTicketDialog({ projectId }: { projectId: string }) {
-  const { data: session } = useSession()
-  const userEmail = session?.user?.email ?? undefined
-  const members = useQuery(api.tickets.listAssignableMembers, userEmail ? { userEmail } : {}) ?? []
+  const members = useQuery(api.tickets.listAssignableMembers, {}) ?? []
 
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<'bug' | 'feature' | 'task' | 'epic'>('task')
@@ -67,9 +65,9 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
 
       setAttachments(prev => [...prev, storageId])
       toast.success('Image attached', file.name)
-    } catch (err: any) {
+    } catch (err) {
       console.error('File upload error:', err)
-      toast.error('Upload failed', err?.message ?? 'Failed to attach image')
+      toast.error('Upload failed', parseConvexError(err))
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -106,9 +104,9 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
       setStoryPoints('')
       setAttachments([])
       setOpen(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create ticket:', err)
-      toast.error('Failed to create ticket', err?.message ?? 'An error occurred while creating the ticket.')
+      toast.error('Failed to create ticket', parseConvexError(err))
     } finally {
       setSubmitting(false)
     }
@@ -128,7 +126,7 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
               <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
                 Type
               </label>
-              <Select value={type} onValueChange={v => setType(v as any)}>
+              <Select value={type} onValueChange={v => v && setType(v as typeof type)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -144,7 +142,7 @@ export function NewTicketDialog({ projectId }: { projectId: string }) {
               <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">
                 Priority
               </label>
-              <Select value={priority} onValueChange={v => setPriority(v as any)}>
+              <Select value={priority} onValueChange={v => v && setPriority(v as typeof priority)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

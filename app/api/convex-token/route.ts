@@ -1,31 +1,26 @@
 import { auth } from '@/auth'
-import { SignJWT } from 'jose'
+import { mintConvexToken } from '@/lib/convexToken'
+
+/**
+ * Issues a short-lived RS256 JWT for the browser Convex client. Signing
+ * details live in lib/convexToken.ts (shared with server components).
+ */
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  const session = await auth()
+  const user = session?.user
+  const email = user?.email?.trim().toLowerCase()
+  if (!user || !email) {
+    return Response.json({ error: 'Unauthenticated' }, { status: 401 })
+  }
+
   try {
-    const session = await auth()
-    if (!session?.user?.email) {
-      return Response.json({ token: null })
-    }
-
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET!)
-
-    const token = await new SignJWT({
-      email: session.user.email,
-      name: session.user.name ?? session.user.email,
-      picture: session.user.image ?? undefined,
-    })
-      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setSubject(session.user.email)
-      .setIssuer(process.env.CONVEX_AUTH_DOMAIN || 'http://localhost:3000')
-      .setAudience('doko')
-      .setIssuedAt()
-      .setExpirationTime('1d')
-      .sign(secret)
-
-    return Response.json({ token })
+    const token = await mintConvexToken({ email, name: user.name, image: user.image })
+    return Response.json({ token }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
-    console.error('convex-token error:', error)
-    return Response.json({ token: null })
+    console.error('[convex-token] failed to sign token:', error)
+    return Response.json({ error: 'Token signing unavailable' }, { status: 500 })
   }
 }
