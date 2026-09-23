@@ -206,30 +206,30 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| BRIEF-01 | C | `briefActions.ts`, `ProviderComparison.tsx`, home page | Public action with any `userId` + `skipRateLimit`; dev UI in prod | `internalAction`; remove flag + component | open | |
+| BRIEF-01 | C | `briefActions.ts`, `ProviderComparison.tsx`, home page | Public action with any `userId` + `skipRateLimit`; dev UI in prod | `internalAction`; remove flag + component | fixed | 37170e2 |
 | BRIEF-02 | H | `brief.ts`, `briefActions.ts` | All users → `'dev-user'` | `requireAuth` | fixed | 7cdad7c |
-| BRIEF-03 | H | `brief.ts` `readContext` | Others' DMs fed into brief | Filter by membership | open | |
-| BRIEF-04 | H | `lib/llm/anthropic.ts`, `google.ts` | Fabricated prose on missing key / error | Throw; `LLM_MOCK` only | open | |
-| BRIEF-05 | H | `brief.ts`, `crons.ts` | No try/catch in cron loop; interval drift | Per-user catch; hourly cron; idempotent | open | |
-| BRIEF-06 | H | `brief.ts` | Fragile hour parse; invalid tz throws | `formatToParts`; validate tz | open | |
-| BRIEF-07 | M | `brief.ts`, `briefActions.ts` | `en-CA` split date | Shared helper | open | |
-| BRIEF-08 | H | `brief.ts` vs `events.ts` | Mismatched sentinels; cross-team feed | Require team | open | |
-| BRIEF-09 | M | `brief.ts` | Rolling 24h window | tz-local window | open | |
-| BRIEF-10 | M | `brief.ts` | Misses email-assigned tickets | Canonical ids | open | |
-| BRIEF-11 | M | `brief.ts` `todayForMe` | No email fallback | `requireUser` | open | |
-| BRIEF-12 | L | `brief.ts`, `briefActions.ts` | Duplicate `hourlyTick` | Delete | open | |
-| BRIEF-13 | M | `rateLimit.ts` | Keyed on caller id; first call bypasses | Identity key; evaluate first call | open | |
-| BRIEF-14 | M | `rateLimit.ts`, `briefActions.ts` | Quota consumed before success | Record after / refund | open | |
-| BRIEF-15 | L | `rateLimit.ts` | Sorted-history assumption | `Math.min` | open | |
-| BRIEF-16 | M | `briefActions.ts` | Wrong `providerUsed` default | Return from `summarize` | open | |
-| BRIEF-17 | M | `lib/llm/index.ts` | Unknown provider → Anthropic | Throw; validate | open | |
-| BRIEF-18 | M | `lib/llm/types.ts` | `cacheKey` unused | Remove | open | |
-| BRIEF-19 | M | `lib/llm/index.ts` | No timeout | `AbortSignal.timeout` | open | |
-| BRIEF-20 | M | `lib/llm/anthropic.ts` | Stale models; inert header; `stop_reason`; empty content | Update; guard | open | |
-| BRIEF-21 | M | `lib/llm/google.ts` | Quota code not retried; same-model fallback; no system role | Fix | open | |
-| BRIEF-22 | L | both providers | Sleep after final retry | Guard | open | |
-| BRIEF-23 | L | `briefActions.ts` | Errors flattened, unlogged | Log | open | |
-| BRIEF-24 | M | `briefActions.test.ts` | 5 s timeout | `testTimeout` + mocks | open | |
+| BRIEF-03 | H | `brief.ts` `readContext` | Others' DMs fed into brief | Filter by membership | fixed | 37170e2 |
+| BRIEF-04 | H | `lib/llm/anthropic.ts`, `google.ts` | Fabricated prose on missing key / error | Throw; `LLM_MOCK` only | fixed | 79a4ea3 |
+| BRIEF-05 | H | `brief.ts`, `crons.ts` | No try/catch in cron loop; interval drift | Per-user catch; hourly cron; idempotent | fixed | 84fe2d0 |
+| BRIEF-06 | H | `brief.ts` | Fragile hour parse; invalid tz throws | `formatToParts`; validate tz | fixed | 84fe2d0 |
+| BRIEF-07 | M | `brief.ts`, `briefActions.ts` | `en-CA` split date | Shared helper | fixed | 84fe2d0 |
+| BRIEF-08 | H | `brief.ts` vs `events.ts` | Mismatched sentinels; cross-team feed | Require team | fixed | 84fe2d0 |
+| BRIEF-09 | M | `brief.ts` | Rolling 24h window | tz-local window | fixed | 84fe2d0 |
+| BRIEF-10 | M | `brief.ts` | Misses email-assigned tickets | Canonical ids | fixed | 84fe2d0 |
+| BRIEF-11 | M | `brief.ts` `todayForMe` | No email fallback | `requireUser` | fixed | 84fe2d0 |
+| BRIEF-12 | L | `brief.ts`, `briefActions.ts` | Duplicate `hourlyTick` | Delete | fixed | 84fe2d0 |
+| BRIEF-13 | M | `rateLimit.ts` | Keyed on caller id; first call bypasses | Identity key; evaluate first call | fixed | 37170e2 |
+| BRIEF-14 | M | `rateLimit.ts`, `briefActions.ts` | Quota consumed before success | Record after / refund | fixed | 37170e2 |
+| BRIEF-15 | L | `rateLimit.ts` | Sorted-history assumption | `Math.min` | fixed | 37170e2 |
+| BRIEF-16 | M | `briefActions.ts` | Wrong `providerUsed` default | Return from `summarize` | fixed | 79a4ea3 |
+| BRIEF-17 | M | `lib/llm/index.ts` | Unknown provider → Anthropic | Throw; validate | fixed | 79a4ea3 |
+| BRIEF-18 | M | `lib/llm/types.ts` | `cacheKey` unused | Remove | fixed | 79a4ea3 |
+| BRIEF-19 | M | `lib/llm/index.ts` | No timeout | `AbortSignal.timeout` | fixed | 79a4ea3 |
+| BRIEF-20 | M | `lib/llm/anthropic.ts` | Stale models; inert header; `stop_reason`; empty content | Update; guard | fixed | 79a4ea3 |
+| BRIEF-21 | M | `lib/llm/google.ts` | Quota code not retried; same-model fallback; no system role | Fix | fixed | 79a4ea3 |
+| BRIEF-22 | L | both providers | Sleep after final retry | Guard | fixed | 79a4ea3 |
+| BRIEF-23 | L | `briefActions.ts` | Errors flattened, unlogged | Log | fixed | 37170e2 |
+| BRIEF-24 | M | `briefActions.test.ts` | 5 s timeout | `testTimeout` + mocks | fixed | 37170e2 |
 
 ## UI
 
