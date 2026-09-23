@@ -28,46 +28,46 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| TEAM-01 | C | `convex/invites.ts`, `app/invite/accept/page.tsx` | `accept` never checks caller is invitee; token never verified; page just redirects | `by_token` index, `acceptByToken` verifies JWT + email match | open | |
-| TEAM-02 | C | `convex/invites.ts` `listForTeam` | Returns full invites incl. `token`, no role check | Owner/admin only; strip token | open | |
-| TEAM-03 | H | `convex/invites.ts` `revoke` | No role check | Owner/admin | open | |
-| TEAM-04 | H | `convex/invites.ts` `send` | Duplicate check not team-scoped | Scope to team | open | |
-| TEAM-05 | H | `convex/invites.ts` `accept` | No duplicate-membership check | No-op if member; set active team | open | |
-| TEAM-06 | H | `convex/invites.ts` | Hardcoded fallback signing secret | Throw when env missing | open | |
-| TEAM-07 | M | `convex/invites.ts` | Expired invites marked `revoked` (and rolled back) | `expired` status via cron | open | |
-| TEAM-08 | M | `convex/invites.ts` | Domain check only at send time | Re-check on accept | open | |
-| TEAM-09 | L | `convex/invites.ts` | Unused `reqUserId`; side-effect `requireTeam` | Clean up | open | |
-| TEAM-10 | H | `convex/teams.ts`, `TeamGuard`, `UserNav` | Single `users.teamId`; second team/invite orphans the first; no switching | Multi-team: active team + `myTeams` + `setActiveTeam` + switcher | open | |
-| TEAM-11 | M | `convex/teams.ts` | Slug uniqueness not enforced | Check + suffix | open | |
-| TEAM-12 | M | `convex/teams.ts` `update` | Membership lookup misses email-keyed rows | `requireRole` | open | |
-| TEAM-13 | H | `convex/teams.ts` `deleteTeam` | Leaves messages, tickets, sprints, comments, events, config, filters, attachments | Paginated cascade | open | |
-| TEAM-14 | M | `convex/teams.ts` `deleteTeam` | Unbounded loop in one transaction | Paginate | open | |
-| TEAM-15 | M | `convex/teams.ts` `myTeam` | Null-vs-fallback inconsistency | `optionalTeam` | open | |
-| TEAM-16 | C | `convex/teamMembers.ts` `listForTeam` | Roster exposed without membership check | Assert membership | open | |
-| TEAM-17 | H | `convex/teamMembers.ts` `remove` | Self-removal guard un-normalised | Normalise / compare ids | open | |
-| TEAM-18 | H | `convex/teamMembers.ts` `remove` | `users.teamId` not cleared for email-keyed rows | Lookup by canonical id | open | |
-| TEAM-19 | M | `convex/teamMembers.ts` `leave`/`remove` | Not removed from channels/watchers; active team not re-pointed | Cascade + re-point | open | |
-| TEAM-20 | M | `convex/teamMembers.ts` | No `transferOwnership` | Add mutation + UI | open | |
+| TEAM-01 | C | `convex/invites.ts`, `app/invite/accept/page.tsx` | `accept` never checks caller is invitee; token never verified; page just redirects | `by_token` index, `acceptByToken` verifies JWT + email match | fixed | cef1445 |
+| TEAM-02 | C | `convex/invites.ts` `listForTeam` | Returns full invites incl. `token`, no role check | Owner/admin only; strip token | fixed | cef1445 |
+| TEAM-03 | H | `convex/invites.ts` `revoke` | No role check | Owner/admin | fixed | cef1445 |
+| TEAM-04 | H | `convex/invites.ts` `send` | Duplicate check not team-scoped | Scope to team | fixed | cef1445 |
+| TEAM-05 | H | `convex/invites.ts` `accept` | No duplicate-membership check | No-op if member; set active team | fixed | cef1445 |
+| TEAM-06 | H | `convex/invites.ts` | Hardcoded fallback signing secret | Throw when env missing | fixed | cef1445 |
+| TEAM-07 | M | `convex/invites.ts` | Expired invites marked `revoked` (and rolled back) | `expired` status via cron | fixed | cef1445 |
+| TEAM-08 | M | `convex/invites.ts` | Domain check only at send time | Re-check on accept | fixed | cef1445 |
+| TEAM-09 | L | `convex/invites.ts` | Unused `reqUserId`; side-effect `requireTeam` | Clean up | fixed | cef1445 |
+| TEAM-10 | H | `convex/teams.ts`, `TeamGuard`, `UserNav` | Single `users.teamId`; second team/invite orphans the first; no switching | Multi-team: active team + `myTeams` + `setActiveTeam` + switcher | fixed | 6b2dd1d |
+| TEAM-11 | M | `convex/teams.ts` | Slug uniqueness not enforced | Check + suffix | fixed | 83e32fb |
+| TEAM-12 | M | `convex/teams.ts` `update` | Membership lookup misses email-keyed rows | `requireRole` | fixed | 7cdad7c |
+| TEAM-13 | H | `convex/teams.ts` `deleteTeam` | Leaves messages, tickets, sprints, comments, events, config, filters, attachments | Paginated cascade | fixed | 997b4e1 |
+| TEAM-14 | M | `convex/teams.ts` `deleteTeam` | Unbounded loop in one transaction | Paginate | fixed | 997b4e1 |
+| TEAM-15 | M | `convex/teams.ts` `myTeam` | Null-vs-fallback inconsistency | `optionalTeam` | fixed | 7cdad7c |
+| TEAM-16 | C | `convex/teamMembers.ts` `listForTeam` | Roster exposed without membership check | Assert membership | fixed | 7cdad7c |
+| TEAM-17 | H | `convex/teamMembers.ts` `remove` | Self-removal guard un-normalised | Normalise / compare ids | fixed | 7cdad7c |
+| TEAM-18 | H | `convex/teamMembers.ts` `remove` | `users.teamId` not cleared for email-keyed rows | Lookup by canonical id | fixed | d50f087 |
+| TEAM-19 | M | `convex/teamMembers.ts` `leave`/`remove` | Not removed from channels/watchers; active team not re-pointed | Cascade + re-point | fixed | d50f087 |
+| TEAM-20 | M | `convex/teamMembers.ts` | No `transferOwnership` | Add mutation + UI | fixed | d50f087 |
 | TEAM-21 | C | `convex/users.ts` `updateProfile` | Authenticates off `args.userEmail` | `ctx.auth` only | fixed | 7cdad7c |
-| TEAM-22 | H | `convex/users.ts` `getProfile` | Raw doc for any id, no team scoping | Shared-team check; whitelist fields | open | |
-| TEAM-23 | H | `convex/users.ts` `getByUserId` | Public whole-doc read | Delete/restrict | open | |
+| TEAM-22 | H | `convex/users.ts` `getProfile` | Raw doc for any id, no team scoping | Shared-team check; whitelist fields | fixed | 6d09b40 |
+| TEAM-23 | H | `convex/users.ts` `getByUserId` | Public whole-doc read | Delete/restrict | fixed | 6d09b40 |
 | TEAM-24 | M | `convex/users.ts` `me` | No email fallback → "account not found" | Resolve via identity | fixed | 7cdad7c |
 | TEAM-25 | H | `convex/users.ts` `upsert` | Keys on `subject ?? email` → duplicates; client overwrites email/name | Key on identity; migration merges | open | |
-| TEAM-26 | L | `convex/users.ts` `cleanPatch` | Fields can't be cleared | Accept `null` | open | |
-| TEAM-27 | M | `convex/users.ts`, `DiceBearAvatarPicker.tsx` | URL fields unvalidated | Server-side https validation | open | |
-| TEAM-28 | H | `convex/email.ts` | Send failures swallowed | Throw; `deliveryStatus` on invite | open | |
-| TEAM-29 | H | `convex/email.ts` | HTML injection of team name / inviter / ticket title | `escapeHtml` | open | |
-| TEAM-30 | H | `convex/email.ts` | Assignee string used as recipient (relay) | Resolve via `teamMembers` | open | |
-| TEAM-31 | M | `convex/email.ts` | Invite JWT in query string | Short-lived, verified (TEAM-01); document | open | |
-| TEAM-32 | L | `convex/email.ts` | "7 days" hardcoded | Derive from constant | open | |
-| TEAM-33 | L | `convex/email.ts` | Transport per email, no timeout | Module transporter + timeout | open | |
-| TEAM-34 | L | `convex/email.ts` | Self-assign check uses caller-supplied email | Use identity | open | |
-| TEAM-35 | H | `convex/email.ts` | Invite link falls back to `http://localhost:3000` | Require `APP_URL`; throw when missing | open | |
-| TEAM-36 | H | `app/invite/accept/page.tsx` | Wrong Google account → silent failure | `acceptByToken` + mismatch message | open | |
-| TEAM-37 | M | `convex/invites.ts` `accept` | Not added to `#general` | Append to public channels | open | |
+| TEAM-26 | L | `convex/users.ts` `cleanPatch` | Fields can't be cleared | Accept `null` | fixed | 6d09b40 |
+| TEAM-27 | M | `convex/users.ts`, `DiceBearAvatarPicker.tsx` | URL fields unvalidated | Server-side https validation | fixed | 6d09b40 |
+| TEAM-28 | H | `convex/email.ts` | Send failures swallowed | Throw; `deliveryStatus` on invite | fixed | 06a1838 |
+| TEAM-29 | H | `convex/email.ts` | HTML injection of team name / inviter / ticket title | `escapeHtml` | fixed | 06a1838 |
+| TEAM-30 | H | `convex/email.ts` | Assignee string used as recipient (relay) | Resolve via `teamMembers` | fixed | 06a1838 |
+| TEAM-31 | M | `convex/email.ts` | Invite JWT in query string | Short-lived, verified (TEAM-01); document | fixed | cef1445 |
+| TEAM-32 | L | `convex/email.ts` | "7 days" hardcoded | Derive from constant | fixed | 06a1838 |
+| TEAM-33 | L | `convex/email.ts` | Transport per email, no timeout | Module transporter + timeout | fixed | 06a1838 |
+| TEAM-34 | L | `convex/email.ts` | Self-assign check uses caller-supplied email | Use identity | fixed | 06a1838 |
+| TEAM-35 | H | `convex/email.ts` | Invite link falls back to `http://localhost:3000` | Require `APP_URL`; throw when missing | fixed | 06a1838 |
+| TEAM-36 | H | `app/invite/accept/page.tsx` | Wrong Google account → silent failure | `acceptByToken` + mismatch message | fixed | cef1445 |
+| TEAM-37 | M | `convex/invites.ts` `accept` | Not added to `#general` | Append to public channels | fixed | cef1445 |
 | TEAM-38 | M | `convex/invites.ts` `pendingForMe` | `requireTeam` side effects | `requireAuth` + email match | fixed | 7cdad7c |
-| TEAM-39 | M | `TeamSettings.tsx`, `convex/invites.ts` | "Invitation email sent" regardless of delivery | Delivery status + Resend | open | |
-| TEAM-40 | L | `convex/invites.ts` `accept` | Returns only `teamId` | Return `{teamId, teamName}`; set active | open | |
+| TEAM-39 | M | `TeamSettings.tsx`, `convex/invites.ts` | "Invitation email sent" regardless of delivery | Delivery status + Resend | fixed | 06a1838 |
+| TEAM-40 | L | `convex/invites.ts` `accept` | Returns only `teamId` | Return `{teamId, teamName}`; set active | fixed | cef1445 |
 | TEAM-41 | M | `components/UserInit.tsx` | `upsert` fires before session, on every change | Run once when authenticated | fixed | 7cdad7c |
 
 ## CHAT
