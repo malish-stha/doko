@@ -1,31 +1,67 @@
 import { auth } from '@/auth'
-import { SignJWT } from 'jose'
+import { SignJWT, importPKCS8 } from 'jose'
+
+/**
+ * Issues a short-lived RS256 JWT that Convex verifies against
+ * `/.well-known/jwks.json` (see convex/auth.config.ts).
+ *
+ * Env:
+ *   CONVEX_JWT_PRIVATE_KEY  PKCS8 PEM (openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt)
+ *   CONVEX_JWT_KID          key id, must match the JWKS entry (default "doko-1")
+ *   AUTH_URL                site origin; used as `iss` and must equal CONVEX_AUTH_ISSUER
+ */
+
+export const dynamic = 'force-dynamic'
+
+export const TOKEN_AUDIENCE = 'doko'
+export const TOKEN_TTL = '1h'
+
+let privateKey: Promise<CryptoKey> | null = null
+
+function getPrivateKey() {
+  if (!privateKey) {
+    const pem = process.env.CONVEX_JWT_PRIVATE_KEY
+    if (!pem) throw new Error('CONVEX_JWT_PRIVATE_KEY is not set')
+    privateKey = importPKCS8(pem.replace(/\n/g, '\n'), 'RS256')
+  }
+  return privateKey
+}
+
+export function getIssuer() {
+  const raw = process.env.AUTH_URL
+  if (!raw) throw new Error('AUTH_URL is not set')
+  return raw.replace(/\/+$/, '')
+}
 
 export async function GET() {
+  const session = await auth()
+  const user = session?.user
+  const email = user?.email?.trim().toLowerCase()
+  if (!user || !email) {
+    return Response.json({ error: 'Unauthenticated' }, { status: 401 })
+  }
+
   try {
-    const session = await auth()
-    if (!session?.user?.email) {
-      return Response.json({ token: null })
-    }
-
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET!)
-
     const token = await new SignJWT({
-      email: session.user.email,
-      name: session.user.name ?? session.user.email,
-      picture: session.user.image ?? undefined,
+      email,
+      name: user.name ?? email,
+      picture: user.image ?? undefined,
     })
-      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setSubject(session.user.email)
-      .setIssuer(process.env.CONVEX_AUTH_DOMAIN || 'http://localhost:3000')
-      .setAudience('doko')
+      .setProtectedHeader({
+        alg: 'RS256',
+        typ: 'JWT',
+        kid: process.env.CONVEX_JWT_KID ?? 'doko-1',
+      })
+      .setSubject(email)
+      .setIssuer(getIssuer())
+      .setAudience(TOKEN_AUDIENCE)
       .setIssuedAt()
-      .setExpirationTime('1d')
-      .sign(secret)
+      .setExpirationTime(TOKEN_TTL)
+      .sign(await getPrivateKey())
 
-    return Response.json({ token })
+    return Response.json({ token }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
-    console.error('convex-token error:', error)
-    return Response.json({ token: null })
+    console.error('[convex-token] failed to sign token:', error)
+    return Response.json({ error: 'Token signing unavailable' }, { status: 500 })
   }
 }
