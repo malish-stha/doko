@@ -10,19 +10,19 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| AUTH-01 | C | `components/ConvexClientProvider.tsx` | Plain `ConvexProvider`; Convex never receives a token | `ConvexProviderWithAuth` + next-auth token hook | open | |
-| AUTH-02 | C | `app/api/convex-token/route.ts` | HS256 token Convex cannot verify; dead code | RS256 via `jose`, `sub` = lowercased email, 1h expiry, 401 when signed out | open | |
-| AUTH-03 | C | `convex/auth.config.ts` | `providers: []` on localhost; OIDC config with no JWKS | `customJwt` provider + `/.well-known/jwks.json`; fail closed | open | |
-| AUTH-04 | C | `convex/teamHelper.ts` | Teamless/anonymous caller handed the first team in the DB | `requireTeam` throws `NO_TEAM`; `optionalTeam` returns null | open | |
-| AUTH-05 | C | `convex/teamHelper.ts` + all functions | Client `userEmail` trusted as identity; `'anonymous'` synthesized | Identity only from `ctx.auth`; remove `userEmail` args everywhere | open | |
-| AUTH-06 | C | `convex/teamHelper.ts` | `getMembership` auto-heal rewrites `teamMembers.userId` (membership hijack) | Remove auto-heal; `by_team_user` index | open | |
-| AUTH-07 | H | `convex/teamHelper.ts` | `requireTeam` inserts a team as a side effect | Remove insert | open | |
-| AUTH-08 | H | all Convex functions | Membership never asserted; removed users keep access | `requireTeam` requires a `teamMembers` row | open | |
-| AUTH-09 | C | `app/api/send-email/route.ts` | Unauthenticated open mail relay | Delete route | open | |
-| AUTH-10 | H | `proxy.ts` | Most authenticated routes unprotected; `/settings/board` outside `(app)` | Protect all but public routes; move settings page | open | |
-| AUTH-11 | M | `auth.ts` | `token.iss` overwritten for no consumer | Drop | open | |
-| AUTH-12 | M | `convex/teamHelper.ts` | Full `users`/`teamMembers` scans per call | Indexes (INFRA-02) | open | |
-| AUTH-13 | M | `app/(auth)/sign-in/page.tsx`, `app/invite/accept/page.tsx` | `redirect` param dropped | Honour validated relative redirect | open | |
+| AUTH-01 | C | `components/ConvexClientProvider.tsx` | Plain `ConvexProvider`; Convex never receives a token | `ConvexProviderWithAuth` + next-auth token hook | fixed | a575995 |
+| AUTH-02 | C | `app/api/convex-token/route.ts` | HS256 token Convex cannot verify; dead code | RS256 via `jose`, `sub` = lowercased email, 1h expiry, 401 when signed out | fixed | a575995 |
+| AUTH-03 | C | `convex/auth.config.ts` | `providers: []` on localhost; OIDC config with no JWKS | `customJwt` provider + `/.well-known/jwks.json`; fail closed | fixed | a575995 |
+| AUTH-04 | C | `convex/teamHelper.ts` | Teamless/anonymous caller handed the first team in the DB | `requireTeam` throws `NO_TEAM`; `optionalTeam` returns null | fixed | 7cdad7c |
+| AUTH-05 | C | `convex/teamHelper.ts` + all functions | Client `userEmail` trusted as identity; `'anonymous'` synthesized | Identity only from `ctx.auth`; remove `userEmail` args everywhere | fixed | 7cdad7c |
+| AUTH-06 | C | `convex/teamHelper.ts` | `getMembership` auto-heal rewrites `teamMembers.userId` (membership hijack) | Remove auto-heal; `by_team_user` index | fixed | 7cdad7c |
+| AUTH-07 | H | `convex/teamHelper.ts` | `requireTeam` inserts a team as a side effect | Remove insert | fixed | 7cdad7c |
+| AUTH-08 | H | all Convex functions | Membership never asserted; removed users keep access | `requireTeam` requires a `teamMembers` row | fixed | 7cdad7c |
+| AUTH-09 | C | `app/api/send-email/route.ts` | Unauthenticated open mail relay | Delete route | fixed | 480d8eb |
+| AUTH-10 | H | `proxy.ts` | Most authenticated routes unprotected; `/settings/board` outside `(app)` | Protect all but public routes; move settings page | fixed | 597d4ba |
+| AUTH-11 | M | `auth.ts` | `token.iss` overwritten for no consumer | Drop | fixed | b7dee09 |
+| AUTH-12 | M | `convex/teamHelper.ts` | Full `users`/`teamMembers` scans per call | Indexes (INFRA-02) | fixed | 44d153c |
+| AUTH-13 | M | `app/(auth)/sign-in/page.tsx`, `app/invite/accept/page.tsx` | `redirect` param dropped | Honour validated relative redirect | fixed | eb5f86b |
 
 ## TEAM
 
@@ -48,10 +48,10 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | TEAM-18 | H | `convex/teamMembers.ts` `remove` | `users.teamId` not cleared for email-keyed rows | Lookup by canonical id | open | |
 | TEAM-19 | M | `convex/teamMembers.ts` `leave`/`remove` | Not removed from channels/watchers; active team not re-pointed | Cascade + re-point | open | |
 | TEAM-20 | M | `convex/teamMembers.ts` | No `transferOwnership` | Add mutation + UI | open | |
-| TEAM-21 | C | `convex/users.ts` `updateProfile` | Authenticates off `args.userEmail` | `ctx.auth` only | open | |
+| TEAM-21 | C | `convex/users.ts` `updateProfile` | Authenticates off `args.userEmail` | `ctx.auth` only | fixed | 7cdad7c |
 | TEAM-22 | H | `convex/users.ts` `getProfile` | Raw doc for any id, no team scoping | Shared-team check; whitelist fields | open | |
 | TEAM-23 | H | `convex/users.ts` `getByUserId` | Public whole-doc read | Delete/restrict | open | |
-| TEAM-24 | M | `convex/users.ts` `me` | No email fallback → "account not found" | Resolve via identity | open | |
+| TEAM-24 | M | `convex/users.ts` `me` | No email fallback → "account not found" | Resolve via identity | fixed | 7cdad7c |
 | TEAM-25 | H | `convex/users.ts` `upsert` | Keys on `subject ?? email` → duplicates; client overwrites email/name | Key on identity; migration merges | open | |
 | TEAM-26 | L | `convex/users.ts` `cleanPatch` | Fields can't be cleared | Accept `null` | open | |
 | TEAM-27 | M | `convex/users.ts`, `DiceBearAvatarPicker.tsx` | URL fields unvalidated | Server-side https validation | open | |
@@ -65,31 +65,31 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | TEAM-35 | H | `convex/email.ts` | Invite link falls back to `http://localhost:3000` | Require `APP_URL`; throw when missing | open | |
 | TEAM-36 | H | `app/invite/accept/page.tsx` | Wrong Google account → silent failure | `acceptByToken` + mismatch message | open | |
 | TEAM-37 | M | `convex/invites.ts` `accept` | Not added to `#general` | Append to public channels | open | |
-| TEAM-38 | M | `convex/invites.ts` `pendingForMe` | `requireTeam` side effects | `requireAuth` + email match | open | |
+| TEAM-38 | M | `convex/invites.ts` `pendingForMe` | `requireTeam` side effects | `requireAuth` + email match | fixed | 7cdad7c |
 | TEAM-39 | M | `TeamSettings.tsx`, `convex/invites.ts` | "Invitation email sent" regardless of delivery | Delivery status + Resend | open | |
 | TEAM-40 | L | `convex/invites.ts` `accept` | Returns only `teamId` | Return `{teamId, teamName}`; set active | open | |
-| TEAM-41 | M | `components/UserInit.tsx` | `upsert` fires before session, on every change | Run once when authenticated | open | |
+| TEAM-41 | M | `components/UserInit.tsx` | `upsert` fires before session, on every change | Run once when authenticated | fixed | 7cdad7c |
 
 ## CHAT
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
 | CHAT-01 | C | `convex/messages.ts` `byChannel`/`threadReplies` | Zero auth | Assert team + `memberIds` | open | |
-| CHAT-02 | C | `convex/messages.ts` `send` | `authorId` = client display name | Store `userId` | open | |
+| CHAT-02 | C | `convex/messages.ts` `send` | `authorId` = client display name | Store `userId` | fixed | 7cdad7c |
 | CHAT-03 | C | `convex/messages.ts` `send` | No channel/team/membership check | Assert | open | |
 | CHAT-04 | M | `convex/messages.ts` | `threadRootId` not validated to channel | Assert | open | |
 | CHAT-05 | M | `convex/messages.ts` | `limit` unbounded | Clamp | open | |
 | CHAT-06 | M | `convex/messages.ts` | Full `users` scan per fetch | Batch by author id | open | |
 | CHAT-07 | M | `convex/messages.ts` | No edit/delete | Add gated mutations | open | |
 | CHAT-08 | H | `convex/channels.ts` `byTeam`/`get` | Private channels visible to non-members | Filter by `memberIds` | open | |
-| CHAT-09 | H | `convex/channels.ts` `get` | DM guard bypassed on falsy `userId` | Deny | open | |
+| CHAT-09 | H | `convex/channels.ts` `get` | DM guard bypassed on falsy `userId` | Deny | fixed | 7cdad7c |
 | CHAT-10 | H | `convex/channels.ts` `openDM` | `dmKey` on mutable id; duplicates; race | Canonical id; backfill; conflict re-check | open | |
 | CHAT-11 | H | `convex/channels.ts` `create` | No membership/role check; no dedupe; creator-only members | Assert; dedupe; `addMember`/`join` | open | |
 | CHAT-12 | H | `appendActivityEvent` call sites | Actor/team re-derived → `'anonymous'`/`'unassigned'` | Explicit actor param (TKT-22) | open | |
 | CHAT-13 | L | `convex/channels.ts` | Dead code; un-normalised compare | Clean | open | |
 | CHAT-14 | M | `convex/teams.ts` | `#general` members = creator only | Public channels open; add on accept | open | |
 | CHAT-15 | H | `convex/reactions.ts` | No auth on `byMessage`/`toggle` | Assert membership via channel | open | |
-| CHAT-16 | H | `convex/reactions.ts` `toggle` | All users `'anonymous'` → delete each other's reactions | AUTH-05 + test | open | |
+| CHAT-16 | H | `convex/reactions.ts` `toggle` | All users `'anonymous'` → delete each other's reactions | AUTH-05 + test | fixed | 7cdad7c |
 | CHAT-17 | M | `convex/reactions.ts`, schema | No uniqueness; duplicates survive toggle | Index + delete all | open | |
 | CHAT-18 | L | `convex/reactions.ts` | `emoji` arbitrary string | Whitelist | open | |
 | CHAT-19 | M | `components/chat/ReactionButton.tsx` | `group-hover:` never matches `group/item` → bar invisible | `group-hover/item:` | open | |
@@ -132,7 +132,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | TKT-26 | L | `convex/sprints.ts` | `durationDays` unvalidated; ordering inconsistent | Clamp; consistent | open | |
 | TKT-27 | C | `convex/comments.ts` `byTicket` | No auth; emails via table scans | Assert; batch | open | |
 | TKT-28 | H | `convex/comments.ts` `add` | No team check | Assert | open | |
-| TKT-29 | H | `convex/comments.ts` `add` | `authorName` forges authorship | Drop arg | open | |
+| TKT-29 | H | `convex/comments.ts` `add` | `authorName` forges authorship | Drop arg | fixed | 7cdad7c |
 | TKT-30 | M | `convex/comments.ts` | No edit/delete | Add gated + UI | open | |
 | TKT-31 | M | `convex/comments.ts` | Mentioned ids unvalidated (cross-team injection) | Resolve via members | open | |
 | TKT-32 | M | `convex/comments.ts` | Watcher + mention double notify | Exclusion set | open | |
@@ -184,7 +184,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | BOARD-05 | M | `convex/savedFilters.ts` | Owner check on unstable id | Canonical ids | open | |
 | BOARD-06 | M | `convex/savedFilters.ts` | Personal filters not team-scoped | Filter | open | |
 | BOARD-07 | L | `convex/savedFilters.ts` | Empty name; no cap; no update | Validate; cap; `update` | open | |
-| BOARD-08 | M | `SavedFiltersDropdown.tsx` | All users share `'anonymous'` filters | AUTH-05 | open | |
+| BOARD-08 | M | `SavedFiltersDropdown.tsx` | All users share `'anonymous'` filters | AUTH-05 | fixed | 7cdad7c |
 | BOARD-09 | L | `SavedFiltersDropdown.tsx` | Order-sensitive active detection | Sorted compare | open | |
 | BOARD-10 | M | `BoardClient.tsx` | Sprint scope not in URL | Query string | open | |
 | BOARD-11 | M | `BoardClient.tsx` | Drop to Unassigned sends `undefined` | `null` | open | |
@@ -193,7 +193,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | BOARD-14 | M | `BoardFilters.tsx`, `FilterBar.tsx` | Router push per keystroke | Debounce + replace | open | |
 | BOARD-15 | L | `BoardFilters.tsx` | Clear wipes `lanes` | Targeted delete | open | |
 | BOARD-16 | L | `BoardWithSwimlanes.tsx` | Unknown priority dropped | "Other" lane | open | |
-| BOARD-17 | M | palette, swimlanes, bulk bar | Team queries with `{}` | AUTH-04/05 | open | |
+| BOARD-17 | M | palette, swimlanes, bulk bar | Team queries with `{}` | AUTH-04/05 | fixed | 7cdad7c |
 | BOARD-18 | M | `lib/hotkeys.tsx` | Escape spec never matches | Normalise spec | open | |
 | BOARD-19 | H | `lib/hotkeys.tsx` | Hotkeys fire on focused button/link/select | Extend typing context | open | |
 | BOARD-20 | L | `lib/hotkeys.tsx` | Ref written during render | Effect | open | |
@@ -207,7 +207,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
 | BRIEF-01 | C | `briefActions.ts`, `ProviderComparison.tsx`, home page | Public action with any `userId` + `skipRateLimit`; dev UI in prod | `internalAction`; remove flag + component | open | |
-| BRIEF-02 | H | `brief.ts`, `briefActions.ts` | All users → `'dev-user'` | `requireAuth` | open | |
+| BRIEF-02 | H | `brief.ts`, `briefActions.ts` | All users → `'dev-user'` | `requireAuth` | fixed | 7cdad7c |
 | BRIEF-03 | H | `brief.ts` `readContext` | Others' DMs fed into brief | Filter by membership | open | |
 | BRIEF-04 | H | `lib/llm/anthropic.ts`, `google.ts` | Fabricated prose on missing key / error | Throw; `LLM_MOCK` only | open | |
 | BRIEF-05 | H | `brief.ts`, `crons.ts` | No try/catch in cron loop; interval drift | Per-user catch; hourly cron; idempotent | open | |
@@ -261,7 +261,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| INFRA-01 | — | repo root | No bug tracker | This file | open | |
+| INFRA-01 | — | repo root | No bug tracker | This file | fixed | 6b2ec9c |
 | INFRA-02 | M | `convex/schema.ts` | Missing indexes; string teamIds | Add indexes; `v.id('teams')` | open | |
 | INFRA-03 | M | `convex/migrations.ts` | Unpaginated; no id canonicalisation / backfills | Paginated migrations | open | |
 | INFRA-04 | H | `.github/workflows/e2e.yml`, `playwright.config.ts` | No `e2e/`; missing `AUTH_URL`; fork secrets | Smoke spec; env; fork guard; artifacts | open | |
