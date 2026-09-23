@@ -3,9 +3,10 @@ import { internal } from './_generated/api'
 
 const crons = cronJobs()
 
-crons.interval(
+// Fixed to the top of the hour so the "is it 08:xx locally" check never drifts past it.
+crons.hourly(
   'morning brief tick',
-  { hours: 1 },
+  { minuteUTC: 0 },
   internal.brief.hourlyTick,
 )
 

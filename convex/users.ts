@@ -3,6 +3,7 @@ import { mutation, query, internalQuery, QueryCtx } from './_generated/server'
 import { Doc } from './_generated/dataModel'
 import { authError, findUser, listMemberships, normalizeEmail, requireUser } from './teamHelper'
 import { validateAvatarUrl, validateGithubUrl, validateLinkedinUrl } from './urlValidation'
+import { isValidTimezone } from '../lib/time'
 
 export const getByUserIdInternal = internalQuery({
   args: { userId: v.string() },
@@ -72,13 +73,15 @@ export const upsert = mutation({
   handler: async (ctx, args) => {
     const { userId, email, name: identityName, user: existing } = await requireUser(ctx)
     const name = identityName ?? existing?.name ?? email
+    // A bad zone would later crash the morning-brief cron for this user.
+    const timezone = isValidTimezone(args.timezone) ? args.timezone : existing?.timezone ?? 'UTC'
 
     const defaultAvatarUrl = makeThumbsAvatarUrl(email || userId)
 
     if (existing) {
       await ctx.db.patch(existing._id, {
         userId,
-        timezone: args.timezone,
+        timezone,
         email,
         name,
         ...(existing.avatarUrl ? {} : { avatarUrl: defaultAvatarUrl }),
@@ -90,7 +93,7 @@ export const upsert = mutation({
       userId,
       email,
       name,
-      timezone: args.timezone,
+      timezone,
       avatarUrl: defaultAvatarUrl,
       createdAt: Date.now(),
     })
@@ -205,11 +208,7 @@ export const updateProfile = mutation({
       patch.name = name.slice(0, 120)
     }
     if (args.timezone !== undefined) {
-      try {
-        new Intl.DateTimeFormat('en-US', { timeZone: args.timezone })
-      } catch {
-        throw authError('FORBIDDEN', `Unknown timezone: ${args.timezone}`)
-      }
+      if (!isValidTimezone(args.timezone)) throw authError('FORBIDDEN', `Unknown timezone: ${args.timezone}`)
       patch.timezone = args.timezone
     }
 
