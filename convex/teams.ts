@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation, query, MutationCtx } from './_generated/server'
 import {
   authError,
   getMembership,
@@ -79,6 +79,26 @@ export const setActiveTeam = mutation({
   },
 })
 
+/** Slugifies `name` and appends -2, -3, ... until no team owns the slug. */
+async function uniqueSlug(ctx: MutationCtx, name: string) {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'team'
+
+  let candidate = base
+  for (let i = 2; ; i++) {
+    const taken = await ctx.db
+      .query('teams')
+      .withIndex('by_slug', q => q.eq('slug', candidate))
+      .first()
+    if (!taken) return candidate
+    candidate = `${base}-${i}`
+  }
+}
+
 export const create = mutation({
   args: {
     name: v.string(),
@@ -88,10 +108,7 @@ export const create = mutation({
     const { userId, email, name: identityName, user } = await requireUser(ctx)
     if (!args.name.trim()) throw new Error('Team name required')
 
-    const slug = args.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
+    const slug = await uniqueSlug(ctx, args.name)
 
     const cleanDomain = args.workspaceDomain
       ? args.workspaceDomain.trim().toLowerCase().replace(/^@/, '')
