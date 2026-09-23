@@ -74,31 +74,31 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| CHAT-01 | C | `convex/messages.ts` `byChannel`/`threadReplies` | Zero auth | Assert team + `memberIds` | open | |
+| CHAT-01 | C | `convex/messages.ts` `byChannel`/`threadReplies` | Zero auth | Assert team + `memberIds` | fixed | 99fe331 |
 | CHAT-02 | C | `convex/messages.ts` `send` | `authorId` = client display name | Store `userId` | fixed | 7cdad7c |
-| CHAT-03 | C | `convex/messages.ts` `send` | No channel/team/membership check | Assert | open | |
-| CHAT-04 | M | `convex/messages.ts` | `threadRootId` not validated to channel | Assert | open | |
-| CHAT-05 | M | `convex/messages.ts` | `limit` unbounded | Clamp | open | |
-| CHAT-06 | M | `convex/messages.ts` | Full `users` scan per fetch | Batch by author id | open | |
-| CHAT-07 | M | `convex/messages.ts` | No edit/delete | Add gated mutations | open | |
-| CHAT-08 | H | `convex/channels.ts` `byTeam`/`get` | Private channels visible to non-members | Filter by `memberIds` | open | |
+| CHAT-03 | C | `convex/messages.ts` `send` | No channel/team/membership check | Assert | fixed | 99fe331 |
+| CHAT-04 | M | `convex/messages.ts` | `threadRootId` not validated to channel | Assert | fixed | 99fe331 |
+| CHAT-05 | M | `convex/messages.ts` | `limit` unbounded | Clamp | fixed | 99fe331 |
+| CHAT-06 | M | `convex/messages.ts` | Full `users` scan per fetch | Batch by author id | fixed | 99fe331 |
+| CHAT-07 | M | `convex/messages.ts` | No edit/delete | Add gated mutations | fixed | 99fe331 |
+| CHAT-08 | H | `convex/channels.ts` `byTeam`/`get` | Private channels visible to non-members | Filter by `memberIds` | fixed | 4cd217d |
 | CHAT-09 | H | `convex/channels.ts` `get` | DM guard bypassed on falsy `userId` | Deny | fixed | 7cdad7c |
-| CHAT-10 | H | `convex/channels.ts` `openDM` | `dmKey` on mutable id; duplicates; race | Canonical id; backfill; conflict re-check | open | |
-| CHAT-11 | H | `convex/channels.ts` `create` | No membership/role check; no dedupe; creator-only members | Assert; dedupe; `addMember`/`join` | open | |
-| CHAT-12 | H | `appendActivityEvent` call sites | Actor/team re-derived → `'anonymous'`/`'unassigned'` | Explicit actor param (TKT-22) | open | |
-| CHAT-13 | L | `convex/channels.ts` | Dead code; un-normalised compare | Clean | open | |
-| CHAT-14 | M | `convex/teams.ts` | `#general` members = creator only | Public channels open; add on accept | open | |
-| CHAT-15 | H | `convex/reactions.ts` | No auth on `byMessage`/`toggle` | Assert membership via channel | open | |
+| CHAT-10 | H | `convex/channels.ts` `openDM` | `dmKey` on mutable id; duplicates; race | Canonical id; backfill; conflict re-check | fixed | 4cd217d |
+| CHAT-11 | H | `convex/channels.ts` `create` | No membership/role check; no dedupe; creator-only members | Assert; dedupe; `addMember`/`join` | fixed | 4cd217d |
+| CHAT-12 | H | `appendActivityEvent` call sites | Actor/team re-derived → `'anonymous'`/`'unassigned'` | Explicit actor param (TKT-22) | fixed | 326791b |
+| CHAT-13 | L | `convex/channels.ts` | Dead code; un-normalised compare | Clean | fixed | 4cd217d |
+| CHAT-14 | M | `convex/teams.ts` | `#general` members = creator only | Public channels open; add on accept | fixed | 4cd217d |
+| CHAT-15 | H | `convex/reactions.ts` | No auth on `byMessage`/`toggle` | Assert membership via channel | fixed | 76833f5 |
 | CHAT-16 | H | `convex/reactions.ts` `toggle` | All users `'anonymous'` → delete each other's reactions | AUTH-05 + test | fixed | 7cdad7c |
-| CHAT-17 | M | `convex/reactions.ts`, schema | No uniqueness; duplicates survive toggle | Index + delete all | open | |
-| CHAT-18 | L | `convex/reactions.ts` | `emoji` arbitrary string | Whitelist | open | |
-| CHAT-19 | M | `components/chat/ReactionButton.tsx` | `group-hover:` never matches `group/item` → bar invisible | `group-hover/item:` | open | |
-| CHAT-20 | M | `components/chat/ChatPane.tsx` | Send failures swallowed | Catch + toast | open | |
-| CHAT-21 | L | `components/chat/StartDMButton.tsx` | Silent failure | Toast | open | |
-| CHAT-22 | L | `ChatPane.tsx`, `ChatHeader.tsx` | Duplicate `channels.get` subscription | Pass channel | open | |
-| CHAT-23 | L | `components/chat/ChatPane.tsx` | Autoscroll while reading history | Only near bottom | open | |
-| CHAT-24 | M | `components/CommandPalette.tsx` | DM/channel links go to placeholder page | `/chat/${id}`; `openDM` | open | |
-| CHAT-25 | M | `convex/messages.ts` | Mentions never extracted from messages | `extractMentionIds` in `send` | open | |
+| CHAT-17 | M | `convex/reactions.ts`, schema | No uniqueness; duplicates survive toggle | Index + delete all | fixed | 76833f5 |
+| CHAT-18 | L | `convex/reactions.ts` | `emoji` arbitrary string | Whitelist | fixed | 76833f5 |
+| CHAT-19 | M | `components/chat/ReactionButton.tsx` | `group-hover:` never matches `group/item` → bar invisible | `group-hover/item:` | fixed | 2f016c5 |
+| CHAT-20 | M | `components/chat/ChatPane.tsx` | Send failures swallowed | Catch + toast | fixed | 2f016c5 |
+| CHAT-21 | L | `components/chat/StartDMButton.tsx` | Silent failure | Toast | fixed | 2f016c5 |
+| CHAT-22 | L | `ChatPane.tsx`, `ChatHeader.tsx` | Duplicate `channels.get` subscription | Pass channel | fixed | 2f016c5 |
+| CHAT-23 | L | `components/chat/ChatPane.tsx` | Autoscroll while reading history | Only near bottom | fixed | 2f016c5 |
+| CHAT-24 | M | `components/CommandPalette.tsx` | DM/channel links go to placeholder page | `/chat/${id}`; `openDM` | fixed | 2f016c5 |
+| CHAT-25 | M | `convex/messages.ts` | Mentions never extracted from messages | `extractMentionIds` in `send` | fixed | 99fe331 |
 
 ## TKT
 
@@ -125,7 +125,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | TKT-19 | M | `convex/sprints.ts` | `plannedPoints` never recomputed | Recompute | open | |
 | TKT-20 | M | `convex/sprints.ts` `complete` | Overwrites planned `endDate` | `completedAt` | open | |
 | TKT-21 | M | `convex/sprints.ts` | No role check for lifecycle | `requireRole` | open | |
-| TKT-22 | M | `convex/events.ts` | Actor re-derived; `'unassigned'` bucket | Explicit params; require team | open | |
+| TKT-22 | M | `convex/events.ts` | Actor re-derived; `'unassigned'` bucket | Explicit params; require team | fixed | 326791b |
 | TKT-23 | H | `convex/events.ts` `forTicket` | Whole team history + all users per call | `by_ref` index; paginate | open | |
 | TKT-24 | L | `convex/events.ts` | `pageSize` unclamped | Clamp | open | |
 | TKT-25 | M | `convex/sprints.ts` | `.unique()` on active sprint | Collect + error | open | |
