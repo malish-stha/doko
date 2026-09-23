@@ -1,30 +1,29 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { requireTeam } from './teamHelper'
+import { assertTicketInTeam, authError, requireRole, requireTeam } from './teamHelper'
 import { appendActivityEvent } from './events'
-import type { Id } from './_generated/dataModel'
+import { activeSprintFor, recomputePlannedPoints, sumStoryPoints } from './sprintHelper'
+
+const MIN_DURATION_DAYS = 1
+const MAX_DURATION_DAYS = 90
 
 export const listForTeam = query({
   args: {
-    status: v.optional(
-      v.union(v.literal('planning'), v.literal('active'), v.literal('completed')),
-    ),
+    status: v.optional(v.union(v.literal('planning'), v.literal('active'), v.literal('completed'))),
   },
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
-    if (args.status) {
-      return await ctx.db
-        .query('sprints')
-        .withIndex('by_team_status', q =>
-          q.eq('teamId', teamId).eq('status', args.status!),
-        )
-        .collect()
-    }
-    return await ctx.db
-      .query('sprints')
-      .withIndex('by_team', q => q.eq('teamId', teamId))
-      .order('desc')
-      .collect()
+    const rows = args.status
+      ? await ctx.db
+          .query('sprints')
+          .withIndex('by_team_status', q => q.eq('teamId', teamId).eq('status', args.status!))
+          .collect()
+      : await ctx.db
+          .query('sprints')
+          .withIndex('by_team', q => q.eq('teamId', teamId))
+          .collect()
+    // Same ordering whichever branch ran: newest first.
+    return rows.sort((a, b) => b.createdAt - a.createdAt)
   },
 })
 
@@ -32,12 +31,7 @@ export const activeSprint = query({
   args: {},
   handler: async ctx => {
     const { teamId } = await requireTeam(ctx)
-    return await ctx.db
-      .query('sprints')
-      .withIndex('by_team_status', q =>
-        q.eq('teamId', teamId).eq('status', 'active'),
-      )
-      .unique()
+    return await activeSprintFor(ctx, teamId)
   },
 })
 
@@ -48,10 +42,12 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
+    const name = args.name.trim()
+    if (!name) throw authError('FORBIDDEN', 'Sprint name is required.')
 
     const id = await ctx.db.insert('sprints', {
       teamId,
-      name: args.name.trim(),
+      name,
       goal: args.goal?.trim() || undefined,
       status: 'planning',
       createdAt: Date.now(),
@@ -63,51 +59,40 @@ export const create = mutation({
       kind: 'sprint.created',
       refType: 'sprint',
       refId: id,
-      payload: { name: args.name },
+      payload: { name },
     })
 
     return id
   },
 })
 
+/** Owners and admins start sprints; only one may be active per team. */
 export const start = mutation({
   args: {
     sprintId: v.id('sprints'),
     durationDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireRole(ctx, ['owner', 'admin'])
     const sprint = await ctx.db.get(args.sprintId)
-    if (!sprint || sprint.teamId !== teamId) throw new Error('Sprint not found')
+    if (!sprint || sprint.teamId !== teamId) throw authError('NOT_FOUND', 'Sprint not found.')
     if (sprint.status !== 'planning') {
-      throw new Error('Sprint is not in planning state')
+      throw authError('FORBIDDEN', 'Sprint is not in planning state.')
     }
 
-    // Enforce single active sprint per team
-    const otherActive = await ctx.db
-      .query('sprints')
-      .withIndex('by_team_status', q =>
-        q.eq('teamId', teamId).eq('status', 'active'),
-      )
-      .unique()
-
+    const otherActive = await activeSprintFor(ctx, teamId)
     if (otherActive) {
-      throw new Error(`Another sprint is active: ${otherActive.name}`)
+      throw authError('FORBIDDEN', `Another sprint is active: ${otherActive.name}`)
     }
 
-    const ticketsInSprint = await ctx.db
-      .query('tickets')
-      .withIndex('by_sprint', q => q.eq('sprintId', args.sprintId))
-      .collect()
+    const requested = Math.floor(args.durationDays ?? 14)
+    if (!Number.isFinite(requested) || requested < MIN_DURATION_DAYS || requested > MAX_DURATION_DAYS) {
+      throw authError('FORBIDDEN', `Sprint length must be between ${MIN_DURATION_DAYS} and ${MAX_DURATION_DAYS} days.`)
+    }
 
-    const plannedPoints = ticketsInSprint.reduce(
-      (sum, t) => sum + (t.storyPoints ?? 0),
-      0,
-    )
-
-    const days = args.durationDays ?? 14
+    const plannedPoints = await sumStoryPoints(ctx, args.sprintId)
     const now = Date.now()
-    const endDate = now + days * 24 * 60 * 60 * 1000
+    const endDate = now + requested * 24 * 60 * 60 * 1000
 
     await ctx.db.patch(args.sprintId, {
       status: 'active',
@@ -122,23 +107,38 @@ export const start = mutation({
       kind: 'sprint.started',
       refType: 'sprint',
       refId: args.sprintId,
-      payload: { durationDays: days, plannedPoints },
+      payload: { durationDays: requested, plannedPoints },
     })
   },
 })
 
+/**
+ * Completes the active sprint. Unfinished tickets roll over to the backlog
+ * or to another (non-completed, same-team) sprint. The planned endDate is
+ * preserved; completedAt records when it actually closed.
+ */
 export const complete = mutation({
   args: {
     sprintId: v.id('sprints'),
-    rollover: v.optional(
-      v.union(v.literal('backlog'), v.id('sprints')),
-    ),
+    rollover: v.optional(v.union(v.literal('backlog'), v.id('sprints'))),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId } = await requireTeam(ctx)
+    const { userId, teamId } = await requireRole(ctx, ['owner', 'admin'])
     const sprint = await ctx.db.get(args.sprintId)
-    if (!sprint || sprint.teamId !== teamId) throw new Error('Sprint not found')
-    if (sprint.status !== 'active') throw new Error('Sprint is not active')
+    if (!sprint || sprint.teamId !== teamId) throw authError('NOT_FOUND', 'Sprint not found.')
+    if (sprint.status !== 'active') throw authError('FORBIDDEN', 'Sprint is not active.')
+
+    const rolloverTarget = args.rollover ?? 'backlog'
+    if (rolloverTarget !== 'backlog') {
+      if (rolloverTarget === args.sprintId) {
+        throw authError('FORBIDDEN', 'Cannot roll tickets over into the sprint being completed.')
+      }
+      const target = await ctx.db.get(rolloverTarget)
+      if (!target || target.teamId !== teamId) throw authError('NOT_FOUND', 'Rollover sprint not found.')
+      if (target.status === 'completed') {
+        throw authError('FORBIDDEN', 'Cannot roll tickets over into a completed sprint.')
+      }
+    }
 
     const incomplete = await ctx.db
       .query('tickets')
@@ -146,23 +146,18 @@ export const complete = mutation({
       .filter(f => f.neq(f.field('status'), 'done'))
       .collect()
 
-    const rolloverTarget = args.rollover ?? 'backlog'
-
     for (const t of incomplete) {
-      const newSprintId =
-        rolloverTarget === 'backlog'
-          ? undefined
-          : (rolloverTarget as Id<'sprints'>)
       await ctx.db.patch(t._id, {
-        sprintId: newSprintId,
+        sprintId: rolloverTarget === 'backlog' ? undefined : rolloverTarget,
         updatedAt: Date.now(),
       })
     }
 
     await ctx.db.patch(args.sprintId, {
       status: 'completed',
-      endDate: Date.now(),
+      completedAt: Date.now(),
     })
+    if (rolloverTarget !== 'backlog') await recomputePlannedPoints(ctx, rolloverTarget)
 
     await appendActivityEvent(ctx, {
       teamId,
@@ -170,10 +165,7 @@ export const complete = mutation({
       kind: 'sprint.completed',
       refType: 'sprint',
       refId: args.sprintId,
-      payload: {
-        rolledOver: incomplete.length,
-        rollover: rolloverTarget,
-      },
+      payload: { rolledOver: incomplete.length, rollover: rolloverTarget },
     })
   },
 })
@@ -185,23 +177,23 @@ export const moveTicket = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
-    const ticket = await ctx.db.get(args.ticketId)
-    if (!ticket) throw new Error('Ticket not found')
-    if (ticket.type === 'epic') {
-      throw new Error('Epics are not sprint-scoped')
-    }
+    const ticket = await assertTicketInTeam(ctx, args.ticketId, teamId)
+    if (ticket.type === 'epic') throw authError('FORBIDDEN', 'Epics are not sprint-scoped.')
 
     if (args.sprintId) {
       const sprint = await ctx.db.get(args.sprintId)
-      if (!sprint || sprint.teamId !== teamId) {
-        throw new Error('Sprint not found')
+      if (!sprint || sprint.teamId !== teamId) throw authError('NOT_FOUND', 'Sprint not found.')
+      if (sprint.status === 'completed') {
+        throw authError('FORBIDDEN', 'Cannot add tickets to a completed sprint.')
       }
     }
 
-    await ctx.db.patch(args.ticketId, {
-      sprintId: args.sprintId ?? undefined,
-      updatedAt: Date.now(),
-    })
+    const nextSprintId = args.sprintId ?? undefined
+    if (ticket.sprintId === nextSprintId) return
+
+    await ctx.db.patch(args.ticketId, { sprintId: nextSprintId, updatedAt: Date.now() })
+    await recomputePlannedPoints(ctx, ticket.sprintId)
+    await recomputePlannedPoints(ctx, nextSprintId)
 
     await appendActivityEvent(ctx, {
       teamId,
@@ -209,7 +201,8 @@ export const moveTicket = mutation({
       kind: 'ticket.moved_sprint',
       refType: 'ticket',
       refId: args.ticketId,
-      payload: { sprintId: args.sprintId },
+      ticketId: args.ticketId,
+      payload: { sprintId: args.sprintId, from: ticket.sprintId ?? null },
     })
   },
 })
@@ -220,28 +213,16 @@ export const addToActiveSprint = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
+    const active = await activeSprintFor(ctx, teamId)
+    if (!active) throw authError('NOT_FOUND', 'No active sprint found.')
 
-    const active = await ctx.db
-      .query('sprints')
-      .withIndex('by_team_status', q =>
-        q.eq('teamId', teamId).eq('status', 'active'),
-      )
-      .unique()
+    const ticket = await assertTicketInTeam(ctx, args.ticketId, teamId)
+    if (ticket.type === 'epic') throw authError('FORBIDDEN', 'Epics are not sprint-scoped.')
+    if (ticket.sprintId === active._id) return
 
-    if (!active) {
-      throw new Error('No active sprint found')
-    }
-
-    const ticket = await ctx.db.get(args.ticketId)
-    if (!ticket) throw new Error('Ticket not found')
-    if (ticket.type === 'epic') {
-      throw new Error('Epics are not sprint-scoped')
-    }
-
-    await ctx.db.patch(args.ticketId, {
-      sprintId: active._id,
-      updatedAt: Date.now(),
-    })
+    await ctx.db.patch(args.ticketId, { sprintId: active._id, updatedAt: Date.now() })
+    await recomputePlannedPoints(ctx, ticket.sprintId)
+    await recomputePlannedPoints(ctx, active._id)
 
     await appendActivityEvent(ctx, {
       teamId,
@@ -249,7 +230,8 @@ export const addToActiveSprint = mutation({
       kind: 'ticket.moved_sprint',
       refType: 'ticket',
       refId: args.ticketId,
-      payload: { sprintId: active._id },
+      ticketId: args.ticketId,
+      payload: { sprintId: active._id, from: ticket.sprintId ?? null },
     })
   },
 })
