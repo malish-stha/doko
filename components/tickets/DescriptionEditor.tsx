@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeSanitize from 'rehype-sanitize'
+import { useState, useRef, useEffect } from 'react'
+import { MarkdownContent } from '@/components/ui/MarkdownContent'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { BoldIcon, ItalicIcon, CodeIcon, ListIcon, CheckSquareIcon, HeadingIcon, AtSignIcon } from 'lucide-react'
@@ -18,6 +16,16 @@ export function DescriptionEditor({
 }) {
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write')
   const [value, setValue] = useState(initialValue ?? '')
+  // Track what we last saved so a server update only wins when there is no unsaved local edit.
+  const lastSavedRef = useRef(initialValue ?? '')
+  useEffect(() => {
+    const incoming = initialValue ?? ''
+    if (value === lastSavedRef.current && incoming !== value) {
+      setValue(incoming)
+    }
+    lastSavedRef.current = incoming
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValue])
   const [mentionState, setMentionState] = useState<{
     active: boolean
     query: string
@@ -89,6 +97,7 @@ export function DescriptionEditor({
 
   const handleBlur = () => {
     if (value !== initialValue) {
+      lastSavedRef.current = value
       onSave(value)
     }
   }
@@ -210,9 +219,9 @@ export function DescriptionEditor({
           />
           {mentionState?.active && (
             <MentionAutocomplete
-             
               filterQuery={mentionState.query}
               onSelect={handleSelectTeammate}
+              onClose={() => setMentionState(null)}
             />
           )}
           <div className="text-[10px] text-muted-foreground mt-1">
@@ -220,11 +229,9 @@ export function DescriptionEditor({
           </div>
         </div>
       ) : (
-        <div className="p-3 bg-muted/10 border border-border/40 min-h-[160px] text-xs text-foreground prose prose-invert prose-xs max-w-none">
+        <div className="p-3 bg-muted/10 border border-border/40 min-h-[160px] text-xs text-foreground">
           {value ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-              {value}
-            </ReactMarkdown>
+            <MarkdownContent content={value} className="prose-xs" />
           ) : (
             <span className="italic text-muted-foreground">No description provided</span>
           )}

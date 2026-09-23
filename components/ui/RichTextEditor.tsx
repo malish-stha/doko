@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MentionAutocomplete, TeammateOption } from '@/components/mentions/MentionAutocomplete'
+import { MarkdownContent } from '@/components/ui/MarkdownContent'
 
 interface RichTextEditorProps {
   value: string
@@ -253,9 +254,9 @@ export function RichTextEditor({
             />
             {mentionState?.active && (
               <MentionAutocomplete
-               
                 filterQuery={mentionState.query}
                 onSelect={handleSelectTeammate}
+                onClose={() => setMentionState(null)}
               />
             )}
           </motion.div>
@@ -270,7 +271,7 @@ export function RichTextEditor({
             className="p-4 bg-background text-foreground text-sm leading-relaxed overflow-y-auto"
           >
             {value.trim() ? (
-              <MarkdownRenderer content={value} />
+              <MarkdownContent content={value} />
             ) : (
               <span className="text-muted-foreground font-mono text-xs italic">Nothing to preview</span>
             )}
@@ -304,86 +305,4 @@ function ToolbarButton({
       {children}
     </motion.button>
   )
-}
-
-function MarkdownRenderer({ content }: { content: string }) {
-  const lines = content.split('\n')
-
-  return (
-    <div className="space-y-2">
-      {lines.map((line, idx) => {
-        if (line.startsWith('## ')) {
-          return (
-            <h2 key={idx} className="text-base font-bold text-white pt-1">
-              {line.replace('## ', '')}
-            </h2>
-          )
-        }
-        if (line.startsWith('> ')) {
-          return (
-            <blockquote key={idx} className="border-l-2 border-teal-400 pl-3 py-1 text-slate-300 italic bg-teal-500/5 rounded-r">
-              {line.replace('> ', '')}
-            </blockquote>
-          )
-        }
-        if (line.startsWith('- ')) {
-          return (
-            <div key={idx} className="flex items-center gap-2 text-slate-300 pl-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-              <span>{formatFormattedText(line.replace('- ', ''))}</span>
-            </div>
-          )
-        }
-        return (
-          <p key={idx} className="text-slate-200">
-            {formatFormattedText(line)}
-          </p>
-        )
-      })}
-    </div>
-  )
-}
-
-function formatFormattedText(text: string) {
-  const mentionParts = text.split(/(@\[[a-zA-Z0-9\-_@.]+:.*?\])/g)
-  return mentionParts.map((part, index) => {
-    const mentionMatch = /@\[([a-zA-Z0-9\-_@.]+):(.*?)]/.exec(part)
-    if (mentionMatch) {
-      const [, , label] = mentionMatch
-      return (
-        <span
-          key={index}
-          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-mono text-xs bg-teal-500/10 text-teal-400 border border-teal-500/30 font-medium mx-0.5"
-        >
-          @{label}
-        </span>
-      )
-    }
-
-    const parts = part.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
-    return parts.map((sub, i) => {
-      if (sub.startsWith('**') && sub.endsWith('**')) {
-        return (
-          <strong key={i} className="font-semibold text-white">
-            {sub.slice(2, -2)}
-          </strong>
-        )
-      }
-      if (sub.startsWith('*') && sub.endsWith('*')) {
-        return (
-          <em key={i} className="italic text-teal-200">
-            {sub.slice(1, -1)}
-          </em>
-        )
-      }
-      if (sub.startsWith('`') && sub.endsWith('`')) {
-        return (
-          <code key={i} className="font-mono text-xs bg-slate-800 text-teal-300 px-1.5 py-0.5 rounded border border-white/10">
-            {sub.slice(1, -1)}
-          </code>
-        )
-      }
-      return sub
-    })
-  })
 }

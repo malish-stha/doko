@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { parseConvexError } from '@/lib/utils'
-import { MentionBadge } from '@/components/mentions/MentionBadge'
+import { MarkdownContent } from '@/components/ui/MarkdownContent'
 
 
 export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
@@ -134,8 +134,8 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed pl-9">
-                    {renderFormattedComment(c.body)}
+                  <div className="text-foreground/90 leading-relaxed pl-9">
+                    <MarkdownContent content={c.body} />
                   </div>
                 )}
               </div>
@@ -152,57 +152,3 @@ export function CommentThread({ ticketId }: { ticketId: Id<'tickets'> }) {
     </div>
   )
 }
-
-function renderFormattedComment(text: string) {
-
-  const lines = text.split('\n')
-  return lines.map((line, idx) => {
-    if (line.startsWith('- ')) {
-      return (
-        <div key={idx} className="flex items-center gap-2 text-foreground/90 pl-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-          <span>{parseInlineMarkdown(line.replace('- ', ''))}</span>
-        </div>
-      )
-    }
-    return <div key={idx}>{parseInlineMarkdown(line)}</div>
-  })
-}
-
-function parseInlineMarkdown(text: string) {
-  const mentionParts = text.split(/(@\[[a-zA-Z0-9\-_@.]+:.*?\])/g)
-  return mentionParts.map((part, index) => {
-    const mentionMatch = /@\[([a-zA-Z0-9\-_@.]+):(.*?)]/.exec(part)
-    if (mentionMatch) {
-      const [, userId, label] = mentionMatch
-      return <MentionBadge key={index} userId={userId} label={label} />
-    }
-
-    const parts = part.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g)
-    return parts.map((sub, i) => {
-      if (sub.startsWith('**') && sub.endsWith('**')) {
-        return (
-          <strong key={i} className="font-semibold text-foreground">
-            {sub.slice(2, -2)}
-          </strong>
-        )
-      }
-      if (sub.startsWith('*') && sub.endsWith('*')) {
-        return (
-          <em key={i} className="italic text-teal-300">
-            {sub.slice(1, -1)}
-          </em>
-        )
-      }
-      if (sub.startsWith('`') && sub.endsWith('`')) {
-        return (
-          <code key={i} className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
-            {sub.slice(1, -1)}
-          </code>
-        )
-      }
-      return sub
-    })
-  })
-}
-
