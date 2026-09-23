@@ -1,81 +1,74 @@
 import { GoogleGenAI } from '@google/genai'
-import { LLMProvider, SummarizeArgs } from './types'
+import { LLMError, LLMProvider, LLM_TIMEOUT_MS, SummarizeArgs, SummarizeResult } from './types'
+import { errorMessage, statusOf, withRetry } from './retry'
 
-const MODEL_MAP = {
+export const GOOGLE_MODELS = {
   brief: 'gemini-2.0-flash',
   quick: 'gemini-1.5-flash',
+} as const
+const FALLBACK_MODEL = 'gemini-1.5-flash'
+
+/** gRPC RESOURCE_EXHAUSTED (code 8) and HTTP 429/5xx are worth retrying. */
+function isRetryable(err: unknown) {
+  const status = statusOf(err)
+  if (status === 8 || status === 429 || (status !== undefined && status >= 500)) return true
+  return /RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED/i.test(errorMessage(err))
 }
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
-  let lastErr: unknown
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn()
-    } catch (e: any) {
-      lastErr = e
-      const status = e?.status ?? e?.code ?? 0
-      if (status > 0 && status < 500 && status !== 429) throw e
-      const waitMs = 500 * Math.pow(2, i)
-      await new Promise(r => setTimeout(r, waitMs))
-    }
+async function generate(client: GoogleGenAI, model: string, args: SummarizeArgs) {
+  const res = await withRetry(
+    () =>
+      client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: args.userPrompt }] }],
+        config: {
+          systemInstruction: args.systemPrompt,
+          abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+        },
+      }),
+    { isRetryable },
+  )
+  const usage = res.usageMetadata
+  console.log(
+    `[llm] tier=${args.model} provider=google model=${model} in=${usage?.promptTokenCount ?? 0} out=${usage?.candidatesTokenCount ?? 0}`,
+  )
+  const text = res.text?.trim()
+  if (!text) {
+    console.warn(`[llm] provider=google model=${model} returned an empty response`)
+    throw new LLMError('EMPTY_RESPONSE', 'The model returned no text.')
   }
-  throw lastErr
+  return text
 }
 
 export const googleProvider: LLMProvider = {
-  async summarize(args: SummarizeArgs) {
+  name: 'google',
+  async summarize(args: SummarizeArgs): Promise<SummarizeResult> {
     const apiKey = process.env.GOOGLE_GENAI_API_KEY
     if (!apiKey) {
-      console.warn('[llm] GOOGLE_GENAI_API_KEY missing, using fallback mock response')
-      return `Yesterday the team shipped authentication and Kanban board features. Today, prioritize reviewing open PRs and completing the chat bridge.`
+      throw new LLMError('MISSING_API_KEY', 'GOOGLE_GENAI_API_KEY is not set on the Convex deployment.')
     }
 
     const client = new GoogleGenAI({ apiKey })
-    const primaryModel = MODEL_MAP[args.model]
-    const fallbackModel = 'gemini-1.5-flash'
+    const primary = GOOGLE_MODELS[args.model]
 
     try {
-      const res = await withRetry(() =>
-        client.models.generateContent({
-          model: primaryModel,
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${args.systemPrompt}\n\n---\n\n${args.userPrompt}` }],
-            },
-          ],
-        }),
-      )
-      const usage = (res as any).usageMetadata
-      console.log(
-        `[llm] tier=${args.model} provider=google model=${primaryModel} in=${usage?.promptTokenCount ?? 0} out=${usage?.candidatesTokenCount ?? 0}`,
-      )
-      const text = res.text
-      if (text) return text
-    } catch (primaryErr: any) {
-      console.warn(`[llm] Primary model ${primaryModel} failed, trying ${fallbackModel}:`, primaryErr?.message ?? primaryErr)
+      return { text: await generate(client, primary, args), provider: 'google', model: primary }
+    } catch (primaryErr) {
+      if (primaryErr instanceof LLMError && primaryErr.code === 'TIMEOUT') throw primaryErr
+      // Only fall back when the fallback is a different model.
+      if (primary === FALLBACK_MODEL) {
+        throw primaryErr instanceof LLMError
+          ? primaryErr
+          : new LLMError('UPSTREAM', `Gemini request failed: ${errorMessage(primaryErr)}`, primaryErr)
+      }
+      console.warn(`[llm] ${primary} failed (${errorMessage(primaryErr)}); trying ${FALLBACK_MODEL}`)
     }
 
     try {
-      const res = await withRetry(() =>
-        client.models.generateContent({
-          model: fallbackModel,
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${args.systemPrompt}\n\n---\n\n${args.userPrompt}` }],
-            },
-          ],
-        }),
-      )
-      const usage = (res as any).usageMetadata
-      console.log(
-        `[llm] tier=${args.model} provider=google model=${fallbackModel} in=${usage?.promptTokenCount ?? 0} out=${usage?.candidatesTokenCount ?? 0}`,
-      )
-      return res.text ?? 'Empty response'
-    } catch (err: any) {
-      console.error('[llm] Gemini API call error:', err?.message ?? err)
-      return `Yesterday the team shipped auth, Kanban board, and chat bridge. Today, prioritize testing and reviewing open tickets.`
+      return { text: await generate(client, FALLBACK_MODEL, args), provider: 'google', model: FALLBACK_MODEL }
+    } catch (err) {
+      if (err instanceof LLMError) throw err
+      throw new LLMError('UPSTREAM', `Gemini request failed: ${errorMessage(err)}`, err)
     }
   },
 }
