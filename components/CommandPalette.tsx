@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery, useConvexAuth } from 'convex/react'
+import { useQuery, useMutation, useConvexAuth } from 'convex/react'
+import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 import { api } from '@/convex/_generated/api'
 import { useHotkey } from '@/lib/hotkeys'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -56,6 +58,16 @@ export function CommandPalette() {
     useQuery(api.tickets.search, isAuthenticated && query ? { q: query } : 'skip') ?? []
   const teamMembers = useQuery(api.teamMembers.listForTeam, isAuthenticated ? {} : 'skip') ?? []
   const channels = useQuery(api.channels.byTeam, isAuthenticated ? {} : 'skip') ?? []
+  const openDM = useMutation(api.channels.openDM)
+
+  const openDMWith = async (otherUserId: string) => {
+    try {
+      const channelId = await openDM({ otherUserId })
+      router.push(`/chat/${channelId}`)
+    } catch (err) {
+      toast.error('Could not open conversation', parseConvexError(err))
+    }
+  }
 
   const filteredMembers = query
     ? teamMembers.filter((m: any) => (m.name ?? m.email).toLowerCase().includes(query.toLowerCase()))
@@ -129,7 +141,7 @@ export function CommandPalette() {
                 {filteredMembers.map((m: any) => (
                   <CommandItem
                     key={m.userId}
-                    onSelect={() => handleSelect(() => router.push(`/chat?dm=${m.userId}`))}
+                    onSelect={() => handleSelect(() => openDMWith(m.userId))}
                     className="flex items-center gap-2 px-2.5 py-2 rounded text-foreground hover:bg-muted/50 cursor-pointer text-xs"
                   >
                     <UserIcon className="w-4 h-4 text-purple-400 shrink-0" />
@@ -145,7 +157,7 @@ export function CommandPalette() {
                 {filteredChannels.map((c: any) => (
                   <CommandItem
                     key={c._id}
-                    onSelect={() => handleSelect(() => router.push(`/chat?channel=${c._id}`))}
+                    onSelect={() => handleSelect(() => router.push(`/chat/${c._id}`))}
                     className="flex items-center gap-2 px-2.5 py-2 rounded text-foreground hover:bg-muted/50 cursor-pointer text-xs"
                   >
                     <MessageSquareIcon className="w-4 h-4 text-blue-400 shrink-0" />

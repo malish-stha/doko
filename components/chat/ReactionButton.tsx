@@ -35,7 +35,8 @@ export function ReactionList({ messageId }: { messageId: Id<'messages'> }) {
         </motion.button>
       ))}
 
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-0.5 ml-1">
+      {/* The message row is `group/item`; a bare `group-hover:` never matches it. */}
+      <div className="opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition-opacity inline-flex items-center gap-0.5 ml-1">
         {QUICK_EMOJIS.map(emoji => (
           <button
             key={emoji}

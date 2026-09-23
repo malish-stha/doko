@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/message'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   const { data: session } = useSession()
@@ -40,7 +42,15 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldReduceMotion = useReducedMotion()
 
+  // CHAT-23: stick to the bottom only when the reader is already there.
+  const pinnedToBottom = useRef(true)
+  const onScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    pinnedToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
   useEffect(() => {
+    if (!pinnedToBottom.current) return
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: 'smooth',
@@ -56,6 +66,10 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
         body: draft.trim(),
       })
       setDraft('')
+      pinnedToBottom.current = true
+    } catch (err) {
+      console.error('Failed to send message:', err)
+      toast.error('Message not sent', parseConvexError(err))
     } finally {
       setSubmitting(false)
     }
@@ -66,9 +80,9 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
   return (
     <div className="flex-1 flex flex-col h-full min-w-0 bg-background">
       {/* Channel Header */}
-      <ChatHeader channelId={channelId} />
+      <ChatHeader channel={channel} />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-6 space-y-4">
         {rawMessages === undefined ? (
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
@@ -131,6 +145,11 @@ export function ChatPane({ channelId }: { channelId: Id<'channels'> }) {
                               : 'bg-card text-foreground border border-border shadow-xs'
                           }`}>
                             {m.body}
+                            {m.editedAt && (
+                              <span className="ml-1.5 text-[10px] opacity-60 font-mono" title={new Date(m.editedAt).toLocaleString()}>
+                                (edited)
+                              </span>
+                            )}
                           </BubbleContent>
                         </Bubble>
 

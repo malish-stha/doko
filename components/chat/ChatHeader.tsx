@@ -1,20 +1,18 @@
 'use client'
 
-import { useQuery } from 'convex/react'
-import { api } from '@/convex/_generated/api'
-import type { Id } from '@/convex/_generated/dataModel'
+import type { Doc } from '@/convex/_generated/dataModel'
 import { formatDistanceToNow } from 'date-fns'
-import { HashIcon, UserIcon } from 'lucide-react'
+import { HashIcon, LockIcon } from 'lucide-react'
 import { UserAvatar } from '@/components/UserAvatar'
 
-export function ChatHeader({ channelId }: { channelId: Id<'channels'> }) {
-  const channel = useQuery(api.channels.get, { channelId })
-
+/** Header for a channel. Receives the channel from ChatPane so it is fetched once. */
+export function ChatHeader({ channel }: { channel: Doc<'channels'> | null | undefined }) {
   if (!channel) {
     return <div className="px-6 py-3.5 border-b border-border h-14 bg-card" />
   }
 
   const isDM = channel.kind === 'dm'
+  const isPrivate = channel.kind === 'private'
 
   return (
     <div className="px-6 py-3.5 border-b border-border flex items-center justify-between bg-card shrink-0">
@@ -33,13 +31,19 @@ export function ChatHeader({ channelId }: { channelId: Id<'channels'> }) {
           </>
         ) : (
           <>
-            <HashIcon className="w-4 h-4 text-teal-400" />
+            {isPrivate ? (
+              <LockIcon className="w-4 h-4 text-amber-400" aria-label="Private channel" />
+            ) : (
+              <HashIcon className="w-4 h-4 text-teal-400" aria-hidden />
+            )}
             <div>
               <h2 className="font-semibold text-sm tracking-tight text-foreground">
                 #{channel.name}
               </h2>
               <p className="text-[10px] font-mono text-muted-foreground">
-                {channel.memberIds.length} member{channel.memberIds.length !== 1 ? 's' : ''}
+                {isPrivate
+                  ? `Private · ${channel.memberIds.length} member${channel.memberIds.length !== 1 ? 's' : ''}`
+                  : 'Public · open to the whole team'}
               </p>
             </div>
           </>

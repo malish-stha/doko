@@ -6,6 +6,8 @@ import { api } from '@/convex/_generated/api'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { MessageSquareIcon, Loader2Icon } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function StartDMButton({
   userId,
@@ -32,8 +34,9 @@ export function StartDMButton({
     try {
       const id = await openDM({ otherUserId: userId })
       router.push(`/chat/${id}`)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to open DM:', err)
+      toast.error('Could not start conversation', parseConvexError(err))
     } finally {
       setLoading(false)
     }
