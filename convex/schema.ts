@@ -31,12 +31,24 @@ export default defineSchema({
     token: v.string(),
     invitedBy: v.string(),
     invitedByEmail: v.string(),
-    status: v.union(v.literal('pending'), v.literal('accepted'), v.literal('revoked')),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('accepted'),
+      v.literal('revoked'),
+      v.literal('expired'),
+    ),
+    /** Email delivery state, written by email.sendInvite. */
+    deliveryStatus: v.optional(
+      v.union(v.literal('queued'), v.literal('sent'), v.literal('failed')),
+    ),
+    lastError: v.optional(v.string()),
     expiresAt: v.number(),
     createdAt: v.number(),
   })
     .index('by_email_status', ['email', 'status'])
-    .index('by_team', ['teamId']),
+    .index('by_team', ['teamId'])
+    .index('by_token', ['token'])
+    .index('by_status_expires', ['status', 'expiresAt']),
 
   sprints: defineTable({
     teamId: v.id('teams'),

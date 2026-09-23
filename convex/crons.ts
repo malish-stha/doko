@@ -9,4 +9,10 @@ crons.interval(
   internal.brief.hourlyTick,
 )
 
+crons.hourly(
+  'expire stale invites',
+  { minuteUTC: 15 },
+  internal.invites.expireStale,
+)
+
 export default crons

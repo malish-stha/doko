@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SparklesIcon, UsersIcon, CheckIcon, Loader2Icon, PlusIcon } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
+import { parseConvexError } from '@/lib/utils'
 
 export function OnboardingClient() {
   const team = useQuery(api.teams.myTeam, {})
@@ -42,14 +43,12 @@ export function OnboardingClient() {
 
   const handleAcceptInvite = async (inv: any) => {
     try {
-      await acceptInvite({
-        inviteId: inv._id,
-      })
-      toast.success('Joined team!', `You have joined ${inv.teamName}.`)
+      const result = await acceptInvite({ inviteId: inv._id })
+      toast.success('Joined team!', `You have joined ${result.teamName}. It is now your active team.`)
       router.replace('/home')
     } catch (err: any) {
       console.error('Failed to accept invite:', err)
-      toast.error('Failed to accept invite', err?.message ?? 'Could not join team.')
+      toast.error('Failed to accept invite', parseConvexError(err))
     }
   }
 
