@@ -111,7 +111,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | TKT-05 | H | `convex/tickets.ts` `search` | Cross-team; hardcoded project; empty needle leaks | Team filter; `[]` on empty | fixed | 53410da |
 | TKT-06 | C | `convex/tickets.ts` attachment URL queries | Unauthenticated signed URLs | Auth + team via attachments row | fixed | 53410da |
 | TKT-07 | H | `convex/tickets.ts` `generateUploadUrl` | Unauthenticated | `requireTeam` | fixed | 53410da |
-| TKT-08 | H | `convex/tickets.ts`, schema | `!t.teamId` escape hatch; optional string teamId | Backfill; required id; drop hatch | open | |
+| TKT-08 | H | `convex/tickets.ts`, schema | `!t.teamId` escape hatch; optional string teamId | Backfill; required id; drop hatch | fixed | 266b226 |
 | TKT-09 | H | `convex/tickets.ts` `nextKey`/`getByKey` | Global counter; `.unique()` can throw | Per-team counter; team-filtered lookup | fixed | 53410da |
 | TKT-10 | M | `convex/tickets.ts` | `epicId` cross-team | Assert team | fixed | 53410da |
 | TKT-11 | M | `convex/tickets.ts` `update` | Cannot unassign | `null` union | fixed | 53410da |
@@ -262,7 +262,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
 | INFRA-01 | — | repo root | No bug tracker | This file | fixed | 6b2ec9c |
-| INFRA-02 | M | `convex/schema.ts` | Missing indexes; string teamIds | Add indexes; `v.id('teams')` | open | |
+| INFRA-02 | M | `convex/schema.ts` | Missing indexes; string teamIds | Add indexes; `v.id('teams')` | fixed | 266b226 |
 | INFRA-03 | M | `convex/migrations.ts` | Unpaginated; no id canonicalisation / backfills | Paginated migrations | fixed | cd78d7c |
 | INFRA-04 | H | `.github/workflows/e2e.yml`, `playwright.config.ts` | No `e2e/`; missing `AUTH_URL`; fork secrets | Smoke spec; env; fork guard; artifacts | fixed | f827e9e |
 | INFRA-05 | M | `vitest.config.ts` | Single edge env; 5 s timeout | Projects; timeout | fixed | 659b882 |
