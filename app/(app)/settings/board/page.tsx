@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
+import type { Doc } from '@/convex/_generated/dataModel'
+import { parseConvexError } from '@/lib/utils'
+
+type Status = Doc<'tickets'>['status']
+const ALL_STATUSES: Status[] = ['backlog', 'todo', 'in_progress', 'review', 'done']
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,28 +29,30 @@ export default function BoardSettingsPage() {
 
   const [wipLimits, setWipLimits] = useState<Record<string, number | undefined>>({})
   const [columnLabels, setColumnLabels] = useState<Record<string, string>>({})
-  const [orderedColumns, setOrderedColumns] = useState<string[]>([
-    'backlog',
-    'todo',
-    'in_progress',
-    'review',
-    'done',
-  ])
-  const [visibleColumnsSet, setVisibleColumnsSet] = useState<Set<string>>(
-    new Set(['backlog', 'todo', 'in_progress', 'review', 'done']),
-  )
+  const [orderedColumns, setOrderedColumns] = useState<Status[]>(ALL_STATUSES)
+  const [visibleColumnsSet, setVisibleColumnsSet] = useState<Set<string>>(new Set(ALL_STATUSES))
   const [isSaving, setIsSaving] = useState(false)
+  // UI-12: seed the form once from the server; later subscription updates must not clobber edits.
+  const [seeded, setSeeded] = useState(false)
 
   useEffect(() => {
+    if (seeded || config === undefined) return
     if (config) {
       if (config.wipLimits) setWipLimits(config.wipLimits)
-      if (config.columnLabels) setColumnLabels(config.columnLabels)
+      if (config.columnLabels) {
+        setColumnLabels(
+          Object.fromEntries(Object.entries(config.columnLabels).filter(([, v]) => typeof v === 'string')) as Record<string, string>,
+        )
+      }
       if (config.visibleColumns && config.visibleColumns.length > 0) {
-        setOrderedColumns(config.visibleColumns)
+        // Keep hidden columns at the end so they can be re-enabled.
+        const hidden = ALL_STATUSES.filter(c => !config.visibleColumns.includes(c))
+        setOrderedColumns([...config.visibleColumns, ...hidden])
         setVisibleColumnsSet(new Set(config.visibleColumns))
       }
     }
-  }, [config])
+    setSeeded(true)
+  }, [config, seeded])
 
   const handleWipChange = (status: string, val: string) => {
     const num = val === '' ? undefined : parseInt(val, 10)
@@ -93,7 +100,7 @@ export default function BoardSettingsPage() {
       })
       toast.success('Board configuration saved successfully')
     } catch (err: any) {
-      toast.error('Failed to save settings', err?.message)
+      toast.error('Failed to save settings', parseConvexError(err))
     } finally {
       setIsSaving(false)
     }

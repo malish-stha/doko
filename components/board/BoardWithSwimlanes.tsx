@@ -155,7 +155,9 @@ export function BoardWithSwimlanes({
       laneGroups[p] = { label: p.toUpperCase(), tickets: [] }
     }
     for (const t of tickets) {
-      if (laneGroups[t.priority]) laneGroups[t.priority].tickets.push(t)
+      const key = laneGroups[t.priority] ? t.priority : 'other'
+      if (!laneGroups[key]) laneGroups[key] = { label: 'OTHER', tickets: [] }
+      laneGroups[key].tickets.push(t)
     }
   }
 
