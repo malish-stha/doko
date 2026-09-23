@@ -268,7 +268,7 @@ export const create = mutation({
     storyPoints: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, teamId, email } = await requireTeam(ctx)
+    const { userId, teamId } = await requireTeam(ctx)
     const reporterId = userId
 
 
@@ -331,7 +331,7 @@ export const create = mutation({
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
         assigneeId: args.assigneeId,
-        assignedByEmail: email,
+        assignedByUserId: userId,
       })
     }
 
@@ -418,7 +418,7 @@ export const assign = mutation({
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: args.id,
         assigneeId: args.assigneeId,
-        assignedByEmail: callerEmail,
+        assignedByUserId: callerUserId,
       })
     }
 
@@ -516,7 +516,7 @@ export const update = mutation({
       await ctx.scheduler.runAfter(0, internal.email.sendAssignmentNotification, {
         ticketId: id,
         assigneeId: rest.assigneeId,
-        assignedByEmail: callerEmail,
+        assignedByUserId: callerUserId,
       })
     }
   },

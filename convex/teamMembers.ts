@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { mutation, query, MutationCtx } from './_generated/server'
+import { mutation, query, internalQuery, MutationCtx } from './_generated/server'
 import { Id } from './_generated/dataModel'
 import {
   authError,
@@ -163,5 +163,24 @@ export const transferOwnership = mutation({
     await ctx.db.patch(me._id, { role: 'admin' })
     await ctx.db.patch(teamId, { ownerId: target.userId })
     return { newOwnerId: target.userId, newOwnerEmail: target.email }
+  },
+})
+
+/** Resolves a team member by canonical userId or email. Used by outbound email. */
+export const resolveMember = internalQuery({
+  args: { teamId: v.id('teams'), idOrEmail: v.string() },
+  handler: async (ctx, args) => {
+    const needle = args.idOrEmail.trim()
+    const direct = await ctx.db
+      .query('teamMembers')
+      .withIndex('by_team_user', q => q.eq('teamId', args.teamId).eq('userId', needle))
+      .first()
+    if (direct) return direct
+    const email = normalizeEmail(needle)
+    const members = await ctx.db
+      .query('teamMembers')
+      .withIndex('by_team', q => q.eq('teamId', args.teamId))
+      .collect()
+    return members.find(m => normalizeEmail(m.email) === email) ?? null
   },
 })

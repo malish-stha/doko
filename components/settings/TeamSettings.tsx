@@ -79,6 +79,21 @@ import {
 } from 'lucide-react'
 import { StartDMButton } from '@/components/chat/StartDMButton'
 
+function InviteDeliveryBadge({ status }: { status?: 'queued' | 'sent' | 'failed' }) {
+  const label = status === 'sent' ? 'Email sent' : status === 'failed' ? 'Email failed' : 'Email queued'
+  const tone =
+    status === 'sent'
+      ? 'text-teal-600 dark:text-teal-400 border-teal-500/40 bg-teal-500/10'
+      : status === 'failed'
+        ? 'text-red-500 border-red-500/40 bg-red-500/10'
+        : 'text-muted-foreground border-border bg-muted/40'
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 border text-[10px] font-mono uppercase ${tone}`}>
+      {label}
+    </span>
+  )
+}
+
 export function TeamSettings() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -103,6 +118,7 @@ export function TeamSettings() {
 
   const sendInvite = useMutation(api.invites.send)
   const revokeInvite = useMutation(api.invites.revoke)
+  const resendInvite = useMutation(api.invites.resend)
   const removeMember = useMutation(api.teamMembers.remove)
   const leaveTeam = useMutation(api.teamMembers.leave)
   const deleteTeam = useMutation(api.teams.deleteTeam)
@@ -132,7 +148,7 @@ export function TeamSettings() {
     setErrorMsg('')
     try {
       await sendInvite({ email: inviteEmail.trim() })
-      toast.success('Invite sent', `Invitation email sent to ${inviteEmail.trim()}`)
+      toast.success('Invite queued', `We are emailing ${inviteEmail.trim()}. Delivery status appears under Pending Invites.`)
       setInviteEmail('')
     } catch (err: any) {
       const msg = parseConvexError(err)
@@ -230,6 +246,16 @@ export function TeamSettings() {
     } catch (err: any) {
       console.error(err)
       toast.error('Failed to remove member', err?.message ?? 'Could not remove member.')
+    }
+  }
+
+  const handleResendInvite = async (inviteId: any, email: string) => {
+    try {
+      await resendInvite({ inviteId })
+      toast.success('Invite re-queued', `A fresh invite link is being emailed to ${email}.`)
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to resend invite', parseConvexError(err))
     }
   }
 
@@ -531,22 +557,40 @@ export function TeamSettings() {
                 key={inv._id}
                 className="flex items-center justify-between p-3 border border-border bg-background/60"
               >
-                <div>
-                  <div className="font-mono text-xs font-semibold text-foreground">{inv.email}</div>
-                  <div className="text-[10px] font-mono text-muted-foreground">
-                    Status: {inv.status} · Expires: {new Date(inv.expiresAt).toLocaleDateString()}
+                <div className="min-w-0">
+                  <div className="font-mono text-xs font-semibold text-foreground truncate">{inv.email}</div>
+                  <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span>{inv.status === 'expired' ? 'Expired' : `Expires ${new Date(inv.expiresAt).toLocaleDateString()}`}</span>
+                    <span aria-hidden>·</span>
+                    <InviteDeliveryBadge status={inv.deliveryStatus} />
                   </div>
+                  {inv.deliveryStatus === 'failed' && inv.lastError && (
+                    <div className="text-[10px] font-mono text-red-400 mt-1 break-words">{inv.lastError}</div>
+                  )}
                 </div>
-                {inv.status === 'pending' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRevokeInvite(inv._id)}
-                    className="text-[10px] font-mono uppercase text-red-400 border-red-500/20 hover:bg-red-500/10 active:scale-[0.97]"
-                  >
-                    Revoke
-                  </Button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {(inv.deliveryStatus === 'failed' || inv.status === 'expired') && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResendInvite(inv._id, inv.email)}
+                      className="text-[10px] font-mono uppercase border-border active:scale-[0.97]"
+                    >
+                      <SendIcon className="w-3 h-3 mr-1" />
+                      Resend
+                    </Button>
+                  )}
+                  {inv.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRevokeInvite(inv._id)}
+                      className="text-[10px] font-mono uppercase text-red-400 border-red-500/20 hover:bg-red-500/10 active:scale-[0.97]"
+                    >
+                      Revoke
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>
