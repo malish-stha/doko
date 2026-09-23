@@ -101,7 +101,13 @@ export function TeamSettings() {
   const team = useQuery(api.teams.myTeam, {})
   const membersRaw = useQuery(api.teamMembers.listForTeam, {})
   const members = membersRaw ?? []
-  const invites = useQuery(api.invites.listForTeam, {}) ?? []
+  const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()
+  const membersLoaded = membersRaw !== undefined
+  const me = members.find(m => m.email.trim().toLowerCase() === currentEmail)
+  const isOwner = membersLoaded && me?.role === 'owner'
+  const isAdminOrOwner = membersLoaded && (me?.role === 'owner' || me?.role === 'admin')
+
+  const invites = useQuery(api.invites.listForTeam, isAdminOrOwner ? {} : 'skip') ?? []
 
   const [inviteEmail, setInviteEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -139,11 +145,6 @@ export function TeamSettings() {
 
   if (team === undefined) return <TeamSettingsSkeleton />
   if (!team) return <div className="p-8 text-xs font-mono text-muted-foreground">No active team found.</div>
-
-  const currentEmail = (session?.user?.email ?? '').trim().toLowerCase()
-  const me = members.find(m => m.email.trim().toLowerCase() === currentEmail)
-  const membersLoaded = membersRaw !== undefined
-  const isOwner = membersLoaded && me?.role === 'owner'
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -409,7 +410,8 @@ export function TeamSettings() {
         </Card>
       )}
 
-      {/* Invite Member Section */}
+      {/* Invite Member Section (Owners & Admins only) */}
+      {isAdminOrOwner && (
       <Card className="border border-border bg-card backdrop-blur-md">
         <CardHeader>
           <CardTitle className="text-sm font-mono uppercase tracking-wider text-teal-400 flex items-center gap-2">
@@ -463,6 +465,7 @@ export function TeamSettings() {
           {errorMsg && <p className="text-xs font-mono text-red-400 mt-2">{errorMsg}</p>}
         </CardContent>
       </Card>
+      )}
 
       {/* Team Members List */}
       <Card className="border border-border bg-card backdrop-blur-md">

@@ -195,6 +195,7 @@ export const canonicalizeChannelMembers = internalMutation({
 export const backfillTicketTeams = internalMutation({
   args: pageArgs,
   handler: async (ctx, args) => {
+    const fallbackTeam = (await ctx.db.query('teams').first())?._id
     return await paginate(ctx, 'tickets', args.cursor, async t => {
       if (t.teamId) return false
       const membership = await ctx.db
@@ -202,8 +203,35 @@ export const backfillTicketTeams = internalMutation({
         .withIndex('by_user', q => q.eq('userId', t.reporterId))
         .collect()
       const first = membership.sort((a, b) => a.joinedAt - b.joinedAt)[0]
-      if (!first) return false
-      await ctx.db.patch(t._id, { teamId: first.teamId })
+      const teamId = first?.teamId ?? fallbackTeam
+      if (!teamId) return false
+      await ctx.db.patch(t._id, { teamId })
+      return true
+    })
+  },
+})
+
+/** activityEvents.teamId for legacy rows with 'unassigned'. */
+export const backfillEventTeams = internalMutation({
+  args: pageArgs,
+  handler: async (ctx, args) => {
+    const fallbackTeam = (await ctx.db.query('teams').first())?._id
+    return await paginate(ctx, 'activityEvents', args.cursor, async e => {
+      if (typeof e.teamId !== 'string' || e.teamId !== 'unassigned') return false
+      let teamId: Id<'teams'> | null = null
+      if (e.ticketId) {
+        const ticket = await ctx.db.get(e.ticketId)
+        if (ticket?.teamId) teamId = ticket.teamId
+      }
+      if (!teamId) {
+        const membership = await ctx.db
+          .query('teamMembers')
+          .withIndex('by_user', q => q.eq('userId', e.userId))
+          .collect()
+        teamId = membership[0]?.teamId ?? fallbackTeam ?? null
+      }
+      if (!teamId) return false
+      await ctx.db.patch(e._id, { teamId })
       return true
     })
   },
@@ -324,6 +352,7 @@ export const runAll = internalAction({
       ctx.runMutation(internal.migrations.canonicalizeChannelMembers, { cursor, map }),
     )
     await drive('tickets.teamId', cursor => ctx.runMutation(internal.migrations.backfillTicketTeams, { cursor }))
+    await drive('activityEvents.teamId', cursor => ctx.runMutation(internal.migrations.backfillEventTeams, { cursor }))
     await drive('channels.kind/dmKey', cursor => ctx.runMutation(internal.migrations.backfillChannels, { cursor }))
     await drive('activityEvents.ticketId', cursor => ctx.runMutation(internal.migrations.backfillEventTickets, { cursor }))
     await drive('tickets.attachments', cursor => ctx.runMutation(internal.migrations.migrateLegacyAttachments, { cursor }))
@@ -332,3 +361,4 @@ export const runAll = internalAction({
     return summary
   },
 })
+

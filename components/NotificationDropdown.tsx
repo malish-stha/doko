@@ -15,8 +15,10 @@ import { parseConvexError } from '@/lib/utils'
 export function NotificationDropdown() {
 
   const [open, setOpen] = useState(false)
-  const unreadCount = useQuery(api.mentions.unreadCount, {}) ?? 0
-  const mentions = useQuery(api.mentions.forMe, open ? {} : 'skip') ?? []
+  const teams = useQuery(api.teams.myTeams, {})
+  const hasTeam = Boolean(teams && teams.length > 0)
+  const unreadCount = useQuery(api.mentions.unreadCount, hasTeam ? {} : 'skip') ?? 0
+  const mentions = useQuery(api.mentions.forMe, hasTeam && open ? {} : 'skip') ?? []
 
   const markRead = useMutation(api.mentions.markRead)
   const markAllRead = useMutation(api.mentions.markAllRead)

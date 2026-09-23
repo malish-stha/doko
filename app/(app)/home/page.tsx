@@ -1,6 +1,5 @@
 import { Suspense } from 'react'
 import { BriefContainer } from '@/components/brief/BriefContainer'
-import { ProviderComparison } from '@/components/dev/ProviderComparison'
 import { JoinedToast } from '@/components/invite/JoinedToast'
 import Link from 'next/link'
 import { LayoutGridIcon, MessageSquareIcon } from 'lucide-react'
@@ -34,9 +33,6 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-
-      {/* Developer tool only; never shipped to production users. */}
-      {process.env.NODE_ENV === 'development' && <ProviderComparison />}
     </main>
   )
 }

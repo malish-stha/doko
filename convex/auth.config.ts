@@ -21,13 +21,15 @@ if (!issuer) {
   )
 }
 
+const jwks = process.env.CONVEX_AUTH_JWKS_URL ?? `${issuer}/.well-known/jwks.json`
+
 const authConfig = {
   providers: [
     {
       type: 'customJwt',
       applicationID: 'doko',
       issuer,
-      jwks: `${issuer}/.well-known/jwks.json`,
+      jwks,
       algorithm: 'RS256',
     },
   ],

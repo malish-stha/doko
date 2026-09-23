@@ -57,10 +57,13 @@ export function CommandPalette() {
   // The palette mounts in the root layout, so it also renders on public pages
   // where no Convex identity exists. Skip team queries until authenticated.
   const { isAuthenticated } = useConvexAuth()
+  const teams = useQuery(api.teams.myTeams, isAuthenticated ? {} : 'skip')
+  const hasTeam = Boolean(teams && teams.length > 0)
+
   const ticketResults =
-    useQuery(api.tickets.search, isAuthenticated && query ? { q: query } : 'skip') ?? []
-  const teamMembers = useQuery(api.teamMembers.listForTeam, isAuthenticated ? {} : 'skip') ?? []
-  const channels = useQuery(api.channels.byTeam, isAuthenticated ? {} : 'skip') ?? []
+    useQuery(api.tickets.search, isAuthenticated && hasTeam && query ? { q: query } : 'skip') ?? []
+  const teamMembers = useQuery(api.teamMembers.listForTeam, isAuthenticated && hasTeam ? {} : 'skip') ?? []
+  const channels = useQuery(api.channels.byTeam, isAuthenticated && hasTeam ? {} : 'skip') ?? []
   const openDM = useMutation(api.channels.openDM)
 
   const openDMWith = async (otherUserId: string) => {
