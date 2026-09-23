@@ -13,7 +13,7 @@ export function MentionBadge({
   userId: string
   label: string
 }) {
-  const user = useQuery(api.users.getByUserId, { userId })
+  const user = useQuery(api.users.getTeammate, { userId })
 
   return (
     <Popover>

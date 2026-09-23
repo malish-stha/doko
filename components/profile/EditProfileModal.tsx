@@ -73,14 +73,14 @@ export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalP
     try {
       await updateProfile({
         name: name.trim(),
-        jobTitle: jobTitle.trim() || undefined,
-        department: department.trim() || undefined,
-        bio: bio.trim() || undefined,
-        phone: phone.trim() || undefined,
-        location: location.trim() || undefined,
+        jobTitle: jobTitle.trim() || null,
+        department: department.trim() || null,
+        bio: bio.trim() || null,
+        phone: phone.trim() || null,
+        location: location.trim() || null,
         timezone: timezone.trim() || undefined,
-        githubUrl: githubUrl.trim() || undefined,
-        linkedinUrl: linkedinUrl.trim() || undefined,
+        githubUrl: githubUrl.trim() || null,
+        linkedinUrl: linkedinUrl.trim() || null,
       })
       toast.success('Profile updated', 'Your profile details have been saved successfully.')
       onOpenChange(false)

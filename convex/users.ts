@@ -1,6 +1,8 @@
 import { v } from 'convex/values'
-import { mutation, query, internalQuery } from './_generated/server'
-import { findUser, requireUser } from './teamHelper'
+import { mutation, query, internalQuery, QueryCtx } from './_generated/server'
+import { Doc } from './_generated/dataModel'
+import { authError, findUser, listMemberships, normalizeEmail, requireUser } from './teamHelper'
+import { validateAvatarUrl, validateGithubUrl, validateLinkedinUrl } from './urlValidation'
 
 export const getByUserIdInternal = internalQuery({
   args: { userId: v.string() },
@@ -12,20 +14,38 @@ export const getByUserIdInternal = internalQuery({
   },
 })
 
-export const getByUserId = query({
-  args: { userId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_userId', q => q.eq('userId', args.userId))
-      .first()
-  },
-})
-
-
 function makeThumbsAvatarUrl(seed: string): string {
   const cleanSeed = encodeURIComponent(seed.trim().toLowerCase() || 'doko-user')
   return `https://api.dicebear.com/9.x/thumbs/svg?seed=${cleanSeed}`
+}
+
+/** True when `a` and `b` share at least one team. */
+async function shareATeam(ctx: QueryCtx, a: { userId: string; email: string }, b: Doc<'users'>) {
+  const mine = await listMemberships(ctx, a.userId, a.email)
+  if (mine.length === 0) return false
+  const theirs = await listMemberships(ctx, b.userId, normalizeEmail(b.email))
+  const theirTeams = new Set(theirs.map(m => m.teamId))
+  return mine.some(m => theirTeams.has(m.teamId))
+}
+
+/** Fields safe to show to teammates. Contact details stay private to the owner. */
+function publicProfile(user: Doc<'users'>) {
+  return {
+    _id: user._id,
+    _creationTime: user._creationTime,
+    userId: user.userId,
+    email: user.email,
+    name: user.name,
+    timezone: user.timezone,
+    teamId: user.teamId,
+    jobTitle: user.jobTitle,
+    department: user.department,
+    bio: user.bio,
+    avatarUrl: user.avatarUrl || makeThumbsAvatarUrl(user.email || user.userId),
+    githubUrl: user.githubUrl,
+    linkedinUrl: user.linkedinUrl,
+    createdAt: user.createdAt,
+  }
 }
 
 export const me = query({
@@ -77,37 +97,63 @@ export const upsert = mutation({
   },
 })
 
+/**
+ * Minimal teammate card for mentions and avatars. Only resolves users who
+ * share a team with the caller.
+ */
+export const getTeammate = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const caller = await requireUser(ctx)
+    const target = await findUser(ctx, args.userId.trim(), normalizeEmail(args.userId))
+    if (!target) return null
+    const isSelf = target.userId === caller.userId || normalizeEmail(target.email) === caller.email
+    if (!isSelf && !(await shareATeam(ctx, caller, target))) return null
+    const pub = publicProfile(target)
+    return {
+      userId: pub.userId,
+      name: pub.name,
+      email: pub.email,
+      avatarUrl: pub.avatarUrl,
+      jobTitle: pub.jobTitle,
+    }
+  },
+})
+
 export const getProfile = query({
   args: {
     targetUserId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, email, user: self } = await requireUser(ctx)
+    const caller = await requireUser(ctx)
 
-    let targetUser = null
+    let targetUser: Doc<'users'> | null
     if (args.targetUserId) {
       const target = args.targetUserId.trim()
-      targetUser = await findUser(ctx, target, target.toLowerCase())
+      targetUser = await findUser(ctx, target, normalizeEmail(target))
     } else {
-      targetUser = self
+      targetUser = caller.user
     }
-
     if (!targetUser) return null
 
     const isSelf =
-      targetUser.userId === userId || targetUser.email.trim().toLowerCase() === email
+      targetUser.userId === caller.userId || normalizeEmail(targetUser.email) === caller.email
+    if (!isSelf && !(await shareATeam(ctx, caller, targetUser))) {
+      // Not a teammate: behave exactly like an unknown user.
+      return null
+    }
 
     let teamInfo = null
     if (targetUser.teamId) {
       const team = await ctx.db.get(targetUser.teamId)
       const membership = await ctx.db
         .query('teamMembers')
-        .withIndex('by_team', q => q.eq('teamId', targetUser.teamId!))
+        .withIndex('by_team', q => q.eq('teamId', targetUser!.teamId!))
         .collect()
       const member = membership.find(
         m =>
           m.userId === targetUser!.userId ||
-          m.email.trim().toLowerCase() === targetUser!.email.trim().toLowerCase(),
+          normalizeEmail(m.email) === normalizeEmail(targetUser!.email),
       )
       if (team) {
         teamInfo = {
@@ -121,39 +167,75 @@ export const getProfile = query({
     }
 
     return {
-      ...targetUser,
-      avatarUrl: targetUser.avatarUrl || makeThumbsAvatarUrl(targetUser.email || targetUser.userId),
+      ...publicProfile(targetUser),
+      // Contact details are only returned to the profile's owner.
+      phone: isSelf ? targetUser.phone : undefined,
+      location: isSelf ? targetUser.location : undefined,
       isSelf,
       teamInfo,
     }
   },
 })
 
+/** Optional text field: a string sets it, null clears it, undefined leaves it alone. */
+const clearable = v.optional(v.union(v.string(), v.null()))
+
 export const updateProfile = mutation({
   args: {
     name: v.optional(v.string()),
     timezone: v.optional(v.string()),
-    jobTitle: v.optional(v.string()),
-    department: v.optional(v.string()),
-    bio: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    location: v.optional(v.string()),
-    avatarUrl: v.optional(v.string()),
-    githubUrl: v.optional(v.string()),
-    linkedinUrl: v.optional(v.string()),
+    jobTitle: clearable,
+    department: clearable,
+    bio: clearable,
+    phone: clearable,
+    location: clearable,
+    avatarUrl: clearable,
+    githubUrl: clearable,
+    linkedinUrl: clearable,
   },
   handler: async (ctx, args) => {
     const { user } = await requireUser(ctx)
-    if (!user) throw new Error('User record not found')
+    if (!user) throw authError('NOT_FOUND', 'User record not found')
 
-    const cleanPatch: Record<string, unknown> = {}
-    for (const [k, val] of Object.entries(args)) {
-      if (val !== undefined) {
-        cleanPatch[k] = val
+    const patch: Partial<Doc<'users'>> = {}
+
+    if (args.name !== undefined) {
+      const name = args.name.trim()
+      if (!name) throw authError('FORBIDDEN', 'Name cannot be empty.')
+      patch.name = name.slice(0, 120)
+    }
+    if (args.timezone !== undefined) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: args.timezone })
+      } catch {
+        throw authError('FORBIDDEN', `Unknown timezone: ${args.timezone}`)
       }
+      patch.timezone = args.timezone
     }
 
-    await ctx.db.patch(user._id, cleanPatch)
+    const text = (key: 'jobTitle' | 'department' | 'bio' | 'phone' | 'location', max: number) => {
+      const val = args[key]
+      if (val === undefined) return
+      patch[key] = val === null ? undefined : val.trim().slice(0, max) || undefined
+    }
+    text('jobTitle', 120)
+    text('department', 120)
+    text('bio', 2000)
+    text('phone', 40)
+    text('location', 120)
+
+    if (args.avatarUrl !== undefined) {
+      patch.avatarUrl = args.avatarUrl === null || !args.avatarUrl.trim() ? undefined : validateAvatarUrl(args.avatarUrl)
+    }
+    if (args.githubUrl !== undefined) {
+      patch.githubUrl = args.githubUrl === null || !args.githubUrl.trim() ? undefined : validateGithubUrl(args.githubUrl)
+    }
+    if (args.linkedinUrl !== undefined) {
+      patch.linkedinUrl =
+        args.linkedinUrl === null || !args.linkedinUrl.trim() ? undefined : validateLinkedinUrl(args.linkedinUrl)
+    }
+
+    await ctx.db.patch(user._id, patch)
     return user._id
   },
 })
