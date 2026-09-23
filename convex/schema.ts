@@ -156,6 +156,7 @@ export default defineSchema({
     authorId: v.string(),
     body: v.string(),
     threadRootId: v.optional(v.id('messages')),
+    editedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_channel_created', ['channelId', 'createdAt'])
@@ -166,7 +167,9 @@ export default defineSchema({
     userId: v.string(),
     emoji: v.string(),
     createdAt: v.number(),
-  }).index('by_message', ['messageId']),
+  })
+    .index('by_message', ['messageId'])
+    .index('by_message_user_emoji', ['messageId', 'userId', 'emoji']),
 
   users: defineTable({
     userId: v.string(),
