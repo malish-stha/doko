@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { toast } from '@/components/ui/toast'
-import { ConvexAuthGate } from '@/components/ConvexAuthGate'
 import { LayoutGridIcon, EyeIcon, EyeOffIcon, ArrowUpIcon, ArrowDownIcon } from 'lucide-react'
 
 const DEFAULT_COLUMNS = [
@@ -20,14 +19,6 @@ const DEFAULT_COLUMNS = [
 ]
 
 export default function BoardSettingsPage() {
-  return (
-    <ConvexAuthGate>
-      <BoardSettingsForm />
-    </ConvexAuthGate>
-  )
-}
-
-function BoardSettingsForm() {
   const config = useQuery(api.boardConfig.forMyTeam, {})
   const upsertConfig = useMutation(api.boardConfig.upsert)
 
