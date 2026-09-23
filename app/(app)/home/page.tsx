@@ -35,7 +35,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      <ProviderComparison />
+      {/* Developer tool only; never shipped to production users. */}
+      {process.env.NODE_ENV === 'development' && <ProviderComparison />}
     </main>
   )
 }
