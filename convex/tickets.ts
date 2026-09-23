@@ -207,7 +207,7 @@ export const list = query({
     dueThisWeek: v.optional(v.boolean()),
     sprintId: v.optional(v.union(v.id('sprints'), v.null())),
     epicId: v.optional(v.union(v.id('tickets'), v.null())),
-    mode: v.optional(v.union(v.literal('active'), v.literal('all'), v.literal('sprint'))),
+    mode: v.optional(v.union(v.literal('active'), v.literal('all'), v.literal('sprint'), v.literal('scheduled'))),
   },
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
@@ -248,6 +248,8 @@ export const list = query({
     if (args.mode === 'active') {
       const active = await activeSprintFor(ctx, teamId)
       results = active ? results.filter(t => t.sprintId === active._id) : []
+    } else if (args.mode === 'scheduled') {
+      results = results.filter(t => Boolean(t.sprintId))
     } else if (args.sprintId !== undefined) {
       results = args.sprintId === null
         ? results.filter(t => !t.sprintId)

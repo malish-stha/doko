@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -58,7 +57,9 @@ export function BacklogClient() {
     api.sprints.activeSprint,
     {},
   )
-  const rawTickets = useQuery(api.tickets.list, { projectId })
+  // Server-side filtering: unscheduled tickets, and tickets already placed in a sprint.
+  const backlogRaw = useQuery(api.tickets.list, { projectId, sprintId: null })
+  const scheduledRaw = useQuery(api.tickets.list, { projectId, mode: 'scheduled' })
   const moveTicket = useMutation(api.sprints.moveTicket)
 
   const sensors = useSensors(
@@ -71,18 +72,14 @@ export function BacklogClient() {
   if (
     upcomingSprints === undefined ||
     activeSprint === undefined ||
-    rawTickets === undefined
+    backlogRaw === undefined ||
+    scheduledRaw === undefined
   ) {
     return <BacklogSkeleton />
   }
 
-  const allTickets = rawTickets
-  const backlogTickets = allTickets.filter(
-    t => !t.sprintId && t.type !== 'epic',
-  )
-  const activeSprintTickets = activeSprint
-    ? allTickets.filter(t => t.sprintId === activeSprint._id)
-    : []
+  const backlogTickets = backlogRaw.filter(t => t.type !== 'epic')
+  const activeSprintTickets = activeSprint ? scheduledRaw.filter(t => t.sprintId === activeSprint._id) : []
 
   const onDragEnd = async (e: DragEndEvent) => {
     if (!e.over) return
@@ -120,7 +117,7 @@ export function BacklogClient() {
           sprints={upcomingSprints.filter(
             s => s.status === 'planning' || s.status === 'active',
           )}
-          allTickets={allTickets}
+          allTickets={scheduledRaw}
         />
 
         {activeSprint && (
