@@ -14,7 +14,7 @@ type ContextDetail =
  * so one bad row can never break the inbox.
  */
 async function resolveContext(ctx: Ctx, m: Doc<'mentions'>, teamId: Id<'teams'>): Promise<ContextDetail | null> {
-  const team = teamId as string
+  const team = teamId
   if (m.contextRefType === 'ticket') {
     const id = ctx.db.normalizeId('tickets', m.contextRefId)
     const t = id ? await ctx.db.get(id) : null

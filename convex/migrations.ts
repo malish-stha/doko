@@ -203,7 +203,7 @@ export const backfillTicketTeams = internalMutation({
         .collect()
       const first = membership.sort((a, b) => a.joinedAt - b.joinedAt)[0]
       if (!first) return false
-      await ctx.db.patch(t._id, { teamId: first.teamId as string })
+      await ctx.db.patch(t._id, { teamId: first.teamId })
       return true
     })
   },

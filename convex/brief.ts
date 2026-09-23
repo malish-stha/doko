@@ -83,7 +83,7 @@ export const readContext = internalQuery({
     if (!user?.teamId) {
       return { events: [] as Doc<'activityEvents'>[], myTickets: [] as Doc<'tickets'>[], user }
     }
-    const teamId = user.teamId as string
+    const teamId = user.teamId
     const tz = user.timezone ?? 'UTC'
     const forDate = args.forDate ?? localDateString(tz)
     const windowStart = startOfLocalDay(forDate, tz) - DAY_MS

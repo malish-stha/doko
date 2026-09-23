@@ -31,15 +31,6 @@ describe('Multi-Team Data Isolation', () => {
     expect(await userB.query(api.tickets.search, { q: 'secret' })).toHaveLength(0)
     expect(teamAlphaId).not.toBe(teamBetaId)
 
-    // A ticket row with no teamId (pre-migration data) is invisible to everyone, not visible to all.
-    await t.run(async ctx => {
-      await ctx.db.insert('tickets', {
-        projectId: 'doko', key: 'TASK-99', type: 'task', title: 'Orphan', status: 'backlog', priority: 'low',
-        reporterId: 'nobody', labels: [], createdAt: Date.now(), updatedAt: Date.now(),
-      })
-    })
-    expect((await userA.query(api.tickets.list, { projectId: 'doko', mode: 'all' })).map(x => x.title)).toEqual(['Secret Alpha Feature'])
-    expect((await userB.query(api.tickets.list, { projectId: 'doko', mode: 'all' }))).toHaveLength(0)
   })
 })
 
@@ -151,7 +142,7 @@ describe('deleteTeam', () => {
       expect(await ctx.db.query('boardConfig').collect()).toHaveLength(0)
       expect(await ctx.db.query('teamMembers').withIndex('by_team', q => q.eq('teamId', teamId)).collect()).toHaveLength(0)
       expect(
-        await ctx.db.query('activityEvents').withIndex('by_team_ts', q => q.eq('teamId', teamId as string)).collect(),
+        await ctx.db.query('activityEvents').withIndex('by_team_ts', q => q.eq('teamId', teamId)).collect(),
       ).toHaveLength(0)
     })
   })

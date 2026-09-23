@@ -15,13 +15,14 @@ describe('migrations.runAll', () => {
       await ctx.db.insert('teamMembers', { teamId, userId: 'google|111', email: 'Alex@Example.com', role: 'owner', joinedAt: 1 })
       await ctx.db.insert('teamMembers', { teamId, userId: 'alex@example.com', email: 'alex@example.com', role: 'member', joinedAt: 2 })
       await ctx.db.insert('teamMembers', { teamId, userId: 'google|222', email: 'sam@example.com', role: 'member', joinedAt: 3 })
+      // teamId is required by the schema now; the backfill step is exercised as a no-op.
       const ticketId = await ctx.db.insert('tickets', {
-        projectId: 'doko', key: 'TASK-1', type: 'task', title: 'Old', status: 'todo', priority: 'medium',
+        teamId, projectId: 'doko', key: 'TASK-1', type: 'task', title: 'Old', status: 'todo', priority: 'medium',
         reporterId: 'google|111', assigneeId: 'google|222', labels: [], attachments: [], createdAt: 1, updatedAt: 1,
       })
-      const dmId = await ctx.db.insert('channels', { teamId: teamId as string, name: 'sam', isPrivate: true, kind: 'dm', memberIds: ['google|111', 'google|222'], createdAt: 1 })
+      const dmId = await ctx.db.insert('channels', { teamId: teamId, name: 'sam', isPrivate: true, kind: 'dm', memberIds: ['google|111', 'google|222'], createdAt: 1 })
       await ctx.db.insert('watchers', { ticketId, userId: 'google|222', subscribedAt: 1 })
-      const eventId = await ctx.db.insert('activityEvents', { teamId: teamId as string, userId: 'google|111', kind: 'ticket.created', refType: 'ticket', refId: ticketId, payload: {}, ts: 1 })
+      const eventId = await ctx.db.insert('activityEvents', { teamId: teamId, userId: 'google|111', kind: 'ticket.created', refType: 'ticket', refId: ticketId, payload: {}, ts: 1 })
       return { teamId, ticketId, dmId, eventId }
     })
 
@@ -41,7 +42,7 @@ describe('migrations.runAll', () => {
       ])
 
       const ticket = await ctx.db.get(ticketId)
-      expect(ticket).toMatchObject({ teamId: teamId as string, reporterId: 'alex@example.com', assigneeId: 'sam@example.com' })
+      expect(ticket).toMatchObject({ teamId: teamId, reporterId: 'alex@example.com', assigneeId: 'sam@example.com' })
 
       const dm = await ctx.db.get(dmId)
       expect(dm?.memberIds.sort()).toEqual(['alex@example.com', 'sam@example.com'])

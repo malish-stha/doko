@@ -42,7 +42,7 @@ export const listForTeam = query({
 async function detachFromTeam(ctx: MutationCtx, teamId: Id<'teams'>, userId: string, email: string) {
   const channels = await ctx.db
     .query('channels')
-    .withIndex('by_team', q => q.eq('teamId', teamId as string))
+    .withIndex('by_team', q => q.eq('teamId', teamId))
     .collect()
   for (const channel of channels) {
     const remaining = channel.memberIds.filter(
@@ -59,7 +59,7 @@ async function detachFromTeam(ctx: MutationCtx, teamId: Id<'teams'>, userId: str
     .collect()
   for (const watch of watches) {
     const ticket = await ctx.db.get(watch.ticketId)
-    if (!ticket || ticket.teamId === (teamId as string)) {
+    if (!ticket || ticket.teamId === teamId) {
       await ctx.db.delete(watch._id)
     }
   }

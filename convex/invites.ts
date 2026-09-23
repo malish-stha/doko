@@ -186,7 +186,7 @@ async function acceptInvite(ctx: MutationCtx, invite: Doc<'invites'>, caller: Au
   // Public channels are open to every member; make #general etc. show up immediately.
   const publicChannels = await ctx.db
     .query('channels')
-    .withIndex('by_team_kind', q => q.eq('teamId', team._id as string).eq('kind', 'public'))
+    .withIndex('by_team_kind', q => q.eq('teamId', team._id).eq('kind', 'public'))
     .collect()
   for (const channel of publicChannels) {
     if (!channel.memberIds.includes(caller.userId)) {

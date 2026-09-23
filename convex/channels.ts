@@ -23,7 +23,7 @@ export async function assertChannelAccess(
   userId: string,
 ): Promise<Doc<'channels'>> {
   const channel = await ctx.db.get(channelId)
-  if (!channel || channel.teamId !== (teamId as string) || !canAccessChannel(channel, userId)) {
+  if (!channel || channel.teamId !== teamId || !canAccessChannel(channel, userId)) {
     throw authError('NOT_FOUND', 'Channel not found.')
   }
   return channel
@@ -36,7 +36,7 @@ function normalizeChannelName(raw: string) {
 async function findChannelByName(ctx: Ctx, teamId: Id<'teams'>, name: string) {
   const channels = await ctx.db
     .query('channels')
-    .withIndex('by_team', q => q.eq('teamId', teamId as string))
+    .withIndex('by_team', q => q.eq('teamId', teamId))
     .collect()
   return channels.find(c => c.kind !== 'dm' && c.name === name) ?? null
 }
@@ -47,7 +47,7 @@ export const byTeam = query({
     const { teamId, userId } = await requireTeam(ctx)
     const chans = await ctx.db
       .query('channels')
-      .withIndex('by_team', q => q.eq('teamId', teamId as string))
+      .withIndex('by_team', q => q.eq('teamId', teamId))
       .collect()
     return chans
       .filter(c => c.kind !== 'dm' && canAccessChannel(c, userId))
@@ -55,7 +55,7 @@ export const byTeam = query({
   },
 })
 
-async function getDMName(ctx: Ctx, teamId: string, otherUserId?: string, fallbackName?: string) {
+async function getDMName(ctx: Ctx, teamId: Id<'teams'>, otherUserId?: string, fallbackName?: string) {
   if (!otherUserId) return fallbackName ?? 'Direct Message'
   const otherUser = await ctx.db
     .query('users')
@@ -63,7 +63,7 @@ async function getDMName(ctx: Ctx, teamId: string, otherUserId?: string, fallbac
     .first()
   if (otherUser?.name) return otherUser.name
 
-  const member = await getMembership(ctx, teamId as Id<'teams'>, otherUserId, otherUserId)
+  const member = await getMembership(ctx, teamId, otherUserId, otherUserId)
   if (member?.email) return member.email.split('@')[0]
 
   return fallbackName ?? 'Direct Message'
@@ -74,7 +74,7 @@ export const get = query({
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
     const chan = await ctx.db.get(args.channelId)
-    if (!chan || chan.teamId !== (teamId as string) || !canAccessChannel(chan, userId)) return null
+    if (!chan || chan.teamId !== teamId || !canAccessChannel(chan, userId)) return null
 
     if (chan.kind === 'dm') {
       const otherUserId = chan.memberIds.find(m => m !== userId)
@@ -92,7 +92,7 @@ export const myDMs = query({
 
     const dms = await ctx.db
       .query('channels')
-      .withIndex('by_team_kind', q => q.eq('teamId', teamId as string).eq('kind', 'dm'))
+      .withIndex('by_team_kind', q => q.eq('teamId', teamId).eq('kind', 'dm'))
       .collect()
 
     const mine = dms.filter(c => c.memberIds.includes(userId))
@@ -139,7 +139,7 @@ export const create = mutation({
 
     const isPrivate = args.isPrivate ?? false
     const id = await ctx.db.insert('channels', {
-      teamId: teamId as string,
+      teamId: teamId,
       name,
       isPrivate,
       kind: isPrivate ? 'private' : 'public',
@@ -166,7 +166,7 @@ export const join = mutation({
   handler: async (ctx, args) => {
     const { userId, teamId } = await requireTeam(ctx)
     const channel = await ctx.db.get(args.channelId)
-    if (!channel || channel.teamId !== (teamId as string) || channel.kind === 'dm') {
+    if (!channel || channel.teamId !== teamId || channel.kind === 'dm') {
       throw authError('NOT_FOUND', 'Channel not found.')
     }
     if (channel.kind === 'private' && !channel.memberIds.includes(userId)) {
@@ -188,7 +188,7 @@ export const addMember = mutation({
   handler: async (ctx, args) => {
     const { userId, teamId, role } = await requireTeam(ctx)
     const channel = await ctx.db.get(args.channelId)
-    if (!channel || channel.teamId !== (teamId as string) || channel.kind === 'dm') {
+    if (!channel || channel.teamId !== teamId || channel.kind === 'dm') {
       throw authError('NOT_FOUND', 'Channel not found.')
     }
     if (channel.kind === 'private' && !channel.memberIds.includes(userId) && !isAdminRole(role)) {
@@ -239,7 +239,7 @@ export const openDM = mutation({
     const label = otherUser?.name ?? otherMembership.email.split('@')[0]
 
     const id = await ctx.db.insert('channels', {
-      teamId: teamId as string,
+      teamId: teamId,
       name: label,
       isPrivate: true,
       kind: 'dm',

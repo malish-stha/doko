@@ -5,7 +5,7 @@ import { Ctx, assertTicketInTeam, normalizeEmail, requireTeam } from './teamHelp
 
 export type ActivityEventInput = {
   /** Team the event belongs to. Required: there is no shared "unassigned" bucket. */
-  teamId: Id<'teams'> | string
+  teamId: Id<'teams'>
   /** Verified identity of the actor, taken from the calling mutation. */
   userId: string
   kind: string
@@ -26,7 +26,7 @@ export async function appendActivityEvent(ctx: MutationCtx, event: ActivityEvent
   if (!event.userId) throw new Error('appendActivityEvent: userId is required')
 
   await ctx.db.insert('activityEvents', {
-    teamId: event.teamId as string,
+    teamId: event.teamId,
     userId: event.userId,
     kind: event.kind,
     refType: event.refType,

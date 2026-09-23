@@ -19,7 +19,7 @@ describe('morning brief generation', () => {
     // A legacy event with a non-id refId must not break context loading.
     await t.run(async ctx => {
       await ctx.db.insert('activityEvents', {
-        teamId: teamId as string,
+        teamId: teamId,
         userId: A.subject,
         kind: 'channel.created',
         refType: 'channel',

@@ -148,7 +148,7 @@ export const create = mutation({
     }
 
     await ctx.db.insert('channels', {
-      teamId: teamId as string,
+      teamId: teamId,
       name: 'general',
       isPrivate: false,
       kind: 'public',
@@ -231,7 +231,7 @@ const PURGE_BATCH = 100
 export const purgeTeamData = internalMutation({
   args: { teamId: v.id('teams') },
   handler: async (ctx, { teamId }): Promise<{ done: boolean }> => {
-    const teamKey = teamId as string
+    const teamKey = teamId
     let more = false
 
     // Chat: messages (+ reactions) per channel, then the channel.

@@ -159,7 +159,7 @@ export const forTicket = query({
     const rows = await Promise.all(
       outgoing.map(async link => {
         const target = await ctx.db.get(link.targetId)
-        if (!target || target.teamId !== (teamId as string)) return null
+        if (!target || target.teamId !== teamId) return null
         return {
           link,
           target: {
@@ -187,7 +187,7 @@ export const blockedInTeam = query({
     const { teamId } = await requireTeam(ctx)
     const tickets = await ctx.db
       .query('tickets')
-      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
+      .withIndex('by_team_status', q => q.eq('teamId', teamId))
       .collect()
     const open = new Map(tickets.filter(t => t.status !== 'done').map(t => [t._id, t]))
     const blocked: Id<'tickets'>[] = []

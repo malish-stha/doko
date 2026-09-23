@@ -111,7 +111,7 @@ function assertCanDelete(ticket: Doc<'tickets'>, caller: TeamContext) {
 
 async function assertEpicInTeam(ctx: Ctx, epicId: Id<'tickets'>, teamId: Id<'teams'>) {
   const parentEpic = await ctx.db.get(epicId)
-  if (!parentEpic || parentEpic.teamId !== (teamId as string) || parentEpic.type !== 'epic') {
+  if (!parentEpic || parentEpic.teamId !== teamId || parentEpic.type !== 'epic') {
     throw authError('NOT_FOUND', 'Target parent ticket is not an epic in this team.')
   }
   return parentEpic
@@ -130,7 +130,7 @@ async function assertWipCapacity(ctx: Ctx, teamId: Id<'teams'>, status: Doc<'tic
   if (!config?.wipLimits?.[status]) return
   const inColumn = await ctx.db
     .query('tickets')
-    .withIndex('by_team_status', q => q.eq('teamId', teamId as string).eq('status', status))
+    .withIndex('by_team_status', q => q.eq('teamId', teamId).eq('status', status))
     .collect()
   assertWithinWipLimit(config, status, inColumn.length + incoming - 1)
 }
@@ -215,11 +215,11 @@ export const list = query({
     let results = args.status
       ? await ctx.db
           .query('tickets')
-          .withIndex('by_team_status', ix => ix.eq('teamId', teamId as string).eq('status', args.status!))
+          .withIndex('by_team_status', ix => ix.eq('teamId', teamId).eq('status', args.status!))
           .collect()
       : await ctx.db
           .query('tickets')
-          .withIndex('by_team_status', ix => ix.eq('teamId', teamId as string))
+          .withIndex('by_team_status', ix => ix.eq('teamId', teamId))
           .collect()
 
     results = results.filter(t => t.projectId === args.projectId)
@@ -275,7 +275,7 @@ export const getByKey = query({
       .withIndex('by_key', q => q.eq('key', args.key))
       .collect()
     // Keys are unique per team, not globally (see nextKey).
-    return matches.find(t => t.teamId === (teamId as string)) ?? null
+    return matches.find(t => t.teamId === teamId) ?? null
   },
 })
 
@@ -284,7 +284,7 @@ export const getById = query({
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
     const ticket = await ctx.db.get(args.id)
-    if (!ticket || ticket.teamId !== (teamId as string)) return null
+    if (!ticket || ticket.teamId !== teamId) return null
     return ticket
   },
 })
@@ -331,7 +331,7 @@ async function attachmentForStorage(ctx: Ctx, storageId: string, teamId: Id<'tea
     .first()
   if (!row) return null
   const ticket = await ctx.db.get(row.ticketId)
-  if (!ticket || ticket.teamId !== (teamId as string)) return null
+  if (!ticket || ticket.teamId !== teamId) return null
   return { row, storageId: normalized }
 }
 
@@ -367,7 +367,7 @@ export const listEpics = query({
     const { teamId } = await requireTeam(ctx)
     const rows = await ctx.db
       .query('tickets')
-      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
+      .withIndex('by_team_status', q => q.eq('teamId', teamId))
       .collect()
     return rows.filter(
       t => t.type === 'epic' && (args.projectId === undefined || t.projectId === args.projectId),
@@ -380,12 +380,12 @@ export const epicChildren = query({
   handler: async (ctx, args) => {
     const { teamId } = await requireTeam(ctx)
     const epic = await ctx.db.get(args.epicId)
-    if (!epic || epic.teamId !== (teamId as string)) return []
+    if (!epic || epic.teamId !== teamId) return []
     const rows = await ctx.db
       .query('tickets')
       .withIndex('by_epic', q => q.eq('epicId', args.epicId))
       .collect()
-    return rows.filter(t => t.teamId === (teamId as string))
+    return rows.filter(t => t.teamId === teamId)
   },
 })
 
@@ -423,7 +423,7 @@ export const create = mutation({
     const key = await nextKey(ctx, teamId, args.type)
     const now = Date.now()
     const id = await ctx.db.insert('tickets', {
-      teamId: teamId as string,
+      teamId: teamId,
       projectId: args.projectId,
       key,
       type: args.type,
@@ -671,7 +671,7 @@ export const getUserTickets = query({
 
     const teamTickets = await ctx.db
       .query('tickets')
-      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
+      .withIndex('by_team_status', q => q.eq('teamId', teamId))
       .collect()
 
     const matchesUser = (id?: string) => {
@@ -701,7 +701,7 @@ export const search = query({
 
     const all = await ctx.db
       .query('tickets')
-      .withIndex('by_team_status', q => q.eq('teamId', teamId as string))
+      .withIndex('by_team_status', q => q.eq('teamId', teamId))
       .collect()
 
     return all
