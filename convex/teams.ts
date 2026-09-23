@@ -1,13 +1,81 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { optionalTeam, requireRole, requireUser } from './teamHelper'
+import {
+  authError,
+  getMembership,
+  listMemberships,
+  optionalTeam,
+  requireRole,
+  requireUser,
+} from './teamHelper'
 
+/** The caller's active team (see teamHelper.optionalTeam), or null. */
 export const myTeam = query({
   args: {},
   handler: async ctx => {
     const team = await optionalTeam(ctx)
     if (!team) return null
     return await ctx.db.get(team.teamId)
+  },
+})
+
+/**
+ * Every team the caller belongs to, with role and whether it is the active
+ * one. An empty list means the user still needs onboarding.
+ */
+export const myTeams = query({
+  args: {},
+  handler: async ctx => {
+    const { userId, email } = await requireUser(ctx)
+    const active = await optionalTeam(ctx)
+    const memberships = await listMemberships(ctx, userId, email)
+
+    const rows = await Promise.all(
+      memberships.map(async m => {
+        const team = await ctx.db.get(m.teamId)
+        if (!team) return null
+        return {
+          teamId: m.teamId,
+          name: team.name,
+          slug: team.slug,
+          role: m.role,
+          joinedAt: m.joinedAt,
+          isActive: active?.teamId === m.teamId,
+        }
+      }),
+    )
+
+    return rows
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => a.joinedAt - b.joinedAt)
+  },
+})
+
+/** Switches the caller's active team. Requires an existing membership. */
+export const setActiveTeam = mutation({
+  args: { teamId: v.id('teams') },
+  handler: async (ctx, args) => {
+    const { userId, email, name, user } = await requireUser(ctx)
+    const membership = await getMembership(ctx, args.teamId, userId, email)
+    if (!membership) {
+      throw authError('NOT_A_MEMBER', 'You are not a member of that team.')
+    }
+    const team = await ctx.db.get(args.teamId)
+    if (!team) throw authError('NOT_FOUND', 'Team not found.')
+
+    if (user) {
+      await ctx.db.patch(user._id, { teamId: args.teamId })
+    } else {
+      await ctx.db.insert('users', {
+        userId,
+        email,
+        name: name ?? email,
+        timezone: 'UTC',
+        teamId: args.teamId,
+        createdAt: Date.now(),
+      })
+    }
+    return { teamId: args.teamId, teamName: team.name }
   },
 })
 

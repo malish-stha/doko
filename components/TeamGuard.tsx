@@ -6,15 +6,18 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 
 /**
- * Redirects to onboarding when the signed-in user has no team. Must be
- * rendered inside ConvexAuthGate so the query runs with a verified identity.
+ * Redirects to onboarding only when the signed-in user belongs to no team at
+ * all. Users with memberships but no active pointer are served their earliest
+ * membership by the server, so they never bounce to onboarding.
+ * Must render inside ConvexAuthGate so the query runs with a verified identity.
  */
 export function TeamGuard({ children }: { children: React.ReactNode }) {
-  const team = useQuery(api.teams.myTeam, {})
+  const teams = useQuery(api.teams.myTeams, {})
   const router = useRouter()
   const pathname = usePathname()
 
-  const needsOnboarding = team === null && !pathname.startsWith('/onboarding')
+  const needsOnboarding =
+    teams !== undefined && teams.length === 0 && !pathname.startsWith('/onboarding')
 
   useEffect(() => {
     if (needsOnboarding) {

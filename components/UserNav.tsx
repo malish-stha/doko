@@ -7,6 +7,7 @@ import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import { UserIcon, LogOutIcon } from 'lucide-react'
 import { UserAvatar } from './UserAvatar'
+import { TeamSwitcher } from './TeamSwitcher'
 
 export function UserNav() {
   const { data: session } = useSession()
@@ -34,6 +35,8 @@ export function UserNav() {
 
   return (
     <div className="flex items-center gap-3">
+      <TeamSwitcher />
+
       {/* User Profile Avatar & Dropdown Menu */}
       <div className="relative" ref={menuRef}>
         <button
