@@ -69,7 +69,7 @@ export default defineSchema({
     .index('by_team', ['teamId']),
 
   tickets: defineTable({
-    teamId: v.optional(v.union(v.id('teams'), v.string())),
+    teamId: v.id('teams'),
     projectId: v.string(),
     key: v.string(),
     type: v.union(
@@ -129,7 +129,7 @@ export default defineSchema({
   }).index('by_ticket', ['ticketId']),
 
   activityEvents: defineTable({
-    teamId: v.union(v.id('teams'), v.string()),
+    teamId: v.id('teams'),
     userId: v.string(),
     kind: v.string(),
     refType: v.string(),
