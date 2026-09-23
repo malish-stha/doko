@@ -104,47 +104,47 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 
 | ID | Sev | Location | Bug | Fix | Status | Commit |
 |---|---|---|---|---|---|---|
-| TKT-01 | C | `convex/tickets.ts` `updateStatus` | No team check | `assertTicketInTeam` | open | |
-| TKT-02 | C | `convex/tickets.ts` `update` | Auth only when assignee changes; 3× `requireTeam` | Hoist auth | open | |
-| TKT-03 | C | `convex/tickets.ts` `bulk*` | Bypass per-ticket auth/assign rules | Shared assert per id | open | |
-| TKT-04 | H | `convex/tickets.ts` `bulkDelete` | Orphans children + blobs | Cascade helper | open | |
-| TKT-05 | H | `convex/tickets.ts` `search` | Cross-team; hardcoded project; empty needle leaks | Team filter; `[]` on empty | open | |
-| TKT-06 | C | `convex/tickets.ts` attachment URL queries | Unauthenticated signed URLs | Auth + team via attachments row | open | |
-| TKT-07 | H | `convex/tickets.ts` `generateUploadUrl` | Unauthenticated | `requireTeam` | open | |
+| TKT-01 | C | `convex/tickets.ts` `updateStatus` | No team check | `assertTicketInTeam` | fixed | 53410da |
+| TKT-02 | C | `convex/tickets.ts` `update` | Auth only when assignee changes; 3× `requireTeam` | Hoist auth | fixed | 53410da |
+| TKT-03 | C | `convex/tickets.ts` `bulk*` | Bypass per-ticket auth/assign rules | Shared assert per id | fixed | 53410da |
+| TKT-04 | H | `convex/tickets.ts` `bulkDelete` | Orphans children + blobs | Cascade helper | fixed | 53410da |
+| TKT-05 | H | `convex/tickets.ts` `search` | Cross-team; hardcoded project; empty needle leaks | Team filter; `[]` on empty | fixed | 53410da |
+| TKT-06 | C | `convex/tickets.ts` attachment URL queries | Unauthenticated signed URLs | Auth + team via attachments row | fixed | 53410da |
+| TKT-07 | H | `convex/tickets.ts` `generateUploadUrl` | Unauthenticated | `requireTeam` | fixed | 53410da |
 | TKT-08 | H | `convex/tickets.ts`, schema | `!t.teamId` escape hatch; optional string teamId | Backfill; required id; drop hatch | open | |
-| TKT-09 | H | `convex/tickets.ts` `nextKey`/`getByKey` | Global counter; `.unique()` can throw | Per-team counter; team-filtered lookup | open | |
-| TKT-10 | M | `convex/tickets.ts` | `epicId` cross-team | Assert team | open | |
-| TKT-11 | M | `convex/tickets.ts` `update` | Cannot unassign | `null` union | open | |
-| TKT-12 | M | `convex/tickets.ts` | `dueThisWeek` includes all overdue | Lower bound | open | |
-| TKT-13 | M | `convex/tickets.ts` `mode:'active'` | Returns backlog when no sprint; `.unique()` | `[]`; collect | open | |
-| TKT-14 | M | `convex/tickets.ts` `listEpics` | Hardcoded project | Arg | open | |
-| TKT-15 | H | `convex/tickets.ts` `create` | `assigneeId` unvalidated → mail relay | Resolve via members | open | |
-| TKT-16 | L | `convex/tickets.ts` `touchTicket` | Swallows errors | Log | open | |
-| TKT-17 | H | `convex/sprints.ts` `complete` | Rollover target unvalidated | Validate | open | |
-| TKT-18 | H | `convex/sprints.ts` | `moveTicket`/`addToActiveSprint` no ticket team check | Assert | open | |
-| TKT-19 | M | `convex/sprints.ts` | `plannedPoints` never recomputed | Recompute | open | |
-| TKT-20 | M | `convex/sprints.ts` `complete` | Overwrites planned `endDate` | `completedAt` | open | |
-| TKT-21 | M | `convex/sprints.ts` | No role check for lifecycle | `requireRole` | open | |
+| TKT-09 | H | `convex/tickets.ts` `nextKey`/`getByKey` | Global counter; `.unique()` can throw | Per-team counter; team-filtered lookup | fixed | 53410da |
+| TKT-10 | M | `convex/tickets.ts` | `epicId` cross-team | Assert team | fixed | 53410da |
+| TKT-11 | M | `convex/tickets.ts` `update` | Cannot unassign | `null` union | fixed | 53410da |
+| TKT-12 | M | `convex/tickets.ts` | `dueThisWeek` includes all overdue | Lower bound | fixed | 53410da |
+| TKT-13 | M | `convex/tickets.ts` `mode:'active'` | Returns backlog when no sprint; `.unique()` | `[]`; collect | fixed | 53410da |
+| TKT-14 | M | `convex/tickets.ts` `listEpics` | Hardcoded project | Arg | fixed | 53410da |
+| TKT-15 | H | `convex/tickets.ts` `create` | `assigneeId` unvalidated → mail relay | Resolve via members | fixed | 53410da |
+| TKT-16 | L | `convex/tickets.ts` `touchTicket` | Swallows errors | Log | fixed | 53410da |
+| TKT-17 | H | `convex/sprints.ts` `complete` | Rollover target unvalidated | Validate | fixed | bb428d0 |
+| TKT-18 | H | `convex/sprints.ts` | `moveTicket`/`addToActiveSprint` no ticket team check | Assert | fixed | bb428d0 |
+| TKT-19 | M | `convex/sprints.ts` | `plannedPoints` never recomputed | Recompute | fixed | bb428d0 |
+| TKT-20 | M | `convex/sprints.ts` `complete` | Overwrites planned `endDate` | `completedAt` | fixed | bb428d0 |
+| TKT-21 | M | `convex/sprints.ts` | No role check for lifecycle | `requireRole` | fixed | bb428d0 |
 | TKT-22 | M | `convex/events.ts` | Actor re-derived; `'unassigned'` bucket | Explicit params; require team | fixed | 326791b |
-| TKT-23 | H | `convex/events.ts` `forTicket` | Whole team history + all users per call | `by_ref` index; paginate | open | |
-| TKT-24 | L | `convex/events.ts` | `pageSize` unclamped | Clamp | open | |
-| TKT-25 | M | `convex/sprints.ts` | `.unique()` on active sprint | Collect + error | open | |
-| TKT-26 | L | `convex/sprints.ts` | `durationDays` unvalidated; ordering inconsistent | Clamp; consistent | open | |
-| TKT-27 | C | `convex/comments.ts` `byTicket` | No auth; emails via table scans | Assert; batch | open | |
-| TKT-28 | H | `convex/comments.ts` `add` | No team check | Assert | open | |
+| TKT-23 | H | `convex/events.ts` `forTicket` | Whole team history + all users per call | `by_ref` index; paginate | fixed | f5ffd19 |
+| TKT-24 | L | `convex/events.ts` | `pageSize` unclamped | Clamp | fixed | f5ffd19 |
+| TKT-25 | M | `convex/sprints.ts` | `.unique()` on active sprint | Collect + error | fixed | bb428d0 |
+| TKT-26 | L | `convex/sprints.ts` | `durationDays` unvalidated; ordering inconsistent | Clamp; consistent | fixed | bb428d0 |
+| TKT-27 | C | `convex/comments.ts` `byTicket` | No auth; emails via table scans | Assert; batch | fixed | 064c5d7 |
+| TKT-28 | H | `convex/comments.ts` `add` | No team check | Assert | fixed | 064c5d7 |
 | TKT-29 | H | `convex/comments.ts` `add` | `authorName` forges authorship | Drop arg | fixed | 7cdad7c |
-| TKT-30 | M | `convex/comments.ts` | No edit/delete | Add gated + UI | open | |
-| TKT-31 | M | `convex/comments.ts` | Mentioned ids unvalidated (cross-team injection) | Resolve via members | open | |
-| TKT-32 | M | `convex/comments.ts` | Watcher + mention double notify | Exclusion set | open | |
-| TKT-33 | H | `convex/subtasks.ts` | No parent team check anywhere | Assert | open | |
-| TKT-34 | M | `convex/subtasks.ts` `reorder` | Duplicate orders | Persist full order | open | |
-| TKT-35 | L | `convex/subtasks.ts` | `rename`/`reorder` no event/touch | Add | open | |
-| TKT-36 | H | `convex/ticketLinks.ts` | No team check; leaks foreign ticket doc | Assert both; projection | open | |
-| TKT-37 | M | `convex/ticketLinks.ts` | Contradictory mutual links | Reject inverse | open | |
-| TKT-38 | M | `convex/ticketLinks.ts` | No cycle detection | Bounded DFS | open | |
-| TKT-39 | M | `convex/ticketLinks.ts` `remove` | Anyone deletes any link | Assert | open | |
-| TKT-40 | L | `convex/ticketLinks.ts` | Mirror not deduped; `remove` deletes one | Dedupe; delete all | open | |
-| TKT-41 | L | `convex/tickets.ts` `update` | Event on every save (`updatedAt`) | Only on real change | open | |
+| TKT-30 | M | `convex/comments.ts` | No edit/delete | Add gated + UI | fixed | 064c5d7 |
+| TKT-31 | M | `convex/comments.ts` | Mentioned ids unvalidated (cross-team injection) | Resolve via members | fixed | 064c5d7 |
+| TKT-32 | M | `convex/comments.ts` | Watcher + mention double notify | Exclusion set | fixed | 064c5d7 |
+| TKT-33 | H | `convex/subtasks.ts` | No parent team check anywhere | Assert | fixed | f584df8 |
+| TKT-34 | M | `convex/subtasks.ts` `reorder` | Duplicate orders | Persist full order | fixed | f584df8 |
+| TKT-35 | L | `convex/subtasks.ts` | `rename`/`reorder` no event/touch | Add | fixed | f584df8 |
+| TKT-36 | H | `convex/ticketLinks.ts` | No team check; leaks foreign ticket doc | Assert both; projection | fixed | 4f3e0a8 |
+| TKT-37 | M | `convex/ticketLinks.ts` | Contradictory mutual links | Reject inverse | fixed | 4f3e0a8 |
+| TKT-38 | M | `convex/ticketLinks.ts` | No cycle detection | Bounded DFS | fixed | 4f3e0a8 |
+| TKT-39 | M | `convex/ticketLinks.ts` `remove` | Anyone deletes any link | Assert | fixed | 4f3e0a8 |
+| TKT-40 | L | `convex/ticketLinks.ts` | Mirror not deduped; `remove` deletes one | Dedupe; delete all | fixed | 4f3e0a8 |
+| TKT-41 | L | `convex/tickets.ts` `update` | Event on every save (`updatedAt`) | Only on real change | fixed | 53410da |
 
 ## NOTIF
 
@@ -153,16 +153,16 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | NOTIF-01 | H | `convex/mentions.ts` `markRead` | No ownership check | Assert | open | |
 | NOTIF-02 | M | `convex/mentions.ts` | Id cast throws in `Promise.all` | `normalizeId` | open | |
 | NOTIF-03 | M | `convex/mentions.ts` `forMe` | Not team-filtered | Filter | open | |
-| NOTIF-04 | H | `convex/watchers.ts` | `isWatching` vs `unsubscribe` mismatch → stuck watching | Canonical ids | open | |
-| NOTIF-05 | H | `convex/watchers.ts` | No team check; leaks emails | Assert | open | |
+| NOTIF-04 | H | `convex/watchers.ts` | `isWatching` vs `unsubscribe` mismatch → stuck watching | Canonical ids | fixed | f5ffd19 |
+| NOTIF-05 | H | `convex/watchers.ts` | No team check; leaks emails | Assert | fixed | f5ffd19 |
 | NOTIF-06 | M | `convex/watchers.ts` | Self-notify on id mismatch | Canonical ids | open | |
 | NOTIF-07 | M | `convex/watchers.ts` | Unbounded fan-out | Upsert per (user, ticket) | open | |
-| NOTIF-08 | M | `convex/tickets.ts` `bulk*` | No notifications | Notify | open | |
+| NOTIF-08 | M | `convex/tickets.ts` `bulk*` | No notifications | Notify | fixed | 53410da |
 | NOTIF-09 | H | dropdown, inbox, links, email | `/board?ticket=KEY` never handled | `/tickets/${key}` | open | |
 | NOTIF-10 | M | `NotificationDropdown.tsx`, inbox | Queries before session; no loading state | Skip; skeleton | open | |
 | NOTIF-11 | M | `lib/mentions.ts` | Regex excludes `\|`/`:` | Widen; tests | open | |
 | NOTIF-12 | L | `lib/mentions.ts` | Code spans extracted; dedupe mismatch | Strip; dedupe | open | |
-| NOTIF-13 | M | `convex/tickets.ts` | Description mentions never notify | Extract | open | |
+| NOTIF-13 | M | `convex/tickets.ts` | Description mentions never notify | Extract | fixed | 53410da |
 
 ## FILE
 
