@@ -221,7 +221,7 @@ export const backfillEventTeams = internalMutation({
       let teamId: Id<'teams'> | null = null
       if (e.ticketId) {
         const ticket = await ctx.db.get(e.ticketId)
-        if (ticket?.teamId) teamId = ticket.teamId
+        if (ticket?.teamId) teamId = ctx.db.normalizeId('teams', ticket.teamId)
       }
       if (!teamId) {
         const membership = await ctx.db
