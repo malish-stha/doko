@@ -26,7 +26,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = profile.name
         token.picture = profile.picture
         token.sub = profile.sub!
-        token.iss = process.env.NEXT_PUBLIC_CONVEX_SITE_URL || 'doko'
       }
       return token
     },
