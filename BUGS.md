@@ -52,7 +52,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | TEAM-22 | H | `convex/users.ts` `getProfile` | Raw doc for any id, no team scoping | Shared-team check; whitelist fields | fixed | 6d09b40 |
 | TEAM-23 | H | `convex/users.ts` `getByUserId` | Public whole-doc read | Delete/restrict | fixed | 6d09b40 |
 | TEAM-24 | M | `convex/users.ts` `me` | No email fallback → "account not found" | Resolve via identity | fixed | 7cdad7c |
-| TEAM-25 | H | `convex/users.ts` `upsert` | Keys on `subject ?? email` → duplicates; client overwrites email/name | Key on identity; migration merges | open | |
+| TEAM-25 | H | `convex/users.ts` `upsert` | Keys on `subject ?? email` → duplicates; client overwrites email/name | Key on identity; migration merges | fixed | cd78d7c |
 | TEAM-26 | L | `convex/users.ts` `cleanPatch` | Fields can't be cleared | Accept `null` | fixed | 6d09b40 |
 | TEAM-27 | M | `convex/users.ts`, `DiceBearAvatarPicker.tsx` | URL fields unvalidated | Server-side https validation | fixed | 6d09b40 |
 | TEAM-28 | H | `convex/email.ts` | Send failures swallowed | Throw; `deliveryStatus` on invite | fixed | 06a1838 |
@@ -171,7 +171,7 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 | FILE-01 | H | `convex/attachments.ts` `remove` | No ownership/team check; irreversible | Uploader/admin + team | fixed | 8203cf3 |
 | FILE-02 | H | `convex/attachments.ts` `byTicket` | Signed URLs without team check | Assert | fixed | 8203cf3 |
 | FILE-03 | M | `convex/attachments.ts` `record` | Trusts storageId/size/mime | `getMetadata`; caps; allow-list | fixed | 8203cf3 |
-| FILE-04 | M | schema, `tickets.ts`, `TicketDetailClient.tsx` | Two attachment stores; creation uploads never shown | Migrate to table; drop column; remove dead code | open | |
+| FILE-04 | M | schema, `tickets.ts`, `TicketDetailClient.tsx` | Two attachment stores; creation uploads never shown | Migrate to table; drop column; remove dead code | fixed | cd78d7c |
 
 ## BOARD
 
@@ -263,12 +263,12 @@ Modules: `AUTH` auth transport + team helper + proxy + API routes · `TEAM` team
 |---|---|---|---|---|---|---|
 | INFRA-01 | — | repo root | No bug tracker | This file | fixed | 6b2ec9c |
 | INFRA-02 | M | `convex/schema.ts` | Missing indexes; string teamIds | Add indexes; `v.id('teams')` | open | |
-| INFRA-03 | M | `convex/migrations.ts` | Unpaginated; no id canonicalisation / backfills | Paginated migrations | open | |
-| INFRA-04 | H | `.github/workflows/e2e.yml`, `playwright.config.ts` | No `e2e/`; missing `AUTH_URL`; fork secrets | Smoke spec; env; fork guard; artifacts | open | |
-| INFRA-05 | M | `vitest.config.ts` | Single edge env; 5 s timeout | Projects; timeout | open | |
+| INFRA-03 | M | `convex/migrations.ts` | Unpaginated; no id canonicalisation / backfills | Paginated migrations | fixed | cd78d7c |
+| INFRA-04 | H | `.github/workflows/e2e.yml`, `playwright.config.ts` | No `e2e/`; missing `AUTH_URL`; fork secrets | Smoke spec; env; fork guard; artifacts | fixed | f827e9e |
+| INFRA-05 | M | `vitest.config.ts` | Single edge env; 5 s timeout | Projects; timeout | fixed | 659b882 |
 | INFRA-06 | M | eslint | 152 errors | Fix; lint in CI | open | |
-| INFRA-07 | M | `convex/teams.test.ts` | Isolation test proves nothing | Same project; assert 0 | open | |
+| INFRA-07 | M | `convex/teams.test.ts` | Isolation test proves nothing | Same project; assert 0 | fixed | f823ccc |
 | INFRA-08 | H | `convex/*.test.ts` | No negative auth tests | `authorization.test.ts` | open | |
-| INFRA-09 | M | `lib/llm/index.test.ts` | Providers fully mocked | Failure-path tests | open | |
-| INFRA-10 | L | `next.config.ts` | No security headers / remote patterns | Add | open | |
-| INFRA-11 | L | `README.md` | Template; no env docs | Document env + dev JWKS caveat | open | |
+| INFRA-09 | M | `lib/llm/index.test.ts` | Providers fully mocked | Failure-path tests | fixed | f4a3a94 |
+| INFRA-10 | L | `next.config.ts` | No security headers / remote patterns | Add | fixed | 955b6d9 |
+| INFRA-11 | L | `README.md` | Template; no env docs | Document env + dev JWKS caveat | fixed | 3a98583 |
